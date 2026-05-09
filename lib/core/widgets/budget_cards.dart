@@ -20,79 +20,110 @@ class BudgetMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: <Color>[
-            color.withValues(alpha: 0.92),
-            color.withValues(alpha: 0.72)
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-              color: color.withValues(alpha: 0.22),
-              blurRadius: 24,
-              offset: const Offset(0, 12)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    shape: BoxShape.circle),
-                child: Icon(icon, color: Colors.white),
-              ),
-              const Spacer(),
-              if (progress != null)
-                SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: CircularProgressIndicator(
-                    value: progress!.clamp(0, 1).toDouble(),
-                    strokeWidth: 3,
-                    color: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.24),
-                  ),
-                ),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool compact =
+            constraints.maxHeight < 130 || constraints.maxWidth < 150;
+        final EdgeInsets padding =
+            compact ? const EdgeInsets.all(12) : const EdgeInsets.all(16);
+        final double iconPadding = compact ? 8 : 10;
+        final double iconSize = compact ? 18 : 24;
+        final double iconBoxSize = compact ? 32 : 40;
+        final double progressSize = compact ? 28 : 36;
+        final double topGap = compact ? 10 : 16;
+        final double labelGap = compact ? 2 : 6;
+        final double subtitleGap = compact ? 2 : 4;
+
+        return Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: <Color>[
+                color.withValues(alpha: 0.92),
+                color.withValues(alpha: 0.72)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                  color: color.withValues(alpha: 0.22),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12)),
             ],
           ),
-          const Spacer(),
-          Text(
-            label,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Container(
+                    width: iconBoxSize,
+                    height: iconBoxSize,
+                    padding: EdgeInsets.all(iconPadding),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle),
+                    child: Icon(icon, size: iconSize, color: Colors.white),
+                  ),
+                  const Spacer(),
+                  if (progress != null)
+                    SizedBox(
+                      width: progressSize,
+                      height: progressSize,
+                      child: CircularProgressIndicator(
+                        value: progress!.clamp(0, 1).toDouble(),
+                        strokeWidth: compact ? 2.6 : 3,
+                        color: Colors.white,
+                        backgroundColor: Colors.white.withValues(alpha: 0.24),
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(height: topGap),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: (compact
+                        ? Theme.of(context).textTheme.labelMedium
+                        : Theme.of(context).textTheme.labelLarge)
+                    ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+              ),
+              SizedBox(height: labelGap),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: (compact
+                        ? Theme.of(context).textTheme.titleMedium
+                        : Theme.of(context).textTheme.headlineSmall)
+                    ?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                 ),
+              ),
+              if (subtitle != null) ...<Widget>[
+                SizedBox(height: subtitleGap),
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: (compact
+                          ? Theme.of(context).textTheme.bodySmall
+                          : Theme.of(context).textTheme.bodySmall)
+                      ?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: compact ? 10.5 : null,
+                  ),
+                ),
+              ],
+            ],
           ),
-          if (subtitle != null) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.white.withValues(alpha: 0.82)),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
