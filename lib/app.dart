@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/state/app_controller.dart';
+import 'core/models/budget_models.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';

@@ -16,7 +16,8 @@ class DashboardScreen extends ConsumerWidget {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     final List<MealSuggestion> meals = ref.watch(mealSuggestionsProvider);
-    final List<ActivitySuggestion> activities = ref.watch(activitySuggestionsProvider);
+    final List<ActivitySuggestion> activities =
+        ref.watch(activitySuggestionsProvider);
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -37,7 +38,8 @@ class DashboardScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: GridView.count(
-                  crossAxisCount: MediaQuery.of(context).size.width > 500 ? 4 : 2,
+                  crossAxisCount:
+                      MediaQuery.of(context).size.width > 500 ? 4 : 2,
                   shrinkWrap: true,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
@@ -63,7 +65,8 @@ class DashboardScreen extends ConsumerWidget {
                     BudgetMetricCard(
                       label: 'Savings',
                       value: formatPeso(summary.savings),
-                      subtitle: 'Goal ${formatPeso(state.settings.savingsGoal)}',
+                      subtitle:
+                          'Goal ${formatPeso(state.settings.savingsGoal)}',
                       icon: Icons.lock_rounded,
                       color: const Color(0xFFF97316),
                       progress: summary.savingsProgress,
@@ -71,7 +74,9 @@ class DashboardScreen extends ConsumerWidget {
                     BudgetMetricCard(
                       label: 'Top category',
                       value: summary.biggestExpenseCategory,
-                      subtitle: summary.overspendingCategories.isEmpty ? 'Healthy pace' : 'Watch overspending',
+                      subtitle: summary.overspendingCategories.isEmpty
+                          ? 'Healthy pace'
+                          : 'Watch overspending',
                       icon: Icons.pie_chart_rounded,
                       color: const Color(0xFF7C3AED),
                     ),
@@ -86,22 +91,34 @@ class DashboardScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const SectionTitle(title: 'Spending breakdown', subtitle: 'Real-time category totals and trend'),
+                      const SectionTitle(
+                          title: 'Spending breakdown',
+                          subtitle: 'Real-time category totals and trend'),
                       SizedBox(
                         height: 220,
                         child: PieChart(
                           PieChartData(
                             sectionsSpace: 3,
                             centerSpaceRadius: 44,
-                            sections: summary.categoryTotals.entries.map((MapEntry<String, double> entry) {
-                              final BudgetCategory category = BudgetCategoryX.fromString(entry.key.toLowerCase());
-                              final double total = summary.totalSpent == 0 ? 1 : summary.totalSpent;
+                            sections: summary.categoryTotals.entries
+                                .map((MapEntry<String, double> entry) {
+                              final BudgetCategory category =
+                                  BudgetCategoryX.fromString(
+                                      entry.key.toLowerCase());
+                              final double total = summary.totalSpent == 0
+                                  ? 1
+                                  : summary.totalSpent;
                               return PieChartSectionData(
                                 value: entry.value,
-                                title: entry.value <= 0 ? '' : '${(entry.value / total * 100).toStringAsFixed(0)}%',
+                                title: entry.value <= 0
+                                    ? ''
+                                    : '${(entry.value / total * 100).toStringAsFixed(0)}%',
                                 color: category.color,
                                 radius: 64,
-                                titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
+                                titleStyle: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: 12),
                               );
                             }).toList(),
                           ),
@@ -112,7 +129,10 @@ class DashboardScreen extends ConsumerWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: BudgetCategory.values
-                            .map((BudgetCategory category) => SoftPill(text: category.label, color: category.color, icon: Icons.circle))
+                            .map((BudgetCategory category) => SoftPill(
+                                text: category.label,
+                                color: category.color,
+                                icon: Icons.circle))
                             .toList(),
                       ),
                     ],
@@ -144,18 +164,22 @@ class DashboardScreen extends ConsumerWidget {
                     return _SuggestionCard(
                       title: meal.name,
                       subtitle: '${meal.mealType.label} • ${meal.note}',
-                      badge: '${formatPeso(meal.estimatedPrice)}',
+                      badge: formatPeso(meal.estimatedPrice),
                       icon: Icons.restaurant_rounded,
-                      color: meal.category == MealCategory.streetFood ? const Color(0xFFEF4444) : const Color(0xFF0F766E),
+                      color: meal.category == MealCategory.streetFood
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF0F766E),
                     );
                   },
                 ),
               ),
             ),
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SectionTitle(title: 'Gala / stroll ideas', subtitle: 'Budget-friendly activity plans'),
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: SectionTitle(
+                    title: 'Gala / stroll ideas',
+                    subtitle: 'Budget-friendly activity plans'),
               ),
             ),
             SliverToBoxAdapter(
@@ -170,8 +194,9 @@ class DashboardScreen extends ConsumerWidget {
                     final ActivitySuggestion activity = activities[index];
                     return _SuggestionCard(
                       title: activity.title,
-                      subtitle: '${activity.mood.label} • ${activity.distanceKm.toStringAsFixed(1)} km',
-                      badge: '${formatPeso(activity.estimatedCost)}',
+                      subtitle:
+                          '${activity.mood.label} • ${activity.distanceKm.toStringAsFixed(1)} km',
+                      badge: formatPeso(activity.estimatedCost),
                       icon: Icons.explore_rounded,
                       color: const Color(0xFF7C3AED),
                     );
@@ -179,10 +204,12 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SectionTitle(title: 'Insights', subtitle: 'What the app wants you to know today'),
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: SectionTitle(
+                    title: 'Insights',
+                    subtitle: 'What the app wants you to know today'),
               ),
             ),
             SliverToBoxAdapter(
@@ -219,7 +246,8 @@ class DashboardScreen extends ConsumerWidget {
       isScrollControlled: true,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (BuildContext context, void Function(void Function()) setModalState) {
+          builder: (BuildContext context,
+              void Function(void Function()) setModalState) {
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
@@ -231,20 +259,30 @@ class DashboardScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Quick add expense', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('Quick add expense',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
-                  TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Expense name')),
+                  TextField(
+                      controller: titleController,
+                      decoration:
+                          const InputDecoration(labelText: 'Expense name')),
                   const SizedBox(height: 12),
                   TextField(
                     controller: amountController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Amount in PHP'),
+                    decoration:
+                        const InputDecoration(labelText: 'Amount in PHP'),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<BudgetCategory>(
-                    value: selectedCategory,
+                    initialValue: selectedCategory,
                     items: BudgetCategory.values
-                        .map((BudgetCategory category) => DropdownMenuItem<BudgetCategory>(value: category, child: Text(category.label)))
+                        .map((BudgetCategory category) =>
+                            DropdownMenuItem<BudgetCategory>(
+                                value: category, child: Text(category.label)))
                         .toList(),
                     onChanged: (BudgetCategory? value) {
                       if (value != null) {
@@ -258,9 +296,14 @@ class DashboardScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () {
-                        ref.read(budgetBuddyControllerProvider.notifier).addExpense(
-                              title: titleController.text.trim().isEmpty ? 'Quick expense' : titleController.text.trim(),
-                              amount: double.tryParse(amountController.text) ?? 0,
+                        ref
+                            .read(budgetBuddyControllerProvider.notifier)
+                            .addExpense(
+                              title: titleController.text.trim().isEmpty
+                                  ? 'Quick expense'
+                                  : titleController.text.trim(),
+                              amount:
+                                  double.tryParse(amountController.text) ?? 0,
                               category: selectedCategory,
                             );
                         Navigator.of(context).pop();
@@ -291,15 +334,21 @@ class _Header extends StatelessWidget {
         children: <Widget>[
           CircleAvatar(
             radius: 28,
-            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-            child: Text(profile.avatarSeed, style: const TextStyle(fontWeight: FontWeight.w700)),
+            backgroundColor:
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+            child: Text(profile.avatarSeed,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Hi, ${profile.displayName}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                Text('Hi, ${profile.displayName}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(
                   'Today you have ${formatPeso(summary.remainingBalance)} left for the day.',
@@ -341,17 +390,20 @@ class _SuggestionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Icon(icon, color: color),
             ),
             const Spacer(),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 4),
             Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
-            Text(badge, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            Text(badge,
+                style: TextStyle(color: color, fontWeight: FontWeight.w700)),
           ],
         ),
       ),

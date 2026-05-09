@@ -341,7 +341,7 @@ class MealSuggestion {
 
   static List<MealSuggestion> sampleCatalog() {
     return <MealSuggestion>[
-      MealSuggestion(
+      const MealSuggestion(
         id: 'meal-1',
         name: 'Lugaw + egg',
         estimatedPrice: 45,
@@ -350,7 +350,7 @@ class MealSuggestion {
         calories: 320,
         note: 'Warm and filling',
       ),
-      MealSuggestion(
+      const MealSuggestion(
         id: 'meal-2',
         name: 'Chicken adobo + rice',
         estimatedPrice: 85,
@@ -359,7 +359,7 @@ class MealSuggestion {
         calories: 540,
         note: 'Affordable lunch',
       ),
-      MealSuggestion(
+      const MealSuggestion(
         id: 'meal-3',
         name: 'Tapsilog',
         estimatedPrice: 95,
@@ -368,7 +368,7 @@ class MealSuggestion {
         calories: 610,
         note: 'Protein boost',
       ),
-      MealSuggestion(
+      const MealSuggestion(
         id: 'meal-4',
         name: 'Burger + iced tea',
         estimatedPrice: 140,
@@ -377,7 +377,7 @@ class MealSuggestion {
         calories: 760,
         note: 'Fast comfort option',
       ),
-      MealSuggestion(
+      const MealSuggestion(
         id: 'meal-5',
         name: 'Fishball + tubig',
         estimatedPrice: 40,
@@ -386,7 +386,7 @@ class MealSuggestion {
         calories: 220,
         note: 'Street-food saver',
       ),
-      MealSuggestion(
+      const MealSuggestion(
         id: 'meal-6',
         name: 'Sinigang na gulay',
         estimatedPrice: 110,
@@ -440,7 +440,7 @@ class ActivitySuggestion {
 
   static List<ActivitySuggestion> sampleCatalog() {
     return <ActivitySuggestion>[
-      ActivitySuggestion(
+      const ActivitySuggestion(
         id: 'activity-1',
         title: 'Coffee + lakeside walk',
         estimatedCost: 180,
@@ -448,7 +448,7 @@ class ActivitySuggestion {
         distanceKm: 2.5,
         details: <String>['Coffee ₱120', 'Snack ₱60'],
       ),
-      ActivitySuggestion(
+      const ActivitySuggestion(
         id: 'activity-2',
         title: 'Budget food trip',
         estimatedCost: 320,
@@ -456,7 +456,7 @@ class ActivitySuggestion {
         distanceKm: 4,
         details: <String>['Street food ₱120', 'Drink ₱50', 'Fare ₱150'],
       ),
-      ActivitySuggestion(
+      const ActivitySuggestion(
         id: 'activity-3',
         title: 'Arcade + dinner',
         estimatedCost: 450,
@@ -464,7 +464,7 @@ class ActivitySuggestion {
         distanceKm: 5,
         details: <String>['Arcade ₱150', 'Dinner ₱220', 'Fare ₱80'],
       ),
-      ActivitySuggestion(
+      const ActivitySuggestion(
         id: 'activity-4',
         title: 'Café hopping + study',
         estimatedCost: 260,
@@ -472,7 +472,7 @@ class ActivitySuggestion {
         distanceKm: 3,
         details: <String>['Drinks ₱180', 'Fare ₱80'],
       ),
-      ActivitySuggestion(
+      const ActivitySuggestion(
         id: 'activity-5',
         title: 'Mall stroll budget plan',
         estimatedCost: 500,

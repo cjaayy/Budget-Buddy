@@ -82,7 +82,7 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
               color: const Color(0xFF7C3AED),
             ),
             const SizedBox(height: 16),
-            SectionTitle(title: 'Activity suggestions', subtitle: 'Budget-friendly alternatives for the day'),
+            const SectionTitle(title: 'Activity suggestions', subtitle: 'Budget-friendly alternatives for the day'),
             ...activities.map(
               (ActivitySuggestion activity) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),

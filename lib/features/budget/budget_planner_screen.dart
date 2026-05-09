@@ -11,7 +11,8 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
   const BudgetPlannerScreen({super.key});
 
   @override
-  ConsumerState<BudgetPlannerScreen> createState() => _BudgetPlannerScreenState();
+  ConsumerState<BudgetPlannerScreen> createState() =>
+      _BudgetPlannerScreenState();
 }
 
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
@@ -24,12 +25,18 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   @override
   void initState() {
     super.initState();
-    final BudgetSettings settings = ref.read(budgetBuddyControllerProvider).settings;
-    _totalController = TextEditingController(text: settings.totalDailyBudget.toStringAsFixed(0));
-    _foodController = TextEditingController(text: settings.foodBudget.toStringAsFixed(0));
-    _transportController = TextEditingController(text: settings.transportationBudget.toStringAsFixed(0));
-    _leisureController = TextEditingController(text: settings.leisureBudget.toStringAsFixed(0));
-    _savingsController = TextEditingController(text: settings.savingsGoal.toStringAsFixed(0));
+    final BudgetSettings settings =
+        ref.read(budgetBuddyControllerProvider).settings;
+    _totalController = TextEditingController(
+        text: settings.totalDailyBudget.toStringAsFixed(0));
+    _foodController =
+        TextEditingController(text: settings.foodBudget.toStringAsFixed(0));
+    _transportController = TextEditingController(
+        text: settings.transportationBudget.toStringAsFixed(0));
+    _leisureController =
+        TextEditingController(text: settings.leisureBudget.toStringAsFixed(0));
+    _savingsController =
+        TextEditingController(text: settings.savingsGoal.toStringAsFixed(0));
   }
 
   @override
@@ -62,15 +69,23 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             SectionCard(
               child: Column(
                 children: <Widget>[
-                  _BudgetTextField(controller: _totalController, label: 'Total daily budget'),
+                  _BudgetTextField(
+                      controller: _totalController,
+                      label: 'Total daily budget'),
                   const SizedBox(height: 12),
-                  _BudgetTextField(controller: _foodController, label: 'Food budget'),
+                  _BudgetTextField(
+                      controller: _foodController, label: 'Food budget'),
                   const SizedBox(height: 12),
-                  _BudgetTextField(controller: _transportController, label: 'Transportation budget'),
+                  _BudgetTextField(
+                      controller: _transportController,
+                      label: 'Transportation budget'),
                   const SizedBox(height: 12),
-                  _BudgetTextField(controller: _leisureController, label: 'Leisure / stroll budget'),
+                  _BudgetTextField(
+                      controller: _leisureController,
+                      label: 'Leisure / stroll budget'),
                   const SizedBox(height: 12),
-                  _BudgetTextField(controller: _savingsController, label: 'Savings goal'),
+                  _BudgetTextField(
+                      controller: _savingsController, label: 'Savings goal'),
                 ],
               ),
             ),
@@ -79,7 +94,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               crossAxisCount: MediaQuery.of(context).size.width > 500 ? 2 : 1,
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              childAspectRatio: MediaQuery.of(context).size.width > 500 ? 1.65 : 2.2,
+              childAspectRatio:
+                  MediaQuery.of(context).size.width > 500 ? 1.65 : 2.2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               children: <Widget>[
@@ -92,10 +108,14 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ),
                 BudgetMetricCard(
                   label: 'Overspending',
-                  value: summary.overspendingCategories.isEmpty ? 'None' : summary.overspendingCategories.join(', '),
+                  value: summary.overspendingCategories.isEmpty
+                      ? 'None'
+                      : summary.overspendingCategories.join(', '),
                   subtitle: 'Budget check',
                   icon: Icons.warning_rounded,
-                  color: summary.overspendingCategories.isEmpty ? const Color(0xFF2563EB) : const Color(0xFFEF4444),
+                  color: summary.overspendingCategories.isEmpty
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFFEF4444),
                 ),
               ],
             ),
@@ -105,8 +125,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: BudgetCategory.values.map((BudgetCategory category) {
                   final double limit = _limitFor(state.settings, category);
-                  final double spent = summary.categoryTotals[category.label] ?? 0;
-                  final double progress = limit == 0 ? 0 : (spent / limit).clamp(0, 1.4).toDouble();
+                  final double spent =
+                      summary.categoryTotals[category.label] ?? 0;
+                  final double progress =
+                      limit == 0 ? 0 : (spent / limit).clamp(0, 1.4).toDouble();
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Column(
@@ -114,7 +136,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            Expanded(child: Text(category.label, style: const TextStyle(fontWeight: FontWeight.w700))),
+                            Expanded(
+                                child: Text(category.label,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700))),
                             Text('${formatPeso(spent)} / ${formatPeso(limit)}'),
                           ],
                         ),
@@ -125,7 +150,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             minHeight: 10,
                             value: progress.clamp(0, 1).toDouble(),
                             color: category.color,
-                            backgroundColor: category.color.withOpacity(0.10),
+                            backgroundColor:
+                                category.color.withValues(alpha: 0.10),
                           ),
                         ),
                       ],
@@ -155,7 +181,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           BudgetSettings(
             totalDailyBudget: double.tryParse(_totalController.text) ?? 0,
             foodBudget: double.tryParse(_foodController.text) ?? 0,
-            transportationBudget: double.tryParse(_transportController.text) ?? 0,
+            transportationBudget:
+                double.tryParse(_transportController.text) ?? 0,
             leisureBudget: double.tryParse(_leisureController.text) ?? 0,
             savingsGoal: double.tryParse(_savingsController.text) ?? 0,
           ),

@@ -11,8 +11,10 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  final TextEditingController _nameController = TextEditingController(text: 'Juan Dela Cruz');
-  final TextEditingController _cityController = TextEditingController(text: 'Makati');
+  final TextEditingController _nameController =
+      TextEditingController(text: 'Juan Dela Cruz');
+  final TextEditingController _cityController =
+      TextEditingController(text: 'Makati');
 
   @override
   void dispose() {
@@ -31,7 +33,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SizedBox(height: 32),
-              Text('BudgetBuddy', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+              Text('BudgetBuddy',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(
                 'Sign in or register locally to start tracking your daily budget.',
@@ -45,19 +51,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     children: <Widget>[
                       TextField(
                         controller: _nameController,
-                        decoration: const InputDecoration(labelText: 'Display name', prefixIcon: Icon(Icons.person_rounded)),
+                        decoration: const InputDecoration(
+                            labelText: 'Display name',
+                            prefixIcon: Icon(Icons.person_rounded)),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _cityController,
-                        decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_on_rounded)),
+                        decoration: const InputDecoration(
+                            labelText: 'City',
+                            prefixIcon: Icon(Icons.location_on_rounded)),
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: () {
-                            ref.read(budgetBuddyControllerProvider.notifier).login(
+                            ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .login(
                                   _nameController.text,
                                   city: _cityController.text,
                                 );
@@ -70,7 +82,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: () {
-                            ref.read(budgetBuddyControllerProvider.notifier).login(
+                            ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .login(
                                   _nameController.text,
                                   city: _cityController.text,
                                 );
@@ -83,9 +97,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const _FeaturePreview(icon: Icons.lock_open_rounded, title: 'Offline first', subtitle: 'Data stays on the device with local storage.'),
-              const _FeaturePreview(icon: Icons.auto_graph_rounded, title: 'Smart insights', subtitle: 'Budget, meal, and gala recommendations update instantly.'),
-              const _FeaturePreview(icon: Icons.notifications_active_rounded, title: 'Daily reminders', subtitle: 'Keep your spending on track with notifications.'),
+              const _FeaturePreview(
+                  icon: Icons.lock_open_rounded,
+                  title: 'Offline first',
+                  subtitle: 'Data stays on the device with local storage.'),
+              const _FeaturePreview(
+                  icon: Icons.auto_graph_rounded,
+                  title: 'Smart insights',
+                  subtitle:
+                      'Budget, meal, and gala recommendations update instantly.'),
+              const _FeaturePreview(
+                  icon: Icons.notifications_active_rounded,
+                  title: 'Daily reminders',
+                  subtitle: 'Keep your spending on track with notifications.'),
             ],
           ),
         ),
@@ -95,7 +119,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 class _FeaturePreview extends StatelessWidget {
-  const _FeaturePreview({required this.icon, required this.title, required this.subtitle});
+  const _FeaturePreview(
+      {required this.icon, required this.title, required this.subtitle});
 
   final IconData icon;
   final String title;
@@ -110,7 +135,8 @@ class _FeaturePreview extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -120,7 +146,8 @@ class _FeaturePreview extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
                 Text(subtitle),
               ],
             ),

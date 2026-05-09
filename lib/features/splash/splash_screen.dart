@@ -9,7 +9,11 @@ class SplashScreen extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: <Color>[Color(0xFF081120), Color(0xFF0F766E), Color(0xFF10253F)],
+            colors: <Color>[
+              Color(0xFF081120),
+              Color(0xFF0F766E),
+              Color(0xFF10253F)
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -21,10 +25,11 @@ class SplashScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(28),
                 ),
-                child: const Icon(Icons.savings_rounded, size: 56, color: Colors.white),
+                child: const Icon(Icons.savings_rounded,
+                    size: 56, color: Colors.white),
               ),
               const SizedBox(height: 20),
               Text(
@@ -37,10 +42,17 @@ class SplashScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Smart daily budget companion',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: 28),
-              const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white)),
+              const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 3, color: Colors.white)),
             ],
           ),
         ),

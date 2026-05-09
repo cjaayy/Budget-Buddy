@@ -8,24 +8,27 @@ import '../services/budget_service.dart';
 import '../services/notification_service.dart';
 import '../services/report_service.dart';
 
-final localBudgetRepositoryProvider = Provider<LocalBudgetRepository>((ProviderRef<LocalBudgetRepository> ref) {
+final localBudgetRepositoryProvider =
+    Provider<LocalBudgetRepository>((Ref<LocalBudgetRepository> ref) {
   return LocalBudgetRepository();
 });
 
-final budgetServiceProvider = Provider<BudgetService>((ProviderRef<BudgetService> ref) {
+final budgetServiceProvider = Provider<BudgetService>((Ref<BudgetService> ref) {
   return BudgetService();
 });
 
-final reportServiceProvider = Provider<ReportService>((ProviderRef<ReportService> ref) {
+final reportServiceProvider = Provider<ReportService>((Ref<ReportService> ref) {
   return ReportService();
 });
 
-final notificationServiceProvider = Provider<NotificationService>((ProviderRef<NotificationService> ref) {
+final notificationServiceProvider =
+    Provider<NotificationService>((Ref<NotificationService> ref) {
   return NotificationService.instance;
 });
 
-final budgetBuddyControllerProvider = StateNotifierProvider<BudgetBuddyController, BudgetBuddyState>(
-  (StateNotifierProviderRef<BudgetBuddyController, BudgetBuddyState> ref) {
+final budgetBuddyControllerProvider =
+    StateNotifierProvider<BudgetBuddyController, BudgetBuddyState>(
+  (ref) {
     return BudgetBuddyController(
       repository: ref.watch(localBudgetRepositoryProvider),
       service: ref.watch(budgetServiceProvider),
@@ -34,12 +37,13 @@ final budgetBuddyControllerProvider = StateNotifierProvider<BudgetBuddyControlle
   },
 );
 
-final budgetSummaryProvider = Provider<BudgetSummary>((ProviderRef<BudgetSummary> ref) {
+final budgetSummaryProvider = Provider<BudgetSummary>((Ref<BudgetSummary> ref) {
   final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
   return ref.watch(budgetServiceProvider).computeSummary(state);
 });
 
-final mealSuggestionsProvider = Provider<List<MealSuggestion>>((ProviderRef<List<MealSuggestion>> ref) {
+final mealSuggestionsProvider =
+    Provider<List<MealSuggestion>>((Ref<List<MealSuggestion>> ref) {
   final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
   final BudgetSummary summary = ref.watch(budgetSummaryProvider);
   return ref.watch(budgetServiceProvider).recommendMeals(
@@ -49,12 +53,13 @@ final mealSuggestionsProvider = Provider<List<MealSuggestion>>((ProviderRef<List
       );
 });
 
-final activitySuggestionsProvider = Provider<List<ActivitySuggestion>>((ProviderRef<List<ActivitySuggestion>> ref) {
-  final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
+final activitySuggestionsProvider =
+    Provider<List<ActivitySuggestion>>((Ref<List<ActivitySuggestion>> ref) {
   final BudgetSummary summary = ref.watch(budgetSummaryProvider);
   return ref.watch(budgetServiceProvider).recommendActivities(
         mood: GalaMood.chill,
-      budget: summary.remainingBalance.clamp(0, summary.totalBudget).toDouble(),
+        budget:
+            summary.remainingBalance.clamp(0, summary.totalBudget).toDouble(),
         preferredDistanceKm: 5,
       );
 });
@@ -78,7 +83,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   BudgetSummary get summary => _service.computeSummary(state);
 
-  List<MealSuggestion> mealsFor({MealCategory category = MealCategory.budgetMeals, MealType? mealType}) {
+  List<MealSuggestion> mealsFor(
+      {MealCategory category = MealCategory.budgetMeals, MealType? mealType}) {
     return _service.recommendMeals(
       state: state,
       category: category,
@@ -87,7 +93,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     );
   }
 
-  List<ActivitySuggestion> activitiesFor({GalaMood mood = GalaMood.chill, double preferredDistanceKm = 5}) {
+  List<ActivitySuggestion> activitiesFor(
+      {GalaMood mood = GalaMood.chill, double preferredDistanceKm = 5}) {
     return _service.recommendActivities(
       mood: mood,
       budget: summary.remainingBalance.clamp(0, summary.totalBudget).toDouble(),
@@ -110,8 +117,11 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   Future<void> _syncDailyRecord() async {
     final BudgetSummary currentSummary = _service.computeSummary(state);
     final DateTime now = DateTime.now();
-    final List<DailyRecord> updatedRecords = <DailyRecord>[...state.dailyRecords];
-    final int existingIndex = updatedRecords.indexWhere((DailyRecord record) => _isSameDay(record.date, now));
+    final List<DailyRecord> updatedRecords = <DailyRecord>[
+      ...state.dailyRecords
+    ];
+    final int existingIndex = updatedRecords
+        .indexWhere((DailyRecord record) => _isSameDay(record.date, now));
     final DailyRecord record = DailyRecord(
       date: now,
       totalSpent: currentSummary.totalSpent,
@@ -135,7 +145,9 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   bool _isSameDay(DateTime left, DateTime right) {
-    return left.year == right.year && left.month == right.month && left.day == right.day;
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
   }
 
   void updateBudget(BudgetSettings settings) {
@@ -161,7 +173,12 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
     state = state.copyWith(
       loggedIn: true,
-      profile: state.profile.copyWith(displayName: displayName.trim().isEmpty ? state.profile.displayName : displayName.trim(), city: city, avatarSeed: initials),
+      profile: state.profile.copyWith(
+          displayName: displayName.trim().isEmpty
+              ? state.profile.displayName
+              : displayName.trim(),
+          city: city,
+          avatarSeed: initials),
     );
     _persist();
   }
@@ -215,12 +232,18 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void deleteExpense(String id) {
-    state = state.copyWith(expenses: state.expenses.where((ExpenseEntry entry) => entry.id != id).toList());
+    state = state.copyWith(
+        expenses: state.expenses
+            .where((ExpenseEntry entry) => entry.id != id)
+            .toList());
     _persist();
   }
 
   void addCustomMeal(MealSuggestion meal) {
-    final List<MealSuggestion> updated = <MealSuggestion>[meal, ...state.customMeals];
+    final List<MealSuggestion> updated = <MealSuggestion>[
+      meal,
+      ...state.customMeals
+    ];
     state = state.copyWith(customMeals: updated);
     _persist();
   }
@@ -239,7 +262,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   void saveActivityPlan(ActivitySuggestion activitySuggestion) {
     final List<ActivitySuggestion> updated = <ActivitySuggestion>[
       activitySuggestion,
-      ...state.savedActivityPlans.where((ActivitySuggestion activity) => activity.id != activitySuggestion.id),
+      ...state.savedActivityPlans.where((ActivitySuggestion activity) =>
+          activity.id != activitySuggestion.id),
     ];
     state = state.copyWith(savedActivityPlans: updated.take(6).toList());
     _persist();
@@ -262,7 +286,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final BudgetSummary currentSummary = summary;
     _notificationService.showEndOfDaySummary(
       title: 'BudgetBuddy summary',
-      body: 'You spent ${currentSummary.totalSpent.toStringAsFixed(0)} pesos and saved ${currentSummary.savings.toStringAsFixed(0)} pesos today.',
+      body:
+          'You spent ${currentSummary.totalSpent.toStringAsFixed(0)} pesos and saved ${currentSummary.savings.toStringAsFixed(0)} pesos today.',
     );
   }
 

@@ -16,7 +16,10 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     final List<ExpenseEntry> expenses = state.currentExpenseFilter == null
         ? state.expenses
-        : state.expenses.where((ExpenseEntry expense) => expense.category == state.currentExpenseFilter).toList();
+        : state.expenses
+            .where((ExpenseEntry expense) =>
+                expense.category == state.currentExpenseFilter)
+            .toList();
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -28,14 +31,18 @@ class ExpenseTrackerScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
-            SectionTitle(title: 'Expense tracker', subtitle: 'Edit, filter, and delete your daily logs.'),
+            const SectionTitle(
+                title: 'Expense tracker',
+                subtitle: 'Edit, filter, and delete your daily logs.'),
             const SizedBox(height: 12),
             Row(
               children: <Widget>[
                 ChoiceChip(
                   selected: state.currentExpenseFilter == null,
                   label: const Text('All'),
-                  onSelected: (_) => ref.read(budgetBuddyControllerProvider.notifier).setExpenseFilter(null),
+                  onSelected: (_) => ref
+                      .read(budgetBuddyControllerProvider.notifier)
+                      .setExpenseFilter(null),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -47,9 +54,13 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                             (BudgetCategory category) => Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
-                                selected: state.currentExpenseFilter == category,
+                                selected:
+                                    state.currentExpenseFilter == category,
                                 label: Text(category.label),
-                                onSelected: (_) => ref.read(budgetBuddyControllerProvider.notifier).setExpenseFilter(category),
+                                onSelected: (_) => ref
+                                    .read(
+                                        budgetBuddyControllerProvider.notifier)
+                                    .setExpenseFilter(category),
                               ),
                             ),
                           )
@@ -65,7 +76,8 @@ class ExpenseTrackerScreen extends ConsumerWidget {
               shrinkWrap: true,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: MediaQuery.of(context).size.width > 500 ? 1.7 : 2.2,
+              childAspectRatio:
+                  MediaQuery.of(context).size.width > 500 ? 1.7 : 2.2,
               physics: const NeverScrollableScrollPhysics(),
               children: <Widget>[
                 BudgetMetricCard(
@@ -77,7 +89,10 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                 ),
                 BudgetMetricCard(
                   label: 'Spent total',
-                  value: formatPeso(expenses.fold(0, (double total, ExpenseEntry expense) => total + expense.amount)),
+                  value: formatPeso(expenses.fold(
+                      0,
+                      (double total, ExpenseEntry expense) =>
+                          total + expense.amount)),
                   subtitle: 'Today',
                   icon: Icons.payments_rounded,
                   color: const Color(0xFFF97316),
@@ -89,9 +104,14 @@ class ExpenseTrackerScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Today\'s summary', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('Today\'s summary',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  Text('Remaining balance: ${formatPeso(summary.remainingBalance)}'),
+                  Text(
+                      'Remaining balance: ${formatPeso(summary.remainingBalance)}'),
                   Text('Savings: ${formatPeso(summary.savings)}'),
                 ],
               ),
@@ -103,27 +123,41 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                 child: Dismissible(
                   key: ValueKey<String>(expense.id),
                   background: Container(
-                    decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(24)),
+                    decoration: BoxDecoration(
+                        color: Colors.red.shade400,
+                        borderRadius: BorderRadius.circular(24)),
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20),
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   direction: DismissDirection.endToStart,
-                  onDismissed: (_) => ref.read(budgetBuddyControllerProvider.notifier).deleteExpense(expense.id),
+                  onDismissed: (_) => ref
+                      .read(budgetBuddyControllerProvider.notifier)
+                      .deleteExpense(expense.id),
                   child: SectionCard(
-                      child: ListTile(
-                      onTap: () => _showExpenseDialog(context, ref, existing: expense),
-                      leading: CircleAvatar(backgroundColor: expense.category.color.withOpacity(0.14), child: Text(expense.category.label.substring(0, 1))),
-                      title: Text(expense.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text('${expense.category.label} • ${formatShortDate(expense.dateTime)}'),
+                    child: ListTile(
+                      onTap: () =>
+                          _showExpenseDialog(context, ref, existing: expense),
+                      leading: CircleAvatar(
+                          backgroundColor:
+                              expense.category.color.withValues(alpha: 0.14),
+                          child: Text(expense.category.label.substring(0, 1))),
+                      title: Text(expense.title,
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                          '${expense.category.label} • ${formatShortDate(expense.dateTime)}'),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: <Widget>[
-                          Text(formatPeso(expense.amount), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(formatPeso(expense.amount),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 2),
                           IconButton(
-                            onPressed: () => ref.read(budgetBuddyControllerProvider.notifier).deleteExpense(expense.id),
+                            onPressed: () => ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .deleteExpense(expense.id),
                             icon: const Icon(Icons.delete_outline_rounded),
                           ),
                         ],
@@ -139,10 +173,14 @@ class ExpenseTrackerScreen extends ConsumerWidget {
     );
   }
 
-  void _showExpenseDialog(BuildContext context, WidgetRef ref, {ExpenseEntry? existing}) {
-    final TextEditingController titleController = TextEditingController(text: existing?.title ?? '');
-    final TextEditingController amountController = TextEditingController(text: existing?.amount.toStringAsFixed(0) ?? '');
-    final TextEditingController noteController = TextEditingController(text: existing?.note ?? '');
+  void _showExpenseDialog(BuildContext context, WidgetRef ref,
+      {ExpenseEntry? existing}) {
+    final TextEditingController titleController =
+        TextEditingController(text: existing?.title ?? '');
+    final TextEditingController amountController =
+        TextEditingController(text: existing?.amount.toStringAsFixed(0) ?? '');
+    final TextEditingController noteController =
+        TextEditingController(text: existing?.note ?? '');
     BudgetCategory category = existing?.category ?? BudgetCategory.food;
 
     showModalBottomSheet<void>(
@@ -150,23 +188,43 @@ class ExpenseTrackerScreen extends ConsumerWidget {
       isScrollControlled: true,
       builder: (BuildContext context) {
         return Padding(
-          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+          padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20),
           child: StatefulBuilder(
-            builder: (BuildContext context, void Function(void Function()) setModalState) {
+            builder: (BuildContext context,
+                void Function(void Function()) setModalState) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(existing == null ? 'Add expense' : 'Edit expense', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(existing == null ? 'Add expense' : 'Edit expense',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
+                  TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Title')),
                   const SizedBox(height: 12),
-                  TextField(controller: amountController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount')),
+                  TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Amount')),
                   const SizedBox(height: 12),
-                  TextField(controller: noteController, decoration: const InputDecoration(labelText: 'Note')),
+                  TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(labelText: 'Note')),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<BudgetCategory>(
-                    value: category,
-                    items: BudgetCategory.values.map((BudgetCategory item) => DropdownMenuItem<BudgetCategory>(value: item, child: Text(item.label))).toList(),
+                    initialValue: category,
+                    items: BudgetCategory.values
+                        .map((BudgetCategory item) =>
+                            DropdownMenuItem<BudgetCategory>(
+                                value: item, child: Text(item.label)))
+                        .toList(),
                     onChanged: (BudgetCategory? value) {
                       if (value != null) setModalState(() => category = value);
                     },
@@ -177,10 +235,14 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () {
-                        final BudgetBuddyController controller = ref.read(budgetBuddyControllerProvider.notifier);
+                        final BudgetBuddyController controller =
+                            ref.read(budgetBuddyControllerProvider.notifier);
                         final ExpenseEntry entry = ExpenseEntry(
-                          id: existing?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-                          title: titleController.text.trim().isEmpty ? 'Expense' : titleController.text.trim(),
+                          id: existing?.id ??
+                              DateTime.now().microsecondsSinceEpoch.toString(),
+                          title: titleController.text.trim().isEmpty
+                              ? 'Expense'
+                              : titleController.text.trim(),
                           amount: double.tryParse(amountController.text) ?? 0,
                           category: category,
                           dateTime: existing?.dateTime ?? DateTime.now(),
@@ -199,7 +261,8 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                         }
                         Navigator.of(context).pop();
                       },
-                      child: Text(existing == null ? 'Save expense' : 'Update expense'),
+                      child: Text(
+                          existing == null ? 'Save expense' : 'Update expense'),
                     ),
                   ),
                 ],

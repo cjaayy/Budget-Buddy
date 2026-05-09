@@ -18,17 +18,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _OnboardingStep(
       icon: Icons.account_balance_wallet_rounded,
       title: 'Track every peso',
-      description: 'Set daily limits for food, transport, and gala plans in one clean view.',
+      description:
+          'Set daily limits for food, transport, and gala plans in one clean view.',
     ),
     _OnboardingStep(
       icon: Icons.restaurant_menu_rounded,
       title: 'Get smart meal ideas',
-      description: 'See budget meals and healthier alternatives that fit your remaining balance.',
+      description:
+          'See budget meals and healthier alternatives that fit your remaining balance.',
     ),
     _OnboardingStep(
       icon: Icons.explore_rounded,
       title: 'Plan the day wisely',
-      description: 'Balance meals, errands, and strolling without blowing your budget.',
+      description:
+          'Balance meals, errands, and strolling without blowing your budget.',
     ),
   ];
 
@@ -50,7 +53,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    ref.read(budgetBuddyControllerProvider.notifier).completeOnboarding();
+                    ref
+                        .read(budgetBuddyControllerProvider.notifier)
+                        .completeOnboarding();
                   },
                   child: const Text('Skip'),
                 ),
@@ -70,22 +75,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           Container(
                             padding: const EdgeInsets.all(28),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(32),
                             ),
-                            child: Icon(step.icon, size: 72, color: Theme.of(context).colorScheme.primary),
+                            child: Icon(step.icon,
+                                size: 72,
+                                color: Theme.of(context).colorScheme.primary),
                           ),
                           const SizedBox(height: 28),
                           Text(
                             step.title,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             step.description,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(height: 1.5),
                           ),
                         ],
                       ),
@@ -103,7 +119,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     width: _index == index ? 22 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _index == index ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
+                      color: _index == index
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -115,12 +133,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: FilledButton(
                   onPressed: () {
                     if (_index < _steps.length - 1) {
-                      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                      _controller.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut);
                     } else {
-                      ref.read(budgetBuddyControllerProvider.notifier).completeOnboarding();
+                      ref
+                          .read(budgetBuddyControllerProvider.notifier)
+                          .completeOnboarding();
                     }
                   },
-                  child: Text(_index < _steps.length - 1 ? 'Continue' : 'Get started'),
+                  child: Text(
+                      _index < _steps.length - 1 ? 'Continue' : 'Get started'),
                 ),
               ),
             ],
@@ -132,7 +155,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnboardingStep {
-  const _OnboardingStep({required this.icon, required this.title, required this.description});
+  const _OnboardingStep(
+      {required this.icon, required this.title, required this.description});
 
   final IconData icon;
   final String title;

@@ -14,10 +14,12 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final List<DailyRecord> records = ref.watch(budgetBuddyControllerProvider).dailyRecords;
+    final List<DailyRecord> records =
+        ref.watch(budgetBuddyControllerProvider).dailyRecords;
 
     final List<FlSpot> spendingSpots = <FlSpot>[
-      for (int i = 0; i < records.length; i++) FlSpot(i.toDouble(), records[i].totalSpent),
+      for (int i = 0; i < records.length; i++)
+        FlSpot(i.toDouble(), records[i].totalSpent),
     ];
 
     return Scaffold(
@@ -25,7 +27,9 @@ class AnalyticsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
-            const SectionTitle(title: 'Analytics', subtitle: 'Track daily spending, savings, and trends.'),
+            const SectionTitle(
+                title: 'Analytics',
+                subtitle: 'Track daily spending, savings, and trends.'),
             const SizedBox(height: 16),
             GridView.count(
               crossAxisCount: MediaQuery.of(context).size.width > 500 ? 2 : 1,
@@ -33,7 +37,8 @@ class AnalyticsScreen extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: MediaQuery.of(context).size.width > 500 ? 1.7 : 2.2,
+              childAspectRatio:
+                  MediaQuery.of(context).size.width > 500 ? 1.7 : 2.2,
               children: <Widget>[
                 BudgetMetricCard(
                   label: 'Total spent',
@@ -56,7 +61,11 @@ class AnalyticsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Spending trend', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('Spending trend',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   SizedBox(
                     height: 240,
@@ -64,7 +73,9 @@ class AnalyticsScreen extends ConsumerWidget {
                       LineChartData(
                         gridData: const FlGridData(show: false),
                         titlesData: FlTitlesData(
-                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
+                          leftTitles: const AxisTitles(
+                              sideTitles: SideTitles(
+                                  showTitles: true, reservedSize: 40)),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
@@ -75,14 +86,18 @@ class AnalyticsScreen extends ConsumerWidget {
                                 }
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 4),
-                                  child: Text(formatDayLabel(records[index].date), style: const TextStyle(fontSize: 10)),
+                                  child: Text(
+                                      formatDayLabel(records[index].date),
+                                      style: const TextStyle(fontSize: 10)),
                                 );
                               },
                               reservedSize: 26,
                             ),
                           ),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
                         ),
                         borderData: FlBorderData(show: false),
                         lineBarsData: <LineChartBarData>[
@@ -92,7 +107,12 @@ class AnalyticsScreen extends ConsumerWidget {
                             color: Theme.of(context).colorScheme.primary,
                             barWidth: 4,
                             dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(show: true, color: Theme.of(context).colorScheme.primary.withOpacity(0.12)),
+                            belowBarData: BarAreaData(
+                                show: true,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.12)),
                           ),
                         ],
                       ),
@@ -106,7 +126,11 @@ class AnalyticsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Category mix', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('Category mix',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 220,
@@ -114,14 +138,21 @@ class AnalyticsScreen extends ConsumerWidget {
                       PieChartData(
                         centerSpaceRadius: 44,
                         sectionsSpace: 2,
-                        sections: summary.categoryTotals.entries.map((MapEntry<String, double> entry) {
-                          final BudgetCategory category = BudgetCategoryX.fromString(entry.key.toLowerCase());
+                        sections: summary.categoryTotals.entries
+                            .map((MapEntry<String, double> entry) {
+                          final BudgetCategory category =
+                              BudgetCategoryX.fromString(
+                                  entry.key.toLowerCase());
                           return PieChartSectionData(
                             value: entry.value,
-                            title: entry.value > 0 ? formatPeso(entry.value) : '',
+                            title:
+                                entry.value > 0 ? formatPeso(entry.value) : '',
                             radius: 64,
                             color: category.color,
-                            titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
+                            titleStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11),
                           );
                         }).toList(),
                       ),
@@ -135,17 +166,25 @@ class AnalyticsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('End-of-day summary', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('End-of-day summary',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  Text('You spent ${formatPeso(summary.totalSpent)} out of ${formatPeso(summary.totalBudget)} today.'),
+                  Text(
+                      'You spent ${formatPeso(summary.totalSpent)} out of ${formatPeso(summary.totalBudget)} today.'),
                   Text('You saved ${formatPeso(summary.savings)} today.'),
-                  Text('Biggest expense category: ${summary.biggestExpenseCategory}'),
+                  Text(
+                      'Biggest expense category: ${summary.biggestExpenseCategory}'),
                   if (summary.overspendingCategories.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         'Overspending alerts: ${summary.overspendingCategories.join(', ')}',
-                        style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                 ],
