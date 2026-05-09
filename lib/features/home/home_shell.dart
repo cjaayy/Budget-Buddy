@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+
+import '../analytics/analytics_screen.dart';
+import '../budget/budget_planner_screen.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../expenses/expense_tracker_screen.dart';
+import '../gala/gala_planner_screen.dart';
+import '../meals/meal_suggestions_screen.dart';
+import '../profile/profile_settings_screen.dart';
+
+class HomeShell extends StatefulWidget {
+  const HomeShell({super.key});
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<HomeShell> {
+  int _index = 0;
+
+  final List<Widget> _pages = const <Widget>[
+    DashboardScreen(),
+    BudgetPlannerScreen(),
+    MealSuggestionsScreen(),
+    GalaPlannerScreen(),
+    ExpenseTrackerScreen(),
+    AnalyticsScreen(),
+    ProfileSettingsScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(index: _index, children: _pages),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (int value) => setState(() => _index = value),
+        destinations: const <NavigationDestination>[
+          NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+          NavigationDestination(icon: Icon(Icons.account_balance_wallet_rounded), label: 'Budget'),
+          NavigationDestination(icon: Icon(Icons.restaurant_rounded), label: 'Meals'),
+          NavigationDestination(icon: Icon(Icons.explore_rounded), label: 'Gala'),
+          NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Expenses'),
+          NavigationDestination(icon: Icon(Icons.analytics_rounded), label: 'Analytics'),
+          NavigationDestination(icon: Icon(Icons.settings_rounded), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
