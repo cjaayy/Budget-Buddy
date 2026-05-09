@@ -16,8 +16,10 @@ call :ensure_pub
 
 set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
 set "PACKAGE=com.budgetbuddy.app"
-set "DEBUG_APK=%cd%\android\app\build\outputs\flutter-apk\app-debug.apk"
-set "RELEASE_APK=%cd%\android\app\build\outputs\flutter-apk\app-release.apk"
+set "DEBUG_APK=%cd%\android\app\build\outputs\apk\debug\app-debug.apk"
+set "RELEASE_APK=%cd%\android\app\build\outputs\apk\release\app-release.apk"
+set "GRADLEW=%cd%\android\gradlew.bat"
+set "ANDROID_DIR=%cd%\android"
 
 echo ========================================
 echo    Budget Buddy - Physical Device Run
@@ -237,7 +239,27 @@ echo     q = Quit
 echo.
 echo ========================================
 echo.
-flutter run -d %DEVICE_ID%
+
+pushd "%ANDROID_DIR%"
+call gradlew.bat assembleDebug
+set "GRADLE_STATUS=%ERRORLEVEL%"
+popd
+if not "%GRADLE_STATUS%"=="0" (
+	echo.
+	echo [ERROR] Debug build failed!
+	echo.
+	goto menu
+)
+
+if not exist "%DEBUG_APK%" (
+	echo.
+	echo [ERROR] Debug APK not found at:
+	echo   %DEBUG_APK%
+	echo.
+	goto menu
+)
+
+flutter run -d %DEVICE_ID% --use-application-binary "%DEBUG_APK%"
 echo.
 goto menu
 
@@ -245,8 +267,12 @@ goto menu
 echo.
 echo Building and installing app (debug)...
 echo.
-flutter build apk --debug
-if errorlevel 1 (
+
+pushd "%ANDROID_DIR%"
+call gradlew.bat assembleDebug
+set "GRADLE_STATUS=%ERRORLEVEL%"
+popd
+if not "%GRADLE_STATUS%"=="0" (
 	echo.
 	echo [ERROR] Debug build failed!
 	echo.
@@ -280,7 +306,35 @@ echo Cleaning and rebuilding app...
 echo.
 flutter clean
 flutter pub get
-flutter run --release -d %DEVICE_ID%
+
+pushd "%ANDROID_DIR%"
+call gradlew.bat assembleRelease
+set "GRADLE_STATUS=%ERRORLEVEL%"
+popd
+if not "%GRADLE_STATUS%"=="0" (
+	echo.
+	echo [ERROR] Release build failed!
+	echo.
+	goto menu
+)
+
+if not exist "%RELEASE_APK%" (
+	echo.
+	echo [ERROR] Release APK not found at:
+	echo   %RELEASE_APK%
+	echo.
+	goto menu
+)
+
+"%ADB%" -s %DEVICE_ID% install -r "%RELEASE_APK%"
+if errorlevel 1 (
+	echo.
+	echo [ERROR] Release APK install failed!
+	echo.
+	goto menu
+)
+
+"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
 echo.
 goto menu
 
@@ -299,8 +353,12 @@ echo   Build APK for Sharing
 echo ========================================
 echo.
 echo Building release APK...
-flutter build apk --release
-if errorlevel 1 (
+
+pushd "%ANDROID_DIR%"
+call gradlew.bat assembleRelease
+set "GRADLE_STATUS=%ERRORLEVEL%"
+popd
+if not "%GRADLE_STATUS%"=="0" (
     echo.
     echo [ERROR] Build failed!
     echo.
@@ -312,7 +370,7 @@ echo   APK built successfully!
 echo   Opening folder...
 echo ========================================
 echo.
-explorer "android\app\build\outputs\flutter-apk"
+explorer "android\app\build\outputs\apk\release"
 echo.
 echo Send "app-release.apk" to share via WhatsApp, Drive, email, etc.
 echo.
@@ -344,7 +402,7 @@ if not exist ".dart_tool\package_config.json" (
 exit /b 0
 [{
 	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
+		call android\gradlew.bat assembleRelease
 	"code": {
 		"value": "unused_local_variable",
 		"target": {
@@ -352,13 +410,21 @@ exit /b 0
 			"path": "/diagnostics/unused_local_variable",
 			"scheme": "https",
 			"authority": "dart.dev"
+		if not exist "%RELEASE_APK%" (
+			echo.
+			echo [ERROR] Release APK not found at:
+			echo   %RELEASE_APK%
+			echo.
+			goto menu
+		)
+
 		}
 	},
 	"severity": 4,
 	"message": "The value of the local variable 'state' isn't used.\nTry removing the variable or using it.",
 	"source": "dart",
 	"startLineNumber": 53,
-	"startColumn": 26,
+		explorer "android\app\build\outputs\apk\release"
 	"endLineNumber": 53,
 	"endColumn": 31,
 	"origin": "extHost1"
