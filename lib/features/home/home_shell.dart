@@ -33,16 +33,25 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: NavigationBar(
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         selectedIndex: _index,
         onDestinationSelected: (int value) => setState(() => _index = value),
         destinations: const <NavigationDestination>[
-          NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.account_balance_wallet_rounded), label: 'Budget'),
-          NavigationDestination(icon: Icon(Icons.restaurant_rounded), label: 'Meals'),
-          NavigationDestination(icon: Icon(Icons.explore_rounded), label: 'Gala'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Expenses'),
-          NavigationDestination(icon: Icon(Icons.analytics_rounded), label: 'Analytics'),
-          NavigationDestination(icon: Icon(Icons.settings_rounded), label: 'Profile'),
+          NavigationDestination(
+              icon: Icon(Icons.dashboard_rounded), label: 'Home'),
+          NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_rounded),
+              label: 'Budget'),
+          NavigationDestination(
+              icon: Icon(Icons.restaurant_rounded), label: 'Meals'),
+          NavigationDestination(
+              icon: Icon(Icons.explore_rounded), label: 'Trips'),
+          NavigationDestination(
+              icon: Icon(Icons.receipt_long_rounded), label: 'Bills'),
+          NavigationDestination(
+              icon: Icon(Icons.analytics_rounded), label: 'Stats'),
+          NavigationDestination(
+              icon: Icon(Icons.settings_rounded), label: 'Profile'),
         ],
       ),
     );

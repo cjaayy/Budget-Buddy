@@ -147,18 +147,24 @@ class ExpenseTrackerScreen extends ConsumerWidget {
                       subtitle: Text(
                           '${expense.category.label} • ${formatShortDate(expense.dateTime)}'),
                       trailing: Column(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: <Widget>[
                           Text(formatPeso(expense.amount),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 2),
                           IconButton(
                             onPressed: () => ref
                                 .read(budgetBuddyControllerProvider.notifier)
                                 .deleteExpense(expense.id),
                             icon: const Icon(Icons.delete_outline_rounded),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints.tightFor(
+                                width: 36, height: 36),
                           ),
                         ],
                       ),

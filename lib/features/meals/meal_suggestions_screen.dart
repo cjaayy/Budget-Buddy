@@ -129,13 +129,15 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                       const SizedBox(height: 8),
                       Text(meal.note),
                       const SizedBox(height: 8),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: <Widget>[
                           Chip(label: Text(formatPeso(meal.estimatedPrice))),
-                          const SizedBox(width: 8),
                           if (meal.calories != null)
                             Chip(label: Text('${meal.calories} cal')),
-                          const Spacer(),
                           FilledButton.tonalIcon(
                             onPressed: () {
                               ref

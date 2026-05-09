@@ -140,14 +140,12 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(horizontal: 20),
                 child: SectionTitle(
                   title: 'Smart meal suggestions',
                   subtitle: 'Based on your remaining budget',
-                  actionText: 'Meals',
-                  onAction: () {},
                 ),
               ),
             ),
@@ -345,6 +343,8 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text('Hi, ${profile.displayName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context)
                         .textTheme
                         .titleLarge
@@ -352,6 +352,8 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Today you have ${formatPeso(summary.remainingBalance)} left for the day.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -384,27 +386,54 @@ class _SuggestionCard extends StatelessWidget {
     return SizedBox(
       width: 220,
       child: SectionCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const Spacer(),
-            Text(title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 8),
-            Text(badge,
-                style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-          ],
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool compact = constraints.maxHeight < 140;
+            final double iconSize = compact ? 20 : 24;
+            final double iconBoxSize = compact ? 32 : 40;
+            final double iconPadding = compact ? 6 : 8;
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  padding: EdgeInsets.all(iconPadding),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  width: iconBoxSize,
+                  height: iconBoxSize,
+                  child: Icon(icon, color: color, size: iconSize),
+                ),
+                SizedBox(height: compact ? 8 : 14),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: compact ? 14 : 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: compact ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: compact ? 12 : null),
+                ),
+                SizedBox(height: compact ? 4 : 8),
+                Text(
+                  badge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

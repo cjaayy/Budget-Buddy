@@ -33,6 +33,8 @@ class BudgetMetricCard extends StatelessWidget {
         final double topGap = compact ? 10 : 16;
         final double labelGap = compact ? 2 : 6;
         final double subtitleGap = compact ? 2 : 4;
+        final double contentWidth =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
 
         return Container(
           padding: padding,
@@ -53,74 +55,86 @@ class BudgetMetricCard extends StatelessWidget {
                   offset: const Offset(0, 12)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Container(
-                    width: iconBoxSize,
-                    height: iconBoxSize,
-                    padding: EdgeInsets.all(iconPadding),
-                    decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        shape: BoxShape.circle),
-                    child: Icon(icon, size: iconSize, color: Colors.white),
-                  ),
-                  const Spacer(),
-                  if (progress != null)
-                    SizedBox(
-                      width: progressSize,
-                      height: progressSize,
-                      child: CircularProgressIndicator(
-                        value: progress!.clamp(0, 1).toDouble(),
-                        strokeWidth: compact ? 2.6 : 3,
+          child: ClipRect(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: contentWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Container(
+                          width: iconBoxSize,
+                          height: iconBoxSize,
+                          padding: EdgeInsets.all(iconPadding),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              shape: BoxShape.circle),
+                          child:
+                              Icon(icon, size: iconSize, color: Colors.white),
+                        ),
+                        const Spacer(),
+                        if (progress != null)
+                          SizedBox(
+                            width: progressSize,
+                            height: progressSize,
+                            child: CircularProgressIndicator(
+                              value: progress!.clamp(0, 1).toDouble(),
+                              strokeWidth: compact ? 2.6 : 3,
+                              color: Colors.white,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.24),
+                            ),
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: topGap),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: (compact
+                              ? Theme.of(context).textTheme.labelMedium
+                              : Theme.of(context).textTheme.labelLarge)
+                          ?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.85)),
+                    ),
+                    SizedBox(height: labelGap),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: (compact
+                              ? Theme.of(context).textTheme.titleMedium
+                              : Theme.of(context).textTheme.headlineSmall)
+                          ?.copyWith(
                         color: Colors.white,
-                        backgroundColor: Colors.white.withValues(alpha: 0.24),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                ],
-              ),
-              SizedBox(height: topGap),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: (compact
-                        ? Theme.of(context).textTheme.labelMedium
-                        : Theme.of(context).textTheme.labelLarge)
-                    ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
-              ),
-              SizedBox(height: labelGap),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: (compact
-                        ? Theme.of(context).textTheme.titleMedium
-                        : Theme.of(context).textTheme.headlineSmall)
-                    ?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+                    if (subtitle != null) ...<Widget>[
+                      SizedBox(height: subtitleGap),
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: (compact
+                                ? Theme.of(context).textTheme.bodySmall
+                                : Theme.of(context).textTheme.bodySmall)
+                            ?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.82),
+                          fontSize: compact ? 10.5 : null,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              if (subtitle != null) ...<Widget>[
-                SizedBox(height: subtitleGap),
-                Text(
-                  subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: (compact
-                          ? Theme.of(context).textTheme.bodySmall
-                          : Theme.of(context).textTheme.bodySmall)
-                      ?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: compact ? 10.5 : null,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         );
       },
