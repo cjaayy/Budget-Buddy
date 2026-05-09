@@ -16,6 +16,8 @@ call :ensure_pub
 
 set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
 set "PACKAGE=com.budgetbuddy.app"
+set "DEBUG_APK=%cd%\android\app\build\outputs\flutter-apk\app-debug.apk"
+set "RELEASE_APK=%cd%\android\app\build\outputs\flutter-apk\app-release.apk"
 
 echo ========================================
 echo    Budget Buddy - Physical Device Run
@@ -241,9 +243,34 @@ goto menu
 
 :buildrun
 echo.
-echo Building and running app (debug)...
+echo Building and installing app (debug)...
 echo.
-flutter run -d %DEVICE_ID%
+flutter build apk --debug
+if errorlevel 1 (
+	echo.
+	echo [ERROR] Debug build failed!
+	echo.
+	goto menu
+)
+
+if not exist "%DEBUG_APK%" (
+	echo.
+	echo [ERROR] Debug APK not found at:
+	echo   %DEBUG_APK%
+	echo.
+	goto menu
+)
+
+"%ADB%" -s %DEVICE_ID% install -r "%DEBUG_APK%"
+if errorlevel 1 (
+	echo.
+	echo [ERROR] APK install failed!
+	echo.
+	goto menu
+)
+
+"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
+echo App installed and launched!
 echo.
 goto menu
 
@@ -285,7 +312,7 @@ echo   APK built successfully!
 echo   Opening folder...
 echo ========================================
 echo.
-explorer "build\app\outputs\flutter-apk"
+explorer "android\app\build\outputs\flutter-apk"
 echo.
 echo Send "app-release.apk" to share via WhatsApp, Drive, email, etc.
 echo.
