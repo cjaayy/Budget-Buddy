@@ -27,6 +27,10 @@ android/app/profile/
 android/app/release/
 android/captures/
 android/output.txt
+android/app/.cxx/
+
+# Generated C/C++ build output
+**/.cxx/
 
 # IDEs and OS files
 .idea/

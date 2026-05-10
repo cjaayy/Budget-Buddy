@@ -18,6 +18,7 @@ class DashboardScreen extends ConsumerWidget {
     final List<MealSuggestion> meals = ref.watch(mealSuggestionsProvider);
     final List<ActivitySuggestion> activities =
         ref.watch(activitySuggestionsProvider);
+    final double totalBudget = summary.totalBudget;
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -34,33 +35,45 @@ class DashboardScreen extends ConsumerWidget {
                 child: _Header(summary: summary, profile: state.profile),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.count(
-                  crossAxisCount:
-                      MediaQuery.of(context).size.width > 500 ? 4 : 2,
-                  shrinkWrap: true,
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 220,
+                  mainAxisExtent: 150,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.05,
-                  children: <Widget>[
+                ),
+                delegate: SliverChildListDelegate(
+                  <Widget>[
                     BudgetMetricCard(
                       label: 'Remaining budget',
                       value: formatPeso(summary.remainingBalance),
                       subtitle: 'Today',
                       icon: Icons.savings_rounded,
                       color: const Color(0xFF0F766E),
-                      progress: summary.remainingBalance / summary.totalBudget,
+                      onTap: () => _showMetricDetails(
+                        context,
+                        title: 'Remaining budget',
+                        value: formatPeso(summary.remainingBalance),
+                        detail: 'Money still available for spending today.',
+                        extra: 'This card tracks how much budget is left.',
+                      ),
                     ),
                     BudgetMetricCard(
                       label: 'Today spent',
                       value: formatPeso(summary.totalSpent),
-                      subtitle: 'Out of ${formatPeso(summary.totalBudget)}',
+                      subtitle: 'Out of ${formatPeso(totalBudget)}',
                       icon: Icons.payments_rounded,
                       color: const Color(0xFF2563EB),
-                      progress: summary.totalSpent / summary.totalBudget,
+                      onTap: () => _showMetricDetails(
+                        context,
+                        title: 'Today spent',
+                        value: formatPeso(summary.totalSpent),
+                        detail: 'Total expenses recorded for today.',
+                        extra:
+                            'This helps compare spending against the daily budget.',
+                      ),
                     ),
                     BudgetMetricCard(
                       label: 'Savings',
@@ -69,7 +82,14 @@ class DashboardScreen extends ConsumerWidget {
                           'Goal ${formatPeso(state.settings.savingsGoal)}',
                       icon: Icons.lock_rounded,
                       color: const Color(0xFFF97316),
-                      progress: summary.savingsProgress,
+                      onTap: () => _showMetricDetails(
+                        context,
+                        title: 'Savings',
+                        value: formatPeso(summary.savings),
+                        detail: 'Amount set aside compared with your goal.',
+                        extra:
+                            'Goal: ${formatPeso(state.settings.savingsGoal)}',
+                      ),
                     ),
                     BudgetMetricCard(
                       label: 'Top category',
@@ -79,6 +99,17 @@ class DashboardScreen extends ConsumerWidget {
                           : 'Watch overspending',
                       icon: Icons.pie_chart_rounded,
                       color: const Color(0xFF7C3AED),
+                      onTap: () => _showMetricDetails(
+                        context,
+                        title: 'Top category',
+                        value: summary.biggestExpenseCategory,
+                        detail: summary.overspendingCategories.isEmpty
+                            ? 'This is your highest-spending category right now.'
+                            : 'This category is spending the most and needs attention.',
+                        extra: summary.overspendingCategories.isEmpty
+                            ? 'No overspending categories detected.'
+                            : 'Watch: ${summary.overspendingCategories.join(', ')}',
+                      ),
                     ),
                   ],
                 ),
@@ -231,6 +262,52 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showMetricDetails(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required String detail,
+    required String extra,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(detail),
+              const SizedBox(height: 8),
+              Text(
+                extra,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
