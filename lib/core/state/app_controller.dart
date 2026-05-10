@@ -288,6 +288,21 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _persist();
   }
 
+  void updateCustomMeal(MealSuggestion meal) {
+    final List<MealSuggestion> updated = state.customMeals.map((m) {
+      return m.id == meal.id ? meal : m;
+    }).toList();
+    state = state.copyWith(customMeals: updated);
+    _persist();
+  }
+
+  void deleteCustomMeal(String mealId) {
+    final List<MealSuggestion> updated =
+        state.customMeals.where((m) => m.id != mealId).toList();
+    state = state.copyWith(customMeals: updated);
+    _persist();
+  }
+
   void toggleFavoriteMeal(String mealId) {
     final Set<String> favorites = state.favoriteMealIds.toSet();
     if (favorites.contains(mealId)) {
