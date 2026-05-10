@@ -180,31 +180,26 @@ echo.
 echo   DEBUG MODE (Hot Reload):
 echo   [3] Debug Run (r=hot reload, R=hot restart)
 echo.
-echo   RELEASE MODE:
-echo   [4] Release Build ^& Run
-echo   [5] Clean Release Build
 echo.
-echo   SHARE:
-echo   [6] Build APK ^& Open Folder (share manually)
+echo   SHARE/RELEASE:
+echo   [4] Clean Release Build, Install ^& Open Folder (share + run on device)
 echo.
 echo   OTHER:
-echo   [7] Uninstall App
-echo   [8] Disconnect Wireless ^& Reconnect
+echo   [5] Uninstall App
+echo   [6] Disconnect Wireless ^& Reconnect
 echo   [0] Exit
 echo ----------------------------------------
 echo.
-set /p "CHOICE=Enter choice (1-8, 0): "
+set /p "CHOICE=Enter choice (1-6, 0): "
 
 if "%CHOICE%"=="1" goto launch
 if "%CHOICE%"=="2" goto restart
 if "%CHOICE%"=="3" goto debugrun
-if "%CHOICE%"=="4" goto buildrun
-if "%CHOICE%"=="5" goto cleanrebuild
-if "%CHOICE%"=="6" goto buildapk
-if "%CHOICE%"=="7" goto uninstall
-if "%CHOICE%"=="8" goto disconnect
+if "%CHOICE%"=="4" goto release_share
+if "%CHOICE%"=="5" goto uninstall
+if "%CHOICE%"=="6" goto disconnect
 if "%CHOICE%"=="0" exit /b 0
-echo Invalid choice. Please enter 1-8 or 0.
+echo Invalid choice. Please enter 1-6 or 0.
 echo.
 goto menu
 
@@ -300,12 +295,27 @@ echo App installed and launched!
 echo.
 goto menu
 
-:cleanrebuild
+REM Removed old :cleanrebuild - replaced by :release_share
+
+:uninstall
 echo.
-echo Cleaning and rebuilding app...
+echo Uninstalling app...
+"%ADB%" -s %DEVICE_ID% uninstall %PACKAGE%
+echo App uninstalled!
 echo.
-flutter clean
-flutter pub get
+goto menu
+
+REM Removed old :buildapk - replaced by :release_share
+
+:release_share
+echo.
+echo ========================================
+echo   Clean, Build Release, Install, Launch, and Open Folder
+echo ========================================
+echo.
+echo Cleaning project and preparing release build...
+call flutter clean
+call flutter pub get
 
 pushd "%ANDROID_DIR%"
 call gradlew.bat assembleRelease
@@ -326,6 +336,7 @@ if not exist "%RELEASE_APK%" (
 	goto menu
 )
 
+echo Installing release APK to device...
 "%ADB%" -s %DEVICE_ID% install -r "%RELEASE_APK%"
 if errorlevel 1 (
 	echo.
@@ -334,45 +345,11 @@ if errorlevel 1 (
 	goto menu
 )
 
+echo Launching app on device...
 "%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
-echo.
-goto menu
 
-:uninstall
-echo.
-echo Uninstalling app...
-"%ADB%" -s %DEVICE_ID% uninstall %PACKAGE%
-echo App uninstalled!
-echo.
-goto menu
-
-:buildapk
-echo.
-echo ========================================
-echo   Build APK for Sharing
-echo ========================================
-echo.
-echo Building release APK...
-
-pushd "%ANDROID_DIR%"
-call gradlew.bat assembleRelease
-set "GRADLE_STATUS=%ERRORLEVEL%"
-popd
-if not "%GRADLE_STATUS%"=="0" (
-    echo.
-    echo [ERROR] Build failed!
-    echo.
-    goto menu
-)
-echo.
-echo ========================================
-echo   APK built successfully!
-echo   Opening folder...
-echo ========================================
-echo.
+echo Opening release APK folder for sharing...
 explorer "android\app\build\outputs\apk\release"
-echo.
-echo Send "app-release.apk" to share via WhatsApp, Drive, email, etc.
 echo.
 goto menu
 
