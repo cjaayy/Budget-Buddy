@@ -7,6 +7,8 @@ import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
+import '../meals/meal_suggestions_screen.dart';
+import '../gala/gala_planner_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -15,9 +17,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final List<MealSuggestion> meals = ref.watch(mealSuggestionsProvider);
-    final List<ActivitySuggestion> activities =
-        ref.watch(activitySuggestionsProvider);
+    // suggestions moved to dedicated screens; no inline lists needed here
     final double totalBudget = summary.totalBudget;
 
     return Scaffold(
@@ -171,65 +171,41 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: SectionTitle(
-                  title: 'Smart meal suggestions',
-                  subtitle: 'Based on your remaining budget',
-                ),
-              ),
-            ),
             SliverToBoxAdapter(
-              child: SizedBox(
-                height: 168,
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: meals.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (BuildContext context, int index) {
-                    final MealSuggestion meal = meals[index];
-                    return _SuggestionCard(
-                      title: meal.name,
-                      subtitle: '${meal.mealType.label} • ${meal.note}',
-                      badge: formatPeso(meal.estimatedPrice),
-                      icon: Icons.restaurant_rounded,
-                      color: meal.category == MealCategory.streetFood
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF0F766E),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: SectionTitle(
-                    title: 'Gala / stroll ideas',
-                    subtitle: 'Budget-friendly activity plans'),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 168,
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: activities.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (BuildContext context, int index) {
-                    final ActivitySuggestion activity = activities[index];
-                    return _SuggestionCard(
-                      title: activity.title,
-                      subtitle:
-                          '${activity.mood.label} • ${activity.distanceKm.toStringAsFixed(1)} km',
-                      badge: formatPeso(activity.estimatedCost),
-                      icon: Icons.explore_rounded,
-                      color: const Color(0xFF7C3AED),
-                    );
-                  },
+                padding: const EdgeInsets.all(20),
+                child: SectionCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SectionTitle(
+                        title: 'Plan & suggestions',
+                        subtitle: 'Open planners and suggestions',
+                      ),
+                      const SizedBox(height: 8),
+                      Column(
+                        children: <Widget>[
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.restaurant_menu_rounded),
+                            title: const Text('Meal planner'),
+                            subtitle: const Text('Plan meals and log recipes'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MealSuggestionsScreen())),
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.explore_rounded),
+                            title: const Text('Gala planner'),
+                            subtitle: const Text('Ideas for strolls and activities'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GalaPlannerScreen())),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -443,76 +419,4 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SuggestionCard extends StatelessWidget {
-  const _SuggestionCard({
-    required this.title,
-    required this.subtitle,
-    required this.badge,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String subtitle;
-  final String badge;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      child: SectionCard(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool compact = constraints.maxHeight < 140;
-            final double iconSize = compact ? 20 : 24;
-            final double iconBoxSize = compact ? 32 : 40;
-            final double iconPadding = compact ? 6 : 8;
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Container(
-                  padding: EdgeInsets.all(iconPadding),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  width: iconBoxSize,
-                  height: iconBoxSize,
-                  child: Icon(icon, color: color, size: iconSize),
-                ),
-                SizedBox(height: compact ? 8 : 14),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: compact ? 14 : 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: compact ? 1 : 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: compact ? 12 : null),
-                ),
-                SizedBox(height: compact ? 4 : 8),
-                Text(
-                  badge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: color, fontWeight: FontWeight.w700),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
+// _SuggestionCard removed — suggestions are now accessed via dedicated screens
