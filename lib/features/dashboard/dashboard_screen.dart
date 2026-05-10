@@ -373,8 +373,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () {
-                        this
-                            .ref
+                        ref
                             .read(budgetBuddyControllerProvider.notifier)
                             .addExpense(
                               title: titleController.text.trim().isEmpty
