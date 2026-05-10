@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/budget_models.dart';
+import '../budget/budget_planner_screen.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
@@ -18,6 +19,7 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
   GalaMood _mood = GalaMood.chill;
   double _budget = 0;
   double _distance = 5;
+  final Set<String> _selectedActivityIds = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +62,14 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
               children: GalaMood.values
                   .map((GalaMood mood) => ChoiceChip(
                       selected: _mood == mood,
-                      label: Text(mood.label),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(mood.icon, size: 16),
+                          const SizedBox(width: 8),
+                          Text(mood.label),
+                        ],
+                      ),
                       onSelected: (_) => setState(() => _mood = mood)))
                   .toList(),
             ),
@@ -69,9 +78,22 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    'Budget range: ${formatPeso(suggestedBudget)}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        'Budget range: ${formatPeso(suggestedBudget)}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      if (configuredBudget <= 0)
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => const BudgetPlannerScreen()));
+                          },
+                          child: const Text('Set budget'),
+                        ),
+                    ],
                   ),
                   Slider(
                     value: suggestedBudget,
@@ -84,7 +106,8 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                         : (double value) => setState(() => _budget = value),
                   ),
                   const SizedBox(height: 4),
-                  Text('Preferred distance: ${_distance.toStringAsFixed(1)} km',
+                  Text(
+                      'Preferred distance: ${_distance.toStringAsFixed(1)} km — ${_distanceLabel(_distance)}',
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   Slider(
                     value: _distance,
@@ -112,8 +135,10 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
             const SectionTitle(
                 title: 'Activity suggestions',
                 subtitle: 'Budget-friendly alternatives for the day'),
-            ...activities.map(
-              (ActivitySuggestion activity) => Padding(
+            ...activities.map((ActivitySuggestion activity) {
+              final bool canAfford = activity.estimatedCost <= suggestedBudget;
+              final bool selected = _selectedActivityIds.contains(activity.id);
+              return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SectionCard(
                   child: Column(
@@ -135,7 +160,22 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                               ],
                             ),
                           ),
-                          Chip(label: Text(formatPeso(activity.estimatedCost))),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: <Widget>[
+                              Text(formatPeso(activity.estimatedCost),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16)),
+                              const SizedBox(height: 6),
+                              SoftPill(
+                                text: canAfford ? 'Can afford' : 'Over budget',
+                                color: canAfford
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFDC2626),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -148,17 +188,17 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                         children: <Widget>[
                           FilledButton.tonalIcon(
                             onPressed: () {
-                              ref
-                                  .read(budgetBuddyControllerProvider.notifier)
-                                  .addExpense(
-                                    title: activity.title,
-                                    amount: activity.estimatedCost,
-                                    category: BudgetCategory.entertainment,
-                                    note: 'Gala plan',
-                                  );
+                              setState(() {
+                                if (selected) {
+                                  _selectedActivityIds.remove(activity.id);
+                                } else {
+                                  _selectedActivityIds.add(activity.id);
+                                }
+                              });
                             },
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Add plan'),
+                            icon: Icon(
+                                selected ? Icons.check : Icons.add_rounded),
+                            label: Text(selected ? 'Added' : 'Add plan'),
                           ),
                           const SizedBox(width: 8),
                           OutlinedButton(
@@ -170,6 +210,9 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                                   const SnackBar(
                                       content: Text(
                                           'Plan saved to your activity list.')));
+                              // after saving single activity, ask to log it
+                              _promptLogActivities(
+                                  context, <ActivitySuggestion>[activity]);
                             },
                             child: const Text('Save'),
                           ),
@@ -178,8 +221,8 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                     ],
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
             const SizedBox(height: 4),
             SectionCard(
               child: Text(
@@ -190,9 +233,134 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                         : 'You can mix food, activities, and fare while staying inside your target.',
               ),
             ),
+            const SizedBox(height: 80),
           ],
         ),
       ),
+      bottomSheet: _selectedActivityIds.isEmpty
+          ? null
+          : SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 8)
+                  ],
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        '${_selectedActivityIds.length} activities selected — Est. ${formatPeso(_selectedActivityIds.fold(0.0, (double sum, String id) {
+                          final act = activities.firstWhere((a) => a.id == id);
+                          return sum + act.estimatedCost;
+                        }))}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        final List<ActivitySuggestion> toCommit = activities
+                            .where((a) => _selectedActivityIds.contains(a.id))
+                            .toList();
+                        final messenger = ScaffoldMessenger.of(context);
+                        final bool? doLog = await showDialog<bool>(
+                          context: context,
+                          builder: (BuildContext ctx) {
+                            return AlertDialog(
+                              title: const Text('Commit plans'),
+                              content: Text(
+                                  'Log ${toCommit.length} activities as expenses now?'),
+                              actions: <Widget>[
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(false),
+                                    child: const Text('No')),
+                                FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(true),
+                                    child: const Text('Yes, log')),
+                              ],
+                            );
+                          },
+                        );
+                        if (doLog == true) {
+                          for (final ActivitySuggestion a in toCommit) {
+                            ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .addExpense(
+                                  title: a.title,
+                                  amount: a.estimatedCost,
+                                  category: BudgetCategory.entertainment,
+                                  note: 'Gala plan',
+                                );
+                          }
+                          if (mounted) {
+                            messenger.showSnackBar(SnackBar(
+                                content: Text(
+                                    'Logged ${toCommit.length} activities.')));
+                          }
+                        }
+                        setState(() => _selectedActivityIds.clear());
+                      },
+                      child: const Text('Commit'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () =>
+                          setState(() => _selectedActivityIds.clear()),
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
+  }
+
+  String _distanceLabel(double km) {
+    if (km <= 2) return 'within your barangay';
+    if (km <= 6) return 'within your city';
+    return 'nearby town';
+  }
+
+  Future<void> _promptLogActivities(
+      BuildContext context, List<ActivitySuggestion> activities) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Log activity as expense?'),
+          content:
+              Text('Log ${activities.length} activity(ies) as expenses now?'),
+          actions: <Widget>[
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('No')),
+            FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Yes')),
+          ],
+        );
+      },
+    );
+    if (result == true) {
+      for (final ActivitySuggestion a in activities) {
+        ref.read(budgetBuddyControllerProvider.notifier).addExpense(
+              title: a.title,
+              amount: a.estimatedCost,
+              category: BudgetCategory.entertainment,
+              note: 'Gala plan',
+            );
+      }
+      if (mounted) {
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Activities logged as expenses.')));
+      }
+    }
   }
 }

@@ -189,9 +189,9 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                   icon: Icons.local_fire_department_rounded,
                                 ),
                               if (overBudget)
-                                SoftPill(
+                                const SoftPill(
                                   text: 'Over budget',
-                                  color: const Color(0xFFDC2626),
+                                  color: Color(0xFFDC2626),
                                   icon: Icons.warning_rounded,
                                 ),
                               FilledButton.tonalIcon(
@@ -257,33 +257,48 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
           child: StatefulBuilder(
             builder: (BuildContext context,
                 void Function(void Function()) setModalState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
+              return ListView(
+                shrinkWrap: true,
                 children: <Widget>[
+                  Text(
+                    existing != null ? 'Edit custom meal' : 'Add custom meal',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 16),
                   TextField(
-                      controller: nameController,
-                      decoration:
-                          const InputDecoration(labelText: 'Meal name')),
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Meal name'),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: priceController,
-                    keyboardType: TextInputType.number,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration:
                         const InputDecoration(labelText: 'Estimated price'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
-                      controller: noteController,
-                      decoration: const InputDecoration(labelText: 'Note')),
+                    controller: noteController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Note'),
+                  ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<MealType>(
                     initialValue: mealType,
                     items: MealType.values
                         .map((MealType type) => DropdownMenuItem<MealType>(
-                            value: type, child: Text(type.label)))
+                              value: type,
+                              child: Text(type.label),
+                            ))
                         .toList(),
                     onChanged: (MealType? value) {
-                      if (value != null) setModalState(() => mealType = value);
+                      if (value != null) {
+                        setModalState(() => mealType = value);
+                      }
                     },
                     decoration: const InputDecoration(labelText: 'Meal type'),
                   ),
@@ -293,7 +308,9 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                     items: MealCategory.values
                         .map((MealCategory category) =>
                             DropdownMenuItem<MealCategory>(
-                                value: category, child: Text(category.label)))
+                              value: category,
+                              child: Text(category.label),
+                            ))
                         .toList(),
                     onChanged: (MealCategory? value) {
                       if (value != null) {
@@ -334,7 +351,8 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                             Navigator.of(context).pop();
                           },
                           child: Text(
-                              existing != null ? 'Save changes' : 'Save meal'),
+                            existing != null ? 'Save changes' : 'Save meal',
+                          ),
                         ),
                       ),
                       if (existing != null) ...<Widget>[

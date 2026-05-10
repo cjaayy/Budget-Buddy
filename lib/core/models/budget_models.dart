@@ -98,6 +98,15 @@ extension GalaMoodX on GalaMood {
         GalaMood.mallStroll => 'Mall stroll',
       };
 
+  IconData get icon => switch (this) {
+        GalaMood.chill => Icons.self_improvement_rounded,
+        GalaMood.foodTrip => Icons.restaurant_rounded,
+        GalaMood.date => Icons.favorite_rounded,
+        GalaMood.gaming => Icons.sports_esports_rounded,
+        GalaMood.cafeHopping => Icons.local_cafe_rounded,
+        GalaMood.mallStroll => Icons.storefront_rounded,
+      };
+
   static GalaMood fromString(String value) {
     return GalaMood.values.firstWhere(
       (mood) => mood.name == value,
