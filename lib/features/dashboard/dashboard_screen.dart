@@ -8,32 +8,6 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
-enum BudgetPeriod { daily, weekly, monthly }
-
-extension BudgetPeriodX on BudgetPeriod {
-  String get label {
-    switch (this) {
-      case BudgetPeriod.daily:
-        return 'Daily';
-      case BudgetPeriod.weekly:
-        return 'Weekly';
-      case BudgetPeriod.monthly:
-        return 'Monthly';
-    }
-  }
-
-  double get multiplier {
-    switch (this) {
-      case BudgetPeriod.daily:
-        return 1.0;
-      case BudgetPeriod.weekly:
-        return 7.0;
-      case BudgetPeriod.monthly:
-        return 30.0;
-    }
-  }
-}
-
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key, this.onGetStarted});
 
@@ -44,7 +18,13 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  BudgetPeriod _selectedPeriod = BudgetPeriod.daily;
+  DashboardPeriod _selectedPeriod = DashboardPeriod.daily;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPeriod = ref.read(budgetBuddyControllerProvider).dashboardPeriod;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +64,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: _PeriodPills(
                     selectedPeriod: _selectedPeriod,
-                    onChanged: (BudgetPeriod value) {
+                    onChanged: (DashboardPeriod value) {
                       setState(() => _selectedPeriod = value);
+                      ref
+                          .read(budgetBuddyControllerProvider.notifier)
+                          .setDashboardPeriod(value);
                     },
                   ),
                 ),
@@ -358,7 +341,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return;
     }
 
-    const List<BudgetPeriod> periods = BudgetPeriod.values;
+    const List<DashboardPeriod> periods = DashboardPeriod.values;
     final int currentIndex = periods.indexOf(_selectedPeriod);
     final int nextIndex = velocity < 0
         ? (currentIndex + 1) % periods.length
@@ -603,18 +586,18 @@ class _PeriodPills extends StatelessWidget {
     required this.onChanged,
   });
 
-  final BudgetPeriod selectedPeriod;
-  final ValueChanged<BudgetPeriod> onChanged;
+  final DashboardPeriod selectedPeriod;
+  final ValueChanged<DashboardPeriod> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: BudgetPeriod.values
+      children: DashboardPeriod.values
           .map(
-            (BudgetPeriod period) => Expanded(
+            (DashboardPeriod period) => Expanded(
               child: Padding(
                 padding: EdgeInsets.only(
-                  right: period == BudgetPeriod.values.last ? 0 : 8,
+                  right: period == DashboardPeriod.values.last ? 0 : 8,
                 ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(999),
@@ -692,7 +675,7 @@ class _BudgetHeroCard extends StatelessWidget {
   });
 
   final BudgetSummary summary;
-  final BudgetPeriod period;
+  final DashboardPeriod period;
   final double periodBudget;
   final double periodSpent;
   final double periodRemaining;

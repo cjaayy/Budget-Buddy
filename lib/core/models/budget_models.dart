@@ -117,6 +117,29 @@ extension GalaMoodX on GalaMood {
 
 enum BudgetExpiryPeriod { daily, weekly, monthly }
 
+enum DashboardPeriod { daily, weekly, monthly }
+
+extension DashboardPeriodX on DashboardPeriod {
+  String get label => switch (this) {
+        DashboardPeriod.daily => 'Daily',
+        DashboardPeriod.weekly => 'Weekly',
+        DashboardPeriod.monthly => 'Monthly',
+      };
+
+  double get multiplier => switch (this) {
+        DashboardPeriod.daily => 1.0,
+        DashboardPeriod.weekly => 7.0,
+        DashboardPeriod.monthly => 30.0,
+      };
+
+  static DashboardPeriod fromString(String value) {
+    return DashboardPeriod.values.firstWhere(
+      (DashboardPeriod period) => period.name == value,
+      orElse: () => DashboardPeriod.daily,
+    );
+  }
+}
+
 class BudgetSettings {
   const BudgetSettings({
     required this.totalDailyBudget,
@@ -124,6 +147,8 @@ class BudgetSettings {
     required this.transportationBudget,
     required this.leisureBudget,
     required this.savingsGoal,
+    this.savingsTargetAmount = 0,
+    this.savingsTargetDate,
     this.hasConfiguredBudget = false,
     this.autoRenewBudget = false,
     this.budgetExpiryPeriod = BudgetExpiryPeriod.daily,
@@ -135,6 +160,8 @@ class BudgetSettings {
   final double transportationBudget;
   final double leisureBudget;
   final double savingsGoal;
+  final double savingsTargetAmount;
+  final DateTime? savingsTargetDate;
   final bool hasConfiguredBudget;
   final bool autoRenewBudget;
   final BudgetExpiryPeriod budgetExpiryPeriod;
@@ -147,6 +174,7 @@ class BudgetSettings {
       transportationBudget: 0,
       leisureBudget: 0,
       savingsGoal: 0,
+      savingsTargetAmount: 0,
     );
   }
 
@@ -159,6 +187,8 @@ class BudgetSettings {
     double? transportationBudget,
     double? leisureBudget,
     double? savingsGoal,
+    double? savingsTargetAmount,
+    DateTime? savingsTargetDate,
     bool? hasConfiguredBudget,
     bool? autoRenewBudget,
     BudgetExpiryPeriod? budgetExpiryPeriod,
@@ -170,6 +200,8 @@ class BudgetSettings {
       transportationBudget: transportationBudget ?? this.transportationBudget,
       leisureBudget: leisureBudget ?? this.leisureBudget,
       savingsGoal: savingsGoal ?? this.savingsGoal,
+      savingsTargetAmount: savingsTargetAmount ?? this.savingsTargetAmount,
+      savingsTargetDate: savingsTargetDate ?? this.savingsTargetDate,
       hasConfiguredBudget: hasConfiguredBudget ?? this.hasConfiguredBudget,
       autoRenewBudget: autoRenewBudget ?? this.autoRenewBudget,
       budgetExpiryPeriod: budgetExpiryPeriod ?? this.budgetExpiryPeriod,
@@ -184,6 +216,8 @@ class BudgetSettings {
       'transportationBudget': transportationBudget,
       'leisureBudget': leisureBudget,
       'savingsGoal': savingsGoal,
+      'savingsTargetAmount': savingsTargetAmount,
+      'savingsTargetDate': savingsTargetDate?.toIso8601String(),
       'hasConfiguredBudget': hasConfiguredBudget,
       'autoRenewBudget': autoRenewBudget,
       'budgetExpiryPeriod': budgetExpiryPeriod.name,
@@ -199,6 +233,11 @@ class BudgetSettings {
           (json['transportationBudget'] as num?)?.toDouble() ?? 0,
       leisureBudget: (json['leisureBudget'] as num?)?.toDouble() ?? 0,
       savingsGoal: (json['savingsGoal'] as num?)?.toDouble() ?? 0,
+      savingsTargetAmount:
+          (json['savingsTargetAmount'] as num?)?.toDouble() ?? 0,
+      savingsTargetDate: json['savingsTargetDate'] != null
+          ? DateTime.tryParse(json['savingsTargetDate'] as String)
+          : null,
       hasConfiguredBudget: json['hasConfiguredBudget'] as bool? ?? false,
       autoRenewBudget: json['autoRenewBudget'] as bool? ?? false,
       budgetExpiryPeriod: BudgetExpiryPeriod.values.firstWhere(
@@ -757,6 +796,7 @@ class BudgetBuddyState {
     required this.notificationsEnabled,
     required this.isBootstrapping,
     required this.currentExpenseFilter,
+    required this.dashboardPeriod,
   });
 
   final BudgetSettings settings;
@@ -773,6 +813,7 @@ class BudgetBuddyState {
   final bool notificationsEnabled;
   final bool isBootstrapping;
   final BudgetCategory? currentExpenseFilter;
+  final DashboardPeriod dashboardPeriod;
 
   factory BudgetBuddyState.initial() {
     return BudgetBuddyState(
@@ -790,6 +831,7 @@ class BudgetBuddyState {
       notificationsEnabled: true,
       isBootstrapping: true,
       currentExpenseFilter: null,
+      dashboardPeriod: DashboardPeriod.daily,
     );
   }
 
@@ -808,6 +850,7 @@ class BudgetBuddyState {
     bool? notificationsEnabled,
     bool? isBootstrapping,
     Object? currentExpenseFilter = _currentExpenseFilterSentinel,
+    DashboardPeriod? dashboardPeriod,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -830,6 +873,7 @@ class BudgetBuddyState {
           identical(currentExpenseFilter, _currentExpenseFilterSentinel)
               ? this.currentExpenseFilter
               : currentExpenseFilter as BudgetCategory?,
+      dashboardPeriod: dashboardPeriod ?? this.dashboardPeriod,
     );
   }
 
@@ -856,6 +900,7 @@ class BudgetBuddyState {
       'themeMode': themeMode.name,
       'notificationsEnabled': notificationsEnabled,
       'currentExpenseFilter': currentExpenseFilter?.name,
+      'dashboardPeriod': dashboardPeriod.name,
     };
   }
 
@@ -907,6 +952,9 @@ class BudgetBuddyState {
       currentExpenseFilter: json['currentExpenseFilter'] == null
           ? null
           : BudgetCategoryX.fromString(json['currentExpenseFilter'] as String),
+      dashboardPeriod: DashboardPeriodX.fromString(
+        json['dashboardPeriod'] as String? ?? DashboardPeriod.daily.name,
+      ),
     );
   }
 

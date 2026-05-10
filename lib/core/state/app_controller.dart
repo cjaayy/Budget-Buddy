@@ -192,6 +192,19 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _persist();
   }
 
+  void updateSavingsTarget({
+    required double amount,
+    required DateTime targetDate,
+  }) {
+    state = state.copyWith(
+      settings: state.settings.copyWith(
+        savingsTargetAmount: amount,
+        savingsTargetDate: targetDate,
+      ),
+    );
+    _persist();
+  }
+
   void completeOnboarding() {
     state = state.copyWith(onboardingComplete: true);
     _persist();
@@ -272,10 +285,28 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void deleteExpense(String id) {
+    deleteExpenses(<String>[id]);
+  }
+
+  void deleteExpenses(Iterable<String> ids) {
+    final Set<String> idSet = ids.toSet();
     state = state.copyWith(
-        expenses: state.expenses
-            .where((ExpenseEntry entry) => entry.id != id)
-            .toList());
+      expenses: state.expenses
+          .where((ExpenseEntry entry) => !idSet.contains(entry.id))
+          .toList(),
+    );
+    _persist();
+  }
+
+  void restoreExpense(ExpenseEntry expense) {
+    final List<ExpenseEntry> updated = <ExpenseEntry>[
+      expense,
+      ...state.expenses.where((ExpenseEntry entry) => entry.id != expense.id),
+    ];
+    state = state.copyWith(
+      expenses: updated,
+      lastExpenseCategory: expense.category,
+    );
     _persist();
   }
 
@@ -330,6 +361,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   void setExpenseFilter(BudgetCategory? category) {
     state = state.copyWith(currentExpenseFilter: category);
+  }
+
+  void setDashboardPeriod(DashboardPeriod period) {
+    state = state.copyWith(dashboardPeriod: period);
   }
 
   void resetForNextDay() {
