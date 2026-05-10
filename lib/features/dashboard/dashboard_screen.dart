@@ -8,19 +8,55 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
-class DashboardScreen extends ConsumerWidget {
+enum BudgetPeriod { daily, weekly, monthly }
+
+extension BudgetPeriodX on BudgetPeriod {
+  String get label {
+    switch (this) {
+      case BudgetPeriod.daily:
+        return 'Daily';
+      case BudgetPeriod.weekly:
+        return 'Weekly';
+      case BudgetPeriod.monthly:
+        return 'Monthly';
+    }
+  }
+
+  double get multiplier {
+    switch (this) {
+      case BudgetPeriod.daily:
+        return 1.0;
+      case BudgetPeriod.weekly:
+        return 7.0;
+      case BudgetPeriod.monthly:
+        return 30.0;
+    }
+  }
+}
+
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  BudgetPeriod _selectedPeriod = BudgetPeriod.daily;
+
+  @override
+  Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     // suggestions moved to dedicated screens; no inline lists needed here
     final double totalBudget = summary.totalBudget;
+    final double remainingAdjusted =
+        summary.remainingBalance * _selectedPeriod.multiplier;
+    final double savingsAdjusted = summary.savings * _selectedPeriod.multiplier;
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showQuickExpenseSheet(context, ref),
+        onPressed: () => _showQuickExpenseSheet(context),
         icon: const Icon(Icons.add),
         label: const Text('Quick add'),
       ),
@@ -31,6 +67,34 @@ class DashboardScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: _Header(summary: summary, profile: state.profile),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: SegmentedButton<BudgetPeriod>(
+                  selected: <BudgetPeriod>{_selectedPeriod},
+                  onSelectionChanged: (Set<BudgetPeriod> newSelection) {
+                    setState(() {
+                      _selectedPeriod = newSelection.first;
+                    });
+                  },
+                  segments: <ButtonSegment<BudgetPeriod>>[
+                    ButtonSegment<BudgetPeriod>(
+                      value: BudgetPeriod.daily,
+                      label: Text(BudgetPeriod.daily.label),
+                    ),
+                    ButtonSegment<BudgetPeriod>(
+                      value: BudgetPeriod.weekly,
+                      label: Text(BudgetPeriod.weekly.label),
+                    ),
+                    ButtonSegment<BudgetPeriod>(
+                      value: BudgetPeriod.monthly,
+                      label: Text(BudgetPeriod.monthly.label),
+                    ),
+                  ],
+                ),
               ),
             ),
             SliverPadding(
@@ -46,15 +110,16 @@ class DashboardScreen extends ConsumerWidget {
                   <Widget>[
                     BudgetMetricCard(
                       label: 'Remaining budget',
-                      value: formatPeso(summary.remainingBalance),
-                      subtitle: 'Today',
+                      value: formatPeso(remainingAdjusted),
+                      subtitle: _selectedPeriod.label,
                       icon: Icons.savings_rounded,
                       color: const Color(0xFF0F766E),
                       onTap: () => _showMetricDetails(
                         context,
                         title: 'Remaining budget',
-                        value: formatPeso(summary.remainingBalance),
-                        detail: 'Money still available for spending today.',
+                        value: formatPeso(remainingAdjusted),
+                        detail:
+                            'Money still available for spending this ${_selectedPeriod.label.toLowerCase()}.',
                         extra: 'This card tracks how much budget is left.',
                       ),
                     ),
@@ -75,18 +140,19 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     BudgetMetricCard(
                       label: 'Savings',
-                      value: formatPeso(summary.savings),
+                      value: formatPeso(savingsAdjusted),
                       subtitle:
-                          'Goal ${formatPeso(state.settings.savingsGoal)}',
+                          'Goal ${formatPeso(state.settings.savingsGoal * _selectedPeriod.multiplier)}',
                       icon: Icons.lock_rounded,
                       color: const Color(0xFFF97316),
                       onTap: () => _showMetricDetails(
                         context,
                         title: 'Savings',
-                        value: formatPeso(summary.savings),
-                        detail: 'Amount set aside compared with your goal.',
+                        value: formatPeso(savingsAdjusted),
+                        detail:
+                            'Amount set aside compared with your ${_selectedPeriod.label.toLowerCase()} goal.',
                         extra:
-                            'Goal: ${formatPeso(state.settings.savingsGoal)}',
+                            'Goal: ${formatPeso(state.settings.savingsGoal * _selectedPeriod.multiplier)}',
                       ),
                     ),
                     BudgetMetricCard(
@@ -247,7 +313,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _showQuickExpenseSheet(BuildContext context, WidgetRef ref) {
+  void _showQuickExpenseSheet(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController amountController = TextEditingController();
     BudgetCategory selectedCategory = BudgetCategory.food;
@@ -307,7 +373,8 @@ class DashboardScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () {
-                        ref
+                        this
+                            .ref
                             .read(budgetBuddyControllerProvider.notifier)
                             .addExpense(
                               title: titleController.text.trim().isEmpty

@@ -95,9 +95,11 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   List<ActivitySuggestion> activitiesFor(
       {GalaMood mood = GalaMood.chill, double preferredDistanceKm = 5}) {
+    final double budget =
+        state.settings.hasConfiguredBudget ? summary.totalBudget : 0;
     return _service.recommendActivities(
       mood: mood,
-      budget: summary.remainingBalance.clamp(0, summary.totalBudget).toDouble(),
+      budget: budget,
       preferredDistanceKm: preferredDistanceKm,
     );
   }
@@ -151,7 +153,9 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void updateBudget(BudgetSettings settings) {
-    state = state.copyWith(settings: settings);
+    state = state.copyWith(
+      settings: settings.copyWith(hasConfiguredBudget: true),
+    );
     _persist();
   }
 
@@ -280,6 +284,18 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   void resetForNextDay() {
     state = state.copyWith(expenses: <ExpenseEntry>[]);
     _persist();
+  }
+
+  Future<void> resetApp() async {
+    // Reset to initial state with all data cleared and budgets at 0
+    state = BudgetBuddyState.initial().copyWith(
+      loggedIn: state.loggedIn,
+      onboardingComplete: state.onboardingComplete,
+      profile: state.profile,
+      themeMode: state.themeMode,
+      notificationsEnabled: state.notificationsEnabled,
+    );
+    await _repository.saveState(state);
   }
 
   void sendSummaryNotification() {

@@ -2,11 +2,23 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-enum BudgetCategory { food, transportation, entertainment, shopping, miscellaneous }
+enum BudgetCategory {
+  food,
+  transportation,
+  entertainment,
+  shopping,
+  miscellaneous
+}
 
 enum MealType { breakfast, lunch, dinner, snack }
 
-enum MealCategory { budgetMeals, healthyMeals, highProteinMeals, fastFood, streetFood }
+enum MealCategory {
+  budgetMeals,
+  healthyMeals,
+  highProteinMeals,
+  fastFood,
+  streetFood
+}
 
 enum GalaMood { chill, foodTrip, date, gaming, cafeHopping, mallStroll }
 
@@ -94,6 +106,8 @@ extension GalaMoodX on GalaMood {
   }
 }
 
+enum BudgetExpiryPeriod { daily, weekly, monthly }
+
 class BudgetSettings {
   const BudgetSettings({
     required this.totalDailyBudget,
@@ -101,6 +115,9 @@ class BudgetSettings {
     required this.transportationBudget,
     required this.leisureBudget,
     required this.savingsGoal,
+    this.hasConfiguredBudget = false,
+    this.budgetExpiryPeriod = BudgetExpiryPeriod.daily,
+    this.budgetCreatedAt,
   });
 
   final double totalDailyBudget;
@@ -108,18 +125,22 @@ class BudgetSettings {
   final double transportationBudget;
   final double leisureBudget;
   final double savingsGoal;
+  final bool hasConfiguredBudget;
+  final BudgetExpiryPeriod budgetExpiryPeriod;
+  final DateTime? budgetCreatedAt;
 
   factory BudgetSettings.defaults() {
     return const BudgetSettings(
-      totalDailyBudget: 500,
-      foodBudget: 200,
-      transportationBudget: 70,
-      leisureBudget: 80,
-      savingsGoal: 100,
+      totalDailyBudget: 0,
+      foodBudget: 0,
+      transportationBudget: 0,
+      leisureBudget: 0,
+      savingsGoal: 0,
     );
   }
 
-  double get allocatedTotal => foodBudget + transportationBudget + leisureBudget + savingsGoal;
+  double get allocatedTotal =>
+      foodBudget + transportationBudget + leisureBudget + savingsGoal;
 
   BudgetSettings copyWith({
     double? totalDailyBudget,
@@ -127,6 +148,9 @@ class BudgetSettings {
     double? transportationBudget,
     double? leisureBudget,
     double? savingsGoal,
+    bool? hasConfiguredBudget,
+    BudgetExpiryPeriod? budgetExpiryPeriod,
+    DateTime? budgetCreatedAt,
   }) {
     return BudgetSettings(
       totalDailyBudget: totalDailyBudget ?? this.totalDailyBudget,
@@ -134,6 +158,9 @@ class BudgetSettings {
       transportationBudget: transportationBudget ?? this.transportationBudget,
       leisureBudget: leisureBudget ?? this.leisureBudget,
       savingsGoal: savingsGoal ?? this.savingsGoal,
+      hasConfiguredBudget: hasConfiguredBudget ?? this.hasConfiguredBudget,
+      budgetExpiryPeriod: budgetExpiryPeriod ?? this.budgetExpiryPeriod,
+      budgetCreatedAt: budgetCreatedAt ?? this.budgetCreatedAt,
     );
   }
 
@@ -144,16 +171,28 @@ class BudgetSettings {
       'transportationBudget': transportationBudget,
       'leisureBudget': leisureBudget,
       'savingsGoal': savingsGoal,
+      'hasConfiguredBudget': hasConfiguredBudget,
+      'budgetExpiryPeriod': budgetExpiryPeriod.name,
+      'budgetCreatedAt': budgetCreatedAt?.toIso8601String(),
     };
   }
 
   factory BudgetSettings.fromJson(Map<String, dynamic> json) {
     return BudgetSettings(
-      totalDailyBudget: (json['totalDailyBudget'] as num?)?.toDouble() ?? 500,
-      foodBudget: (json['foodBudget'] as num?)?.toDouble() ?? 200,
-      transportationBudget: (json['transportationBudget'] as num?)?.toDouble() ?? 70,
-      leisureBudget: (json['leisureBudget'] as num?)?.toDouble() ?? 80,
-      savingsGoal: (json['savingsGoal'] as num?)?.toDouble() ?? 100,
+      totalDailyBudget: (json['totalDailyBudget'] as num?)?.toDouble() ?? 0,
+      foodBudget: (json['foodBudget'] as num?)?.toDouble() ?? 0,
+      transportationBudget:
+          (json['transportationBudget'] as num?)?.toDouble() ?? 0,
+      leisureBudget: (json['leisureBudget'] as num?)?.toDouble() ?? 0,
+      savingsGoal: (json['savingsGoal'] as num?)?.toDouble() ?? 0,
+      hasConfiguredBudget: json['hasConfiguredBudget'] as bool? ?? false,
+      budgetExpiryPeriod: BudgetExpiryPeriod.values.firstWhere(
+        (p) => p.name == (json['budgetExpiryPeriod'] as String?),
+        orElse: () => BudgetExpiryPeriod.daily,
+      ),
+      budgetCreatedAt: json['budgetCreatedAt'] != null
+          ? DateTime.tryParse(json['budgetCreatedAt'] as String)
+          : null,
     );
   }
 }
@@ -211,11 +250,14 @@ class ExpenseEntry {
 
   factory ExpenseEntry.fromJson(Map<String, dynamic> json) {
     return ExpenseEntry(
-      id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id: json['id'] as String? ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       title: json['title'] as String? ?? 'Expense',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
-      category: BudgetCategoryX.fromString(json['category'] as String? ?? BudgetCategory.miscellaneous.name),
-      dateTime: DateTime.tryParse(json['dateTime'] as String? ?? '') ?? DateTime.now(),
+      category: BudgetCategoryX.fromString(
+          json['category'] as String? ?? BudgetCategory.miscellaneous.name),
+      dateTime: DateTime.tryParse(json['dateTime'] as String? ?? '') ??
+          DateTime.now(),
       note: json['note'] as String? ?? '',
       source: json['source'] as String? ?? 'manual',
     );
@@ -328,11 +370,14 @@ class MealSuggestion {
 
   factory MealSuggestion.fromJson(Map<String, dynamic> json) {
     return MealSuggestion(
-      id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id: json['id'] as String? ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       name: json['name'] as String? ?? 'Meal',
       estimatedPrice: (json['estimatedPrice'] as num?)?.toDouble() ?? 0,
-      mealType: MealTypeX.fromString(json['mealType'] as String? ?? MealType.snack.name),
-      category: MealCategoryX.fromString(json['category'] as String? ?? MealCategory.budgetMeals.name),
+      mealType: MealTypeX.fromString(
+          json['mealType'] as String? ?? MealType.snack.name),
+      category: MealCategoryX.fromString(
+          json['category'] as String? ?? MealCategory.budgetMeals.name),
       calories: (json['calories'] as num?)?.toInt(),
       note: json['note'] as String? ?? '',
       isFavorite: json['isFavorite'] as bool? ?? false,
@@ -429,12 +474,17 @@ class ActivitySuggestion {
 
   factory ActivitySuggestion.fromJson(Map<String, dynamic> json) {
     return ActivitySuggestion(
-      id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id: json['id'] as String? ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       title: json['title'] as String? ?? 'Activity',
       estimatedCost: (json['estimatedCost'] as num?)?.toDouble() ?? 0,
-      mood: GalaMoodX.fromString(json['mood'] as String? ?? GalaMood.chill.name),
+      mood:
+          GalaMoodX.fromString(json['mood'] as String? ?? GalaMood.chill.name),
       distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0,
-      details: (json['details'] as List<dynamic>?)?.map((dynamic e) => e.toString()).toList() ?? <String>[],
+      details: (json['details'] as List<dynamic>?)
+              ?.map((dynamic e) => e.toString())
+              .toList() ??
+          <String>[],
     );
   }
 
@@ -514,7 +564,8 @@ class DailyRecord {
 
   factory DailyRecord.fromJson(Map<String, dynamic> json) {
     final totals = <String, double>{};
-    final rawTotals = json['categoryTotals'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final rawTotals =
+        json['categoryTotals'] as Map<String, dynamic>? ?? <String, dynamic>{};
     for (final MapEntry<String, dynamic> entry in rawTotals.entries) {
       totals[entry.key] = (entry.value as num?)?.toDouble() ?? 0;
     }
@@ -523,7 +574,8 @@ class DailyRecord {
       totalSpent: (json['totalSpent'] as num?)?.toDouble() ?? 0,
       remainingBalance: (json['remainingBalance'] as num?)?.toDouble() ?? 0,
       savings: (json['savings'] as num?)?.toDouble() ?? 0,
-      biggestExpenseCategory: json['biggestExpenseCategory'] as String? ?? BudgetCategory.miscellaneous.label,
+      biggestExpenseCategory: json['biggestExpenseCategory'] as String? ??
+          BudgetCategory.miscellaneous.label,
       categoryTotals: totals,
     );
   }
@@ -708,21 +760,11 @@ class BudgetBuddyState {
   factory BudgetBuddyState.initial() {
     return BudgetBuddyState(
       settings: BudgetSettings.defaults(),
-      expenses: ExpenseEntry.sampleList(),
-      customMeals: <MealSuggestion>[
-        const MealSuggestion(
-          id: 'custom-1',
-          name: 'Pandesal with peanut butter',
-          estimatedPrice: 30,
-          mealType: MealType.breakfast,
-          category: MealCategory.budgetMeals,
-          calories: 250,
-          note: 'Easy pocket-friendly breakfast',
-        ),
-      ],
-      favoriteMealIds: <String>{'meal-1', 'custom-1'}.toList(),
-      savedActivityPlans: ActivitySuggestion.sampleCatalog().take(3).toList(),
-      dailyRecords: DailyRecord.sampleList(),
+      expenses: <ExpenseEntry>[],
+      customMeals: <MealSuggestion>[],
+      favoriteMealIds: <String>[],
+      savedActivityPlans: <ActivitySuggestion>[],
+      dailyRecords: <DailyRecord>[],
       profile: UserProfile.defaults(),
       loggedIn: false,
       onboardingComplete: false,
@@ -761,9 +803,10 @@ class BudgetBuddyState {
       themeMode: themeMode ?? this.themeMode,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       isBootstrapping: isBootstrapping ?? this.isBootstrapping,
-      currentExpenseFilter: identical(currentExpenseFilter, _currentExpenseFilterSentinel)
-          ? this.currentExpenseFilter
-          : currentExpenseFilter as BudgetCategory?,
+      currentExpenseFilter:
+          identical(currentExpenseFilter, _currentExpenseFilterSentinel)
+              ? this.currentExpenseFilter
+              : currentExpenseFilter as BudgetCategory?,
     );
   }
 
@@ -773,10 +816,14 @@ class BudgetBuddyState {
     return <String, dynamic>{
       'settings': settings.toJson(),
       'expenses': expenses.map((ExpenseEntry entry) => entry.toJson()).toList(),
-      'customMeals': customMeals.map((MealSuggestion meal) => meal.toJson()).toList(),
+      'customMeals':
+          customMeals.map((MealSuggestion meal) => meal.toJson()).toList(),
       'favoriteMealIds': favoriteMealIds,
-      'savedActivityPlans': savedActivityPlans.map((ActivitySuggestion activity) => activity.toJson()).toList(),
-      'dailyRecords': dailyRecords.map((DailyRecord record) => record.toJson()).toList(),
+      'savedActivityPlans': savedActivityPlans
+          .map((ActivitySuggestion activity) => activity.toJson())
+          .toList(),
+      'dailyRecords':
+          dailyRecords.map((DailyRecord record) => record.toJson()).toList(),
       'profile': profile.toJson(),
       'loggedIn': loggedIn,
       'onboardingComplete': onboardingComplete,
@@ -788,30 +835,42 @@ class BudgetBuddyState {
 
   factory BudgetBuddyState.fromJson(Map<String, dynamic> json) {
     return BudgetBuddyState(
-      settings: BudgetSettings.fromJson((json['settings'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{}),
+      settings: BudgetSettings.fromJson(
+          (json['settings'] as Map?)?.cast<String, dynamic>() ??
+              <String, dynamic>{}),
       expenses: (json['expenses'] as List<dynamic>?)
-              ?.map((dynamic item) => ExpenseEntry.fromJson((item as Map).cast<String, dynamic>()))
+              ?.map((dynamic item) =>
+                  ExpenseEntry.fromJson((item as Map).cast<String, dynamic>()))
               .toList() ??
           ExpenseEntry.sampleList(),
       customMeals: (json['customMeals'] as List<dynamic>?)
-              ?.map((dynamic item) => MealSuggestion.fromJson((item as Map).cast<String, dynamic>()))
+              ?.map((dynamic item) => MealSuggestion.fromJson(
+                  (item as Map).cast<String, dynamic>()))
               .toList() ??
           <MealSuggestion>[],
-      favoriteMealIds: (json['favoriteMealIds'] as List<dynamic>?)?.map((dynamic item) => item.toString()).toList() ??
+      favoriteMealIds: (json['favoriteMealIds'] as List<dynamic>?)
+              ?.map((dynamic item) => item.toString())
+              .toList() ??
           <String>[],
       savedActivityPlans: (json['savedActivityPlans'] as List<dynamic>?)
-              ?.map((dynamic item) => ActivitySuggestion.fromJson((item as Map).cast<String, dynamic>()))
+              ?.map((dynamic item) => ActivitySuggestion.fromJson(
+                  (item as Map).cast<String, dynamic>()))
               .toList() ??
           ActivitySuggestion.sampleCatalog(),
       dailyRecords: (json['dailyRecords'] as List<dynamic>?)
-              ?.map((dynamic item) => DailyRecord.fromJson((item as Map).cast<String, dynamic>()))
+              ?.map((dynamic item) =>
+                  DailyRecord.fromJson((item as Map).cast<String, dynamic>()))
               .toList() ??
           DailyRecord.sampleList(),
-      profile: UserProfile.fromJson((json['profile'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{}),
+      profile: UserProfile.fromJson(
+          (json['profile'] as Map?)?.cast<String, dynamic>() ??
+              <String, dynamic>{}),
       loggedIn: json['loggedIn'] as bool? ?? false,
       onboardingComplete: json['onboardingComplete'] as bool? ?? false,
       themeMode: ThemeMode.values.firstWhere(
-        (ThemeMode mode) => mode.name == (json['themeMode'] as String? ?? ThemeMode.system.name),
+        (ThemeMode mode) =>
+            mode.name ==
+            (json['themeMode'] as String? ?? ThemeMode.system.name),
         orElse: () => ThemeMode.system,
       ),
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,

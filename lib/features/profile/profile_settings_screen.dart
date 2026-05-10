@@ -134,6 +134,52 @@ class ProfileSettingsScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        showDialog<void>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Reset entire app?'),
+                              content: const Text(
+                                'This will clear all budgets, expenses, spending records, and daily logs. This action cannot be undone.',
+                              ),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () {
+                                    ref
+                                        .read(budgetBuddyControllerProvider
+                                            .notifier)
+                                        .resetApp();
+                                    Navigator.of(context).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'App reset to zero successfully'),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Reset'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                      icon: const Icon(Icons.delete_sweep_rounded),
+                      label: const Text('Reset entire app to 0'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
