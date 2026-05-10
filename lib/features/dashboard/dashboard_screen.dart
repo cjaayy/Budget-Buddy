@@ -41,11 +41,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final List<ExpenseEntry> recentExpenses = state.expenses.take(5).toList();
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showQuickExpenseSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Quick add'),
-      ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: _handleHorizontalDragEnd,

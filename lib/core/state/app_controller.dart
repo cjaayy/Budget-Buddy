@@ -205,6 +205,35 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _persist();
   }
 
+  void updateProfilePreferences({
+    bool? notificationsEnabled,
+    bool? budgetWarningNotificationsEnabled,
+    bool? summaryNotificationsEnabled,
+    bool? streakNotificationsEnabled,
+    int? notificationReminderMinuteOfDay,
+    NotificationFrequency? notificationFrequency,
+    int? dayStartMinuteOfDay,
+  }) {
+    state = state.copyWith(
+      settings: state.settings.copyWith(
+        notificationsEnabled: notificationsEnabled,
+        budgetWarningNotificationsEnabled: budgetWarningNotificationsEnabled,
+        summaryNotificationsEnabled: summaryNotificationsEnabled,
+        streakNotificationsEnabled: streakNotificationsEnabled,
+        notificationReminderMinuteOfDay: notificationReminderMinuteOfDay,
+        notificationFrequency: notificationFrequency,
+        dayStartMinuteOfDay: dayStartMinuteOfDay,
+      ),
+      notificationsEnabled: notificationsEnabled ?? state.notificationsEnabled,
+    );
+    _persist();
+  }
+
+  void restoreSnapshot(BudgetBuddyState snapshot) {
+    state = snapshot.copyWith(isBootstrapping: false);
+    _persist();
+  }
+
   void completeOnboarding() {
     state = state.copyWith(onboardingComplete: true);
     _persist();

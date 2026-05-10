@@ -119,6 +119,22 @@ enum BudgetExpiryPeriod { daily, weekly, monthly }
 
 enum DashboardPeriod { daily, weekly, monthly }
 
+enum NotificationFrequency { daily, weekly }
+
+extension NotificationFrequencyX on NotificationFrequency {
+  String get label => switch (this) {
+        NotificationFrequency.daily => 'Daily',
+        NotificationFrequency.weekly => 'Weekly',
+      };
+
+  static NotificationFrequency fromString(String value) {
+    return NotificationFrequency.values.firstWhere(
+      (NotificationFrequency frequency) => frequency.name == value,
+      orElse: () => NotificationFrequency.daily,
+    );
+  }
+}
+
 extension DashboardPeriodX on DashboardPeriod {
   String get label => switch (this) {
         DashboardPeriod.daily => 'Daily',
@@ -149,6 +165,13 @@ class BudgetSettings {
     required this.savingsGoal,
     this.savingsTargetAmount = 0,
     this.savingsTargetDate,
+    this.notificationsEnabled = true,
+    this.budgetWarningNotificationsEnabled = true,
+    this.summaryNotificationsEnabled = true,
+    this.streakNotificationsEnabled = true,
+    this.notificationReminderMinuteOfDay = 21 * 60,
+    this.notificationFrequency = NotificationFrequency.daily,
+    this.dayStartMinuteOfDay = 0,
     this.hasConfiguredBudget = false,
     this.autoRenewBudget = false,
     this.budgetExpiryPeriod = BudgetExpiryPeriod.daily,
@@ -162,6 +185,13 @@ class BudgetSettings {
   final double savingsGoal;
   final double savingsTargetAmount;
   final DateTime? savingsTargetDate;
+  final bool notificationsEnabled;
+  final bool budgetWarningNotificationsEnabled;
+  final bool summaryNotificationsEnabled;
+  final bool streakNotificationsEnabled;
+  final int notificationReminderMinuteOfDay;
+  final NotificationFrequency notificationFrequency;
+  final int dayStartMinuteOfDay;
   final bool hasConfiguredBudget;
   final bool autoRenewBudget;
   final BudgetExpiryPeriod budgetExpiryPeriod;
@@ -175,6 +205,13 @@ class BudgetSettings {
       leisureBudget: 0,
       savingsGoal: 0,
       savingsTargetAmount: 0,
+      notificationsEnabled: true,
+      budgetWarningNotificationsEnabled: true,
+      summaryNotificationsEnabled: true,
+      streakNotificationsEnabled: true,
+      notificationReminderMinuteOfDay: 21 * 60,
+      notificationFrequency: NotificationFrequency.daily,
+      dayStartMinuteOfDay: 0,
     );
   }
 
@@ -189,6 +226,13 @@ class BudgetSettings {
     double? savingsGoal,
     double? savingsTargetAmount,
     DateTime? savingsTargetDate,
+    bool? notificationsEnabled,
+    bool? budgetWarningNotificationsEnabled,
+    bool? summaryNotificationsEnabled,
+    bool? streakNotificationsEnabled,
+    int? notificationReminderMinuteOfDay,
+    NotificationFrequency? notificationFrequency,
+    int? dayStartMinuteOfDay,
     bool? hasConfiguredBudget,
     bool? autoRenewBudget,
     BudgetExpiryPeriod? budgetExpiryPeriod,
@@ -202,6 +246,18 @@ class BudgetSettings {
       savingsGoal: savingsGoal ?? this.savingsGoal,
       savingsTargetAmount: savingsTargetAmount ?? this.savingsTargetAmount,
       savingsTargetDate: savingsTargetDate ?? this.savingsTargetDate,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      budgetWarningNotificationsEnabled: budgetWarningNotificationsEnabled ??
+          this.budgetWarningNotificationsEnabled,
+      summaryNotificationsEnabled:
+          summaryNotificationsEnabled ?? this.summaryNotificationsEnabled,
+      streakNotificationsEnabled:
+          streakNotificationsEnabled ?? this.streakNotificationsEnabled,
+      notificationReminderMinuteOfDay: notificationReminderMinuteOfDay ??
+          this.notificationReminderMinuteOfDay,
+      notificationFrequency:
+          notificationFrequency ?? this.notificationFrequency,
+      dayStartMinuteOfDay: dayStartMinuteOfDay ?? this.dayStartMinuteOfDay,
       hasConfiguredBudget: hasConfiguredBudget ?? this.hasConfiguredBudget,
       autoRenewBudget: autoRenewBudget ?? this.autoRenewBudget,
       budgetExpiryPeriod: budgetExpiryPeriod ?? this.budgetExpiryPeriod,
@@ -218,6 +274,13 @@ class BudgetSettings {
       'savingsGoal': savingsGoal,
       'savingsTargetAmount': savingsTargetAmount,
       'savingsTargetDate': savingsTargetDate?.toIso8601String(),
+      'notificationsEnabled': notificationsEnabled,
+      'budgetWarningNotificationsEnabled': budgetWarningNotificationsEnabled,
+      'summaryNotificationsEnabled': summaryNotificationsEnabled,
+      'streakNotificationsEnabled': streakNotificationsEnabled,
+      'notificationReminderMinuteOfDay': notificationReminderMinuteOfDay,
+      'notificationFrequency': notificationFrequency.name,
+      'dayStartMinuteOfDay': dayStartMinuteOfDay,
       'hasConfiguredBudget': hasConfiguredBudget,
       'autoRenewBudget': autoRenewBudget,
       'budgetExpiryPeriod': budgetExpiryPeriod.name,
@@ -238,6 +301,20 @@ class BudgetSettings {
       savingsTargetDate: json['savingsTargetDate'] != null
           ? DateTime.tryParse(json['savingsTargetDate'] as String)
           : null,
+      notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+      budgetWarningNotificationsEnabled:
+          json['budgetWarningNotificationsEnabled'] as bool? ?? true,
+      summaryNotificationsEnabled:
+          json['summaryNotificationsEnabled'] as bool? ?? true,
+      streakNotificationsEnabled:
+          json['streakNotificationsEnabled'] as bool? ?? true,
+      notificationReminderMinuteOfDay:
+          (json['notificationReminderMinuteOfDay'] as num?)?.toInt() ?? 21 * 60,
+      notificationFrequency: NotificationFrequencyX.fromString(
+        json['notificationFrequency'] as String? ??
+            NotificationFrequency.daily.name,
+      ),
+      dayStartMinuteOfDay: (json['dayStartMinuteOfDay'] as num?)?.toInt() ?? 0,
       hasConfiguredBudget: json['hasConfiguredBudget'] as bool? ?? false,
       autoRenewBudget: json['autoRenewBudget'] as bool? ?? false,
       budgetExpiryPeriod: BudgetExpiryPeriod.values.firstWhere(
