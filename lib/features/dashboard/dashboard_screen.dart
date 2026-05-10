@@ -7,8 +7,6 @@ import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
-import '../meals/meal_suggestions_screen.dart';
-import '../gala/gala_planner_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -165,44 +163,6 @@ class DashboardScreen extends ConsumerWidget {
                                 color: category.color,
                                 icon: Icons.circle))
                             .toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const SectionTitle(
-                        title: 'Plan & suggestions',
-                        subtitle: 'Open planners and suggestions',
-                      ),
-                      const SizedBox(height: 8),
-                      Column(
-                        children: <Widget>[
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.restaurant_menu_rounded),
-                            title: const Text('Meal planner'),
-                            subtitle: const Text('Plan meals and log recipes'),
-                            trailing: const Icon(Icons.chevron_right_rounded),
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MealSuggestionsScreen())),
-                          ),
-                          const Divider(height: 1),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.explore_rounded),
-                            title: const Text('Gala planner'),
-                            subtitle: const Text('Ideas for strolls and activities'),
-                            trailing: const Icon(Icons.chevron_right_rounded),
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GalaPlannerScreen())),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -418,5 +378,3 @@ class _Header extends StatelessWidget {
     );
   }
 }
-
-// _SuggestionCard removed — suggestions are now accessed via dedicated screens
