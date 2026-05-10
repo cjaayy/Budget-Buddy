@@ -107,13 +107,46 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   Future<void> _bootstrap() async {
     final BudgetBuddyState loaded = await _repository.loadState();
     state = loaded.copyWith(isBootstrapping: false);
+    _renewBudgetIfNeeded();
     await _syncDailyRecord();
     await _repository.saveState(state);
   }
 
   Future<void> _persist() async {
+    _renewBudgetIfNeeded();
     await _syncDailyRecord();
     await _repository.saveState(state);
+  }
+
+  void _renewBudgetIfNeeded() {
+    final BudgetSettings settings = state.settings;
+    if (!settings.hasConfiguredBudget ||
+        !settings.autoRenewBudget ||
+        settings.budgetCreatedAt == null) {
+      return;
+    }
+
+    if (!_isBudgetExpired(settings, DateTime.now())) {
+      return;
+    }
+
+    state = state.copyWith(
+      settings: settings.copyWith(budgetCreatedAt: DateTime.now()),
+    );
+  }
+
+  bool _isBudgetExpired(BudgetSettings settings, DateTime now) {
+    final DateTime? createdAt = settings.budgetCreatedAt;
+    if (createdAt == null) {
+      return false;
+    }
+
+    final Duration cycle = switch (settings.budgetExpiryPeriod) {
+      BudgetExpiryPeriod.daily => const Duration(days: 1),
+      BudgetExpiryPeriod.weekly => const Duration(days: 7),
+      BudgetExpiryPeriod.monthly => const Duration(days: 30),
+    };
+    return !createdAt.add(cycle).isAfter(now);
   }
 
   Future<void> _syncDailyRecord() async {
@@ -222,7 +255,9 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       dateTime: dateTime ?? DateTime.now(),
       note: note,
     );
-    state = state.copyWith(expenses: <ExpenseEntry>[entry, ...state.expenses]);
+    state = state.copyWith(
+        expenses: <ExpenseEntry>[entry, ...state.expenses],
+        lastExpenseCategory: category);
     _persist();
     _triggerWarningIfNeeded();
   }
@@ -231,7 +266,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final List<ExpenseEntry> updated = state.expenses.map((ExpenseEntry entry) {
       return entry.id == expense.id ? expense : entry;
     }).toList();
-    state = state.copyWith(expenses: updated);
+    state = state.copyWith(
+        expenses: updated, lastExpenseCategory: expense.category);
     _persist();
   }
 

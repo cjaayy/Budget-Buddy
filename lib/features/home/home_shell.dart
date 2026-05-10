@@ -18,14 +18,14 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  final List<Widget> _pages = const <Widget>[
-    DashboardScreen(),
-    BudgetPlannerScreen(),
-    MealSuggestionsScreen(),
-    GalaPlannerScreen(),
-    ExpenseTrackerScreen(),
-    AnalyticsScreen(),
-    ProfileSettingsScreen(),
+  late final List<Widget> _pages = <Widget>[
+    DashboardScreen(onGetStarted: () => setState(() => _index = 1)),
+    const BudgetPlannerScreen(),
+    const MealSuggestionsScreen(),
+    const GalaPlannerScreen(),
+    const ExpenseTrackerScreen(),
+    const AnalyticsScreen(),
+    const ProfileSettingsScreen(),
   ];
 
   @override

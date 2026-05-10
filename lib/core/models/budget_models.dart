@@ -116,6 +116,7 @@ class BudgetSettings {
     required this.leisureBudget,
     required this.savingsGoal,
     this.hasConfiguredBudget = false,
+    this.autoRenewBudget = false,
     this.budgetExpiryPeriod = BudgetExpiryPeriod.daily,
     this.budgetCreatedAt,
   });
@@ -126,6 +127,7 @@ class BudgetSettings {
   final double leisureBudget;
   final double savingsGoal;
   final bool hasConfiguredBudget;
+  final bool autoRenewBudget;
   final BudgetExpiryPeriod budgetExpiryPeriod;
   final DateTime? budgetCreatedAt;
 
@@ -149,6 +151,7 @@ class BudgetSettings {
     double? leisureBudget,
     double? savingsGoal,
     bool? hasConfiguredBudget,
+    bool? autoRenewBudget,
     BudgetExpiryPeriod? budgetExpiryPeriod,
     DateTime? budgetCreatedAt,
   }) {
@@ -159,6 +162,7 @@ class BudgetSettings {
       leisureBudget: leisureBudget ?? this.leisureBudget,
       savingsGoal: savingsGoal ?? this.savingsGoal,
       hasConfiguredBudget: hasConfiguredBudget ?? this.hasConfiguredBudget,
+      autoRenewBudget: autoRenewBudget ?? this.autoRenewBudget,
       budgetExpiryPeriod: budgetExpiryPeriod ?? this.budgetExpiryPeriod,
       budgetCreatedAt: budgetCreatedAt ?? this.budgetCreatedAt,
     );
@@ -172,6 +176,7 @@ class BudgetSettings {
       'leisureBudget': leisureBudget,
       'savingsGoal': savingsGoal,
       'hasConfiguredBudget': hasConfiguredBudget,
+      'autoRenewBudget': autoRenewBudget,
       'budgetExpiryPeriod': budgetExpiryPeriod.name,
       'budgetCreatedAt': budgetCreatedAt?.toIso8601String(),
     };
@@ -186,6 +191,7 @@ class BudgetSettings {
       leisureBudget: (json['leisureBudget'] as num?)?.toDouble() ?? 0,
       savingsGoal: (json['savingsGoal'] as num?)?.toDouble() ?? 0,
       hasConfiguredBudget: json['hasConfiguredBudget'] as bool? ?? false,
+      autoRenewBudget: json['autoRenewBudget'] as bool? ?? false,
       budgetExpiryPeriod: BudgetExpiryPeriod.values.firstWhere(
         (p) => p.name == (json['budgetExpiryPeriod'] as String?),
         orElse: () => BudgetExpiryPeriod.daily,
@@ -730,6 +736,7 @@ class BudgetBuddyState {
   const BudgetBuddyState({
     required this.settings,
     required this.expenses,
+    required this.lastExpenseCategory,
     required this.customMeals,
     required this.favoriteMealIds,
     required this.savedActivityPlans,
@@ -745,6 +752,7 @@ class BudgetBuddyState {
 
   final BudgetSettings settings;
   final List<ExpenseEntry> expenses;
+  final BudgetCategory? lastExpenseCategory;
   final List<MealSuggestion> customMeals;
   final List<String> favoriteMealIds;
   final List<ActivitySuggestion> savedActivityPlans;
@@ -761,6 +769,7 @@ class BudgetBuddyState {
     return BudgetBuddyState(
       settings: BudgetSettings.defaults(),
       expenses: <ExpenseEntry>[],
+      lastExpenseCategory: null,
       customMeals: <MealSuggestion>[],
       favoriteMealIds: <String>[],
       savedActivityPlans: <ActivitySuggestion>[],
@@ -778,6 +787,7 @@ class BudgetBuddyState {
   BudgetBuddyState copyWith({
     BudgetSettings? settings,
     List<ExpenseEntry>? expenses,
+    Object? lastExpenseCategory = _lastExpenseCategorySentinel,
     List<MealSuggestion>? customMeals,
     List<String>? favoriteMealIds,
     List<ActivitySuggestion>? savedActivityPlans,
@@ -793,6 +803,10 @@ class BudgetBuddyState {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
       expenses: expenses ?? this.expenses,
+      lastExpenseCategory:
+          identical(lastExpenseCategory, _lastExpenseCategorySentinel)
+              ? this.lastExpenseCategory
+              : lastExpenseCategory as BudgetCategory?,
       customMeals: customMeals ?? this.customMeals,
       favoriteMealIds: favoriteMealIds ?? this.favoriteMealIds,
       savedActivityPlans: savedActivityPlans ?? this.savedActivityPlans,
@@ -810,12 +824,15 @@ class BudgetBuddyState {
     );
   }
 
+  static const Object _lastExpenseCategorySentinel = Object();
+
   static const Object _currentExpenseFilterSentinel = Object();
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'settings': settings.toJson(),
       'expenses': expenses.map((ExpenseEntry entry) => entry.toJson()).toList(),
+      'lastExpenseCategory': lastExpenseCategory?.name,
       'customMeals':
           customMeals.map((MealSuggestion meal) => meal.toJson()).toList(),
       'favoriteMealIds': favoriteMealIds,
@@ -843,6 +860,9 @@ class BudgetBuddyState {
                   ExpenseEntry.fromJson((item as Map).cast<String, dynamic>()))
               .toList() ??
           ExpenseEntry.sampleList(),
+      lastExpenseCategory: json['lastExpenseCategory'] == null
+          ? null
+          : BudgetCategoryX.fromString(json['lastExpenseCategory'] as String),
       customMeals: (json['customMeals'] as List<dynamic>?)
               ?.map((dynamic item) => MealSuggestion.fromJson(
                   (item as Map).cast<String, dynamic>()))
