@@ -15,42 +15,24 @@ class SpendScreen extends ConsumerStatefulWidget {
 }
 
 class _SpendScreenState extends ConsumerState<SpendScreen> {
-  BudgetCategory _category = BudgetCategory.food;
-  final TextEditingController _searchController = TextEditingController();
-  final Set<String> _plannedIds = <String>{};
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  static const String _spendTag = '[SPEND]';
 
   @override
   Widget build(BuildContext context) {
+    final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final String query = _searchController.text.trim().toLowerCase();
+    final DateTime now = DateTime.now();
 
-    final List<_SpendIdea> ideas = _catalog.where((_SpendIdea idea) {
-      final bool matchesCategory = idea.category == _category;
-      final bool matchesQuery = query.isEmpty ||
-          idea.title.toLowerCase().contains(query) ||
-          idea.note.toLowerCase().contains(query);
-      return matchesCategory && matchesQuery;
-    }).toList();
-
-    final List<_SpendIdea> plannedItems = _catalog
-        .where((_SpendIdea idea) => _plannedIds.contains(idea.id))
+    final List<ExpenseEntry> plannedToday = state.expenses
+        .where((ExpenseEntry entry) =>
+            _isSpendTagged(entry.note) && _isSameDay(entry.dateTime, now))
         .toList();
-    final double plannedTotal = plannedItems.fold<double>(
-      0,
-      (double sum, _SpendIdea idea) => sum + idea.estimatedPrice,
-    );
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _logPlannedItems(context, plannedItems),
-        icon: const Icon(Icons.playlist_add_check_rounded),
-        label: const Text('Log planned'),
+        onPressed: () => _showCustomSpendSheet(context),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Add spend'),
       ),
       body: SafeArea(
         child: ListView(
@@ -59,396 +41,597 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             const SectionTitle(
               title: 'Spend',
               subtitle:
-                  'Plan food, transport, entertainment, and shopping before you log anything.',
+                  'Plan and log spending in one place. Every entry is deducted from active day, week, and month limits.',
             ),
             const SizedBox(height: 12),
-            BudgetMetricCard(
-              label: 'Remaining budget',
-              value: formatPeso(summary.remainingBalance),
-              subtitle: plannedItems.isEmpty
-                  ? 'No spend planned yet'
-                  : '${plannedItems.length} planned • ${formatPeso(plannedTotal)} total',
-              icon: Icons.savings_rounded,
-              color: const Color(0xFF0F766E),
-            ),
+            _RemainingPills(summary: summary),
             const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search spend ideas',
-                prefixIcon: Icon(Icons.search_rounded),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: BudgetCategory.values
-                  .map(
-                    (BudgetCategory category) => ChoiceChip(
-                      selected: _category == category,
-                      label: Text(category.label),
-                      avatar: Icon(category.colorIcon, size: 16),
-                      onSelected: (_) => setState(() => _category = category),
+            SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Quick spend categories',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap a category to log amount and note.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.65,
                     ),
-                  )
-                  .toList(),
+                    itemCount: _spendCategories.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final _SpendCategoryOption option =
+                          _spendCategories[index];
+                      return _CategoryGridTile(
+                        option: option,
+                        onTap: () => _showQuickCategorySheet(context, option),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          _category.label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      SoftPill(
-                        text: _category.hint,
-                        color: _category.color,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
                   Text(
-                    'Build a short plan, then tap Log to turn it into a real expense. Anything logged here still counts against your daily, weekly, and monthly limits.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    'Planned today',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
+                  const SizedBox(height: 8),
+                  if (plannedToday.isEmpty)
+                    Text(
+                      'No spends logged from this screen yet.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    )
+                  else
+                    ...plannedToday.map(
+                      (ExpenseEntry entry) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              entry.category.color.withValues(alpha: 0.12),
+                          child: Icon(
+                            _categoryIcon(entry.category),
+                            color: entry.category.color,
+                          ),
+                        ),
+                        title: Text(
+                          entry.title,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '${_stripSpendTag(entry.note)} • ${_timeLabel(context, entry.dateTime)}',
+                        ),
+                        trailing: Text(
+                          formatPeso(entry.amount),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        onTap: () => _showEditSpendSheet(context, entry),
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (plannedItems.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 16),
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            'Planned so far',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                        Text(
-                          '${plannedItems.length} items',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: plannedItems
-                          .map(
-                            (_SpendIdea idea) => ActionChip(
-                              avatar: Icon(idea.icon, size: 18),
-                              label: Text(
-                                  '${idea.title} • ${formatPeso(idea.estimatedPrice)}'),
-                              onPressed: () => setState(() {
-                                _plannedIds.remove(idea.id);
-                              }),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.tonalIcon(
-                        onPressed: () =>
-                            _logPlannedItems(context, plannedItems),
-                        icon: const Icon(Icons.playlist_add_check_rounded),
-                        label: const Text('Log all planned items'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            ...ideas.map((_SpendIdea idea) {
-              final bool planned = _plannedIds.contains(idea.id);
-              final bool overBudget =
-                  idea.estimatedPrice > summary.remainingBalance;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color:
-                                  idea.category.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(idea.icon, color: idea.category.color),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  idea.title,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(idea.note),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: <Widget>[
-                              Text(
-                                formatPeso(idea.estimatedPrice),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 6),
-                              SoftPill(
-                                text:
-                                    overBudget ? 'Over budget' : 'Fits budget',
-                                color: overBudget
-                                    ? const Color(0xFFDC2626)
-                                    : const Color(0xFF16A34A),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          SoftPill(
-                            text: idea.category.label,
-                            color: idea.category.color,
-                            icon: idea.icon,
-                          ),
-                          SoftPill(
-                            text: idea.category.hint,
-                            color: const Color(0xFF475569),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: <Widget>[
-                          FilledButton.tonalIcon(
-                            onPressed: () => setState(() {
-                              if (planned) {
-                                _plannedIds.remove(idea.id);
-                              } else {
-                                _plannedIds.add(idea.id);
-                              }
-                            }),
-                            icon: Icon(
-                              planned ? Icons.check_rounded : Icons.add_rounded,
-                            ),
-                            label: Text(planned ? 'Planned' : 'Plan'),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: () => _logIdea(context, idea),
-                            icon: const Icon(Icons.play_arrow_rounded),
-                            label: const Text('Log'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 80),
           ],
         ),
       ),
     );
   }
 
-  void _logIdea(BuildContext context, _SpendIdea idea) {
-    ref.read(budgetBuddyControllerProvider.notifier).addExpense(
-          title: idea.title,
-          amount: idea.estimatedPrice,
-          category: idea.category,
-          note: idea.note,
-          dateTime: DateTime.now(),
-        );
+  void _showQuickCategorySheet(
+      BuildContext context, _SpendCategoryOption option) {
+    final TextEditingController amountController =
+        TextEditingController(text: option.defaultAmount.toStringAsFixed(0));
+    final TextEditingController noteController = TextEditingController();
 
-    final double remaining = ref.read(budgetSummaryProvider).remainingBalance;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-            Text('${idea.title} logged. ${formatPeso(remaining)} remaining.'),
-      ),
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: option.color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(option.icon, color: option.color),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          option.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(option.subtitle),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '₱ ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(labelText: 'Note'),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    final double amount =
+                        double.tryParse(amountController.text) ?? 0;
+                    if (amount <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Enter a valid amount greater than 0.'),
+                        ),
+                      );
+                      return;
+                    }
+                    _logSpend(
+                      context,
+                      title: option.title,
+                      amount: amount,
+                      category: option.budgetCategory,
+                      note: noteController.text.trim(),
+                    );
+                  },
+                  child: const Text('Log spend'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  void _logPlannedItems(BuildContext context, List<_SpendIdea> plannedItems) {
-    if (plannedItems.isEmpty) {
-      return;
-    }
+  void _showCustomSpendSheet(BuildContext context, {ExpenseEntry? existing}) {
+    final TextEditingController nameController =
+        TextEditingController(text: existing?.title ?? '');
+    final TextEditingController amountController = TextEditingController(
+      text: existing != null ? existing.amount.toStringAsFixed(0) : '',
+    );
+    final TextEditingController noteController =
+        TextEditingController(text: _stripSpendTag(existing?.note ?? ''));
 
-    for (final _SpendIdea idea in plannedItems) {
-      ref.read(budgetBuddyControllerProvider.notifier).addExpense(
-            title: idea.title,
-            amount: idea.estimatedPrice,
-            category: idea.category,
-            note: idea.note,
-            dateTime: DateTime.now(),
-          );
-    }
+    _SpendCategoryOption selected = _categoryOptionForExpense(existing);
 
-    setState(() {
-      _plannedIds.clear();
-    });
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: StatefulBuilder(
+            builder: (BuildContext context,
+                void Function(void Function()) setModalState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    existing == null ? 'Add spend' : 'Edit spend',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Amount',
+                      prefixText: '₱ ',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<_SpendCategoryOption>(
+                    initialValue: selected,
+                    items: _spendCategories
+                        .map(
+                          (_SpendCategoryOption option) =>
+                              DropdownMenuItem<_SpendCategoryOption>(
+                            value: option,
+                            child: Text(option.title),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (_SpendCategoryOption? value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setModalState(() => selected = value);
+                    },
+                    decoration: const InputDecoration(labelText: 'Category'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(labelText: 'Note'),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: <Widget>[
+                      if (existing != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .deleteExpense(existing.id);
+                              Navigator.of(context).pop();
+                            },
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: const Text('Delete'),
+                          ),
+                        ),
+                      if (existing != null) const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            final double amount =
+                                double.tryParse(amountController.text) ?? 0;
+                            final String title = nameController.text.trim();
+                            if (amount <= 0 || title.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Enter a name and an amount greater than 0.'),
+                                ),
+                              );
+                              return;
+                            }
 
-    final double remaining = ref.read(budgetSummaryProvider).remainingBalance;
+                            if (existing == null) {
+                              _logSpend(
+                                context,
+                                title: title,
+                                amount: amount,
+                                category: selected.budgetCategory,
+                                note: noteController.text.trim(),
+                              );
+                              return;
+                            }
+
+                            ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .updateExpense(
+                                  existing.copyWith(
+                                    title: title,
+                                    amount: amount,
+                                    category: selected.budgetCategory,
+                                    note: _withSpendTag(
+                                        noteController.text.trim()),
+                                  ),
+                                );
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(existing == null ? 'Log spend' : 'Save'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditSpendSheet(BuildContext context, ExpenseEntry entry) {
+    _showCustomSpendSheet(context, existing: entry);
+  }
+
+  void _logSpend(
+    BuildContext context, {
+    required String title,
+    required double amount,
+    required BudgetCategory category,
+    required String note,
+  }) {
+    ref.read(budgetBuddyControllerProvider.notifier).addExpense(
+          title: title,
+          amount: amount,
+          category: category,
+          note: _withSpendTag(note),
+          dateTime: DateTime.now(),
+        );
+
+    Navigator.of(context).pop();
+    final BudgetSummary summary = ref.read(budgetSummaryProvider);
+    final BudgetPeriodSummary? daySummary =
+        summary.periodSummaries[BudgetPeriod.daily];
+    final String suffix = daySummary == null || !daySummary.isActive
+        ? ''
+        : ' Day left: ${formatPeso(daySummary.remaining)}';
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${plannedItems.length} planned item${plannedItems.length == 1 ? '' : 's'} logged. ${formatPeso(remaining)} remaining.',
+      SnackBar(content: Text('$title logged.$suffix')),
+    );
+  }
+
+  bool _isSpendTagged(String note) {
+    return note.startsWith(_spendTag);
+  }
+
+  String _withSpendTag(String note) {
+    final String trimmed = note.trim();
+    if (trimmed.isEmpty) {
+      return _spendTag;
+    }
+    return '$_spendTag $trimmed';
+  }
+
+  String _stripSpendTag(String note) {
+    if (!_isSpendTagged(note)) {
+      return note.trim().isEmpty ? 'No note' : note.trim();
+    }
+    final String stripped = note.replaceFirst(_spendTag, '').trim();
+    return stripped.isEmpty ? 'No note' : stripped;
+  }
+
+  bool _isSameDay(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
+  String _timeLabel(BuildContext context, DateTime dateTime) {
+    final TimeOfDay time = TimeOfDay.fromDateTime(dateTime);
+    return MaterialLocalizations.of(context)
+        .formatTimeOfDay(time, alwaysUse24HourFormat: false);
+  }
+
+  _SpendCategoryOption _categoryOptionForExpense(ExpenseEntry? entry) {
+    if (entry == null) {
+      return _spendCategories.first;
+    }
+    return _spendCategories.firstWhere(
+      (_SpendCategoryOption option) => option.budgetCategory == entry.category,
+      orElse: () => _spendCategories.first,
+    );
+  }
+
+  IconData _categoryIcon(BudgetCategory category) {
+    return switch (category) {
+      BudgetCategory.food => Icons.restaurant_rounded,
+      BudgetCategory.transportation => Icons.directions_bus_rounded,
+      BudgetCategory.shopping => Icons.shopping_bag_rounded,
+      BudgetCategory.entertainment => Icons.celebration_rounded,
+      BudgetCategory.miscellaneous => Icons.category_rounded,
+    };
+  }
+}
+
+class _RemainingPills extends StatelessWidget {
+  const _RemainingPills({required this.summary});
+
+  final BudgetSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final BudgetPeriodSummary? day =
+        summary.periodSummaries[BudgetPeriod.daily];
+    final BudgetPeriodSummary? week =
+        summary.periodSummaries[BudgetPeriod.weekly];
+    final BudgetPeriodSummary? month =
+        summary.periodSummaries[BudgetPeriod.monthly];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: <Widget>[
+        _pill('Day', day),
+        _pill('Week', week),
+        _pill('Month', month),
+      ],
+    );
+  }
+
+  Widget _pill(String label, BudgetPeriodSummary? period) {
+    final bool active = period != null && period.isActive;
+    final Color color = !active
+        ? const Color(0xFF64748B)
+        : period.isOverspent
+            ? const Color(0xFFDC2626)
+            : period.isWarning
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF0F766E);
+
+    final String text = !active
+        ? '$label not set'
+        : period.isOverspent
+            ? '$label ${formatPeso(period.overspentAmount)} over'
+            : '$label ${formatPeso(period.remaining)} left';
+
+    return SoftPill(text: text, color: color);
+  }
+}
+
+class _CategoryGridTile extends StatelessWidget {
+  const _CategoryGridTile({required this.option, required this.onTap});
+
+  final _SpendCategoryOption option;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: option.color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: <Widget>[
+              Icon(option.icon, color: option.color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      option.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      option.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _SpendIdea {
-  const _SpendIdea({
-    required this.id,
+class _SpendCategoryOption {
+  const _SpendCategoryOption({
     required this.title,
-    required this.note,
-    required this.category,
-    required this.estimatedPrice,
+    required this.subtitle,
     required this.icon,
+    required this.budgetCategory,
+    required this.defaultAmount,
+    required this.color,
   });
 
-  final String id;
   final String title;
-  final String note;
-  final BudgetCategory category;
-  final double estimatedPrice;
+  final String subtitle;
   final IconData icon;
+  final BudgetCategory budgetCategory;
+  final double defaultAmount;
+  final Color color;
 }
 
-const List<_SpendIdea> _catalog = <_SpendIdea>[
-  _SpendIdea(
-    id: 'food-breakfast',
-    title: 'Budget breakfast',
-    note: 'Rice meal, coffee, or a quick snack before class or work.',
-    category: BudgetCategory.food,
-    estimatedPrice: 85,
-    icon: Icons.free_breakfast_rounded,
+const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
+  _SpendCategoryOption(
+    title: 'Food & drinks',
+    subtitle: 'Meals, snacks, coffee',
+    icon: Icons.restaurant_rounded,
+    budgetCategory: BudgetCategory.food,
+    defaultAmount: 120,
+    color: Color(0xFF0F766E),
   ),
-  _SpendIdea(
-    id: 'food-lunch',
-    title: 'Lunch combo',
-    note: 'A full meal that keeps lunch predictable and affordable.',
-    category: BudgetCategory.food,
-    estimatedPrice: 140,
-    icon: Icons.lunch_dining_rounded,
-  ),
-  _SpendIdea(
-    id: 'transport-commute',
-    title: 'Commute fare',
-    note: 'Jeep, bus, or train money for the day.',
-    category: BudgetCategory.transportation,
-    estimatedPrice: 60,
+  _SpendCategoryOption(
+    title: 'Transport',
+    subtitle: 'Jeep, tricycle, Grab',
     icon: Icons.directions_bus_rounded,
+    budgetCategory: BudgetCategory.transportation,
+    defaultAmount: 70,
+    color: Color(0xFF2563EB),
   ),
-  _SpendIdea(
-    id: 'transport-ride',
-    title: 'Ride share buffer',
-    note: 'Extra room for a grab ride when you need to get there faster.',
-    category: BudgetCategory.transportation,
-    estimatedPrice: 180,
-    icon: Icons.local_taxi_rounded,
+  _SpendCategoryOption(
+    title: 'Shopping',
+    subtitle: 'Clothes, personal',
+    icon: Icons.shopping_bag_rounded,
+    budgetCategory: BudgetCategory.shopping,
+    defaultAmount: 220,
+    color: Color(0xFF7C3AED),
   ),
-  _SpendIdea(
-    id: 'entertainment-movie',
-    title: 'Movie night',
-    note: 'Ticket, popcorn, and a little cushion for a drink.',
-    category: BudgetCategory.entertainment,
-    estimatedPrice: 320,
-    icon: Icons.local_movies_rounded,
+  _SpendCategoryOption(
+    title: 'Leisure & gala',
+    subtitle: 'Outings, activities',
+    icon: Icons.celebration_rounded,
+    budgetCategory: BudgetCategory.entertainment,
+    defaultAmount: 280,
+    color: Color(0xFFF97316),
   ),
-  _SpendIdea(
-    id: 'entertainment-games',
-    title: 'Game / arcade break',
-    note: 'Small entertainment spend for a short reset.',
-    category: BudgetCategory.entertainment,
-    estimatedPrice: 240,
-    icon: Icons.sports_esports_rounded,
+  _SpendCategoryOption(
+    title: 'Health',
+    subtitle: 'Meds, checkup',
+    icon: Icons.health_and_safety_rounded,
+    budgetCategory: BudgetCategory.miscellaneous,
+    defaultAmount: 180,
+    color: Color(0xFFDC2626),
   ),
-  _SpendIdea(
-    id: 'shopping-essentials',
-    title: 'Essentials restock',
-    note: 'Toiletries, household basics, or school supplies.',
-    category: BudgetCategory.shopping,
-    estimatedPrice: 260,
-    icon: Icons.shopping_cart_rounded,
-  ),
-  _SpendIdea(
-    id: 'shopping-gift',
-    title: 'Gift / errand stop',
-    note: 'A planned errand with a fixed budget cap.',
-    category: BudgetCategory.shopping,
-    estimatedPrice: 420,
-    icon: Icons.redeem_rounded,
-  ),
-  _SpendIdea(
-    id: 'misc-buffer',
-    title: 'Emergency buffer',
-    note: 'Keep a little extra aside for unexpected costs.',
-    category: BudgetCategory.miscellaneous,
-    estimatedPrice: 150,
-    icon: Icons.shield_rounded,
-  ),
-  _SpendIdea(
-    id: 'misc-fees',
-    title: 'Fees and small extras',
-    note: 'Convenience fees, supplies, or random small charges.',
-    category: BudgetCategory.miscellaneous,
-    estimatedPrice: 95,
-    icon: Icons.payments_rounded,
+  _SpendCategoryOption(
+    title: 'Bills & utilities',
+    subtitle: 'Load, electric, wifi',
+    icon: Icons.receipt_long_rounded,
+    budgetCategory: BudgetCategory.miscellaneous,
+    defaultAmount: 350,
+    color: Color(0xFF475569),
   ),
 ];
-
-extension _BudgetCategoryColorIcon on BudgetCategory {
-  IconData get colorIcon => switch (this) {
-        BudgetCategory.food => Icons.restaurant_rounded,
-        BudgetCategory.transportation => Icons.directions_bus_rounded,
-        BudgetCategory.entertainment => Icons.local_activity_rounded,
-        BudgetCategory.shopping => Icons.shopping_bag_rounded,
-        BudgetCategory.miscellaneous => Icons.more_horiz_rounded,
-      };
-}
