@@ -188,7 +188,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     );
   }
 
-  void _saveLimit(
+  Future<void> _saveLimit(
     BudgetBuddyState state, {
     required BudgetPeriod period,
     required TextEditingController controller,
@@ -208,8 +208,25 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         .read(budgetBuddyControllerProvider.notifier)
         .updateBudget(updatedSettings);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${period.label} limit saved.')),
+    return _showSavedModal(period);
+  }
+
+  Future<void> _showSavedModal(BudgetPeriod period) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          icon: const Icon(Icons.check_circle_rounded),
+          title: const Text('Limit saved'),
+          content: Text('${period.label} limit saved successfully.'),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -341,14 +358,7 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () {
-                    widget.onSave();
-                    if (mounted) {
-                      setState(() {
-                        _isEditing = false;
-                      });
-                    }
-                  },
+                  onPressed: () => _confirmSave(),
                   icon: const Icon(Icons.save_rounded),
                   label: const Text('Save'),
                 ),
@@ -358,6 +368,40 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmSave() async {
+    final bool? shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Save changes?'),
+          content: const Text('Do you want to save this budget limit now?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || shouldSave != true) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isEditing = false;
+      });
+    }
+
+    widget.onSave();
   }
 }
 
