@@ -353,13 +353,13 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
             ),
             const SizedBox(height: 16),
             _SectionShell(
-              title: 'Danger Zone',
+              title: 'Danger zone',
               accentColor: const Color(0xFFDC2626),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'These actions are destructive. Use them only when you want to clear local data or start over.',
+                    'These actions are destructive and should only be used when you want to clear your local data.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -373,7 +373,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       child: FilledButton.icon(
                         onPressed: () => _confirmResetApp(context),
                         icon: const Icon(Icons.delete_sweep_rounded),
-                        label: const Text('Reset all data'),
+                        label: const Text('Reset entire app to 0'),
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFFDC2626),
                           foregroundColor: Colors.white,
@@ -383,6 +383,15 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            BudgetMetricCard(
+              label: 'Savings today',
+              value: formatPeso(summary.savings),
+              subtitle:
+                  'Weekly and monthly reports are derived from daily logs.',
+              icon: Icons.insights_rounded,
+              color: const Color(0xFF0F766E),
             ),
           ],
         ),
