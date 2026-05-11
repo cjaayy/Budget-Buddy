@@ -5,7 +5,6 @@ import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key, this.onGetStarted, this.onOpenSpend});
@@ -125,33 +124,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           color: const Color(0xFF2563EB),
                         ),
                       ],
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(20, 28, 20, 0),
-                    child: SectionTitle(
-                      title: 'Insights',
-                      subtitle: 'What the app wants you to know today',
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: SectionCard(
-                      child: Column(
-                        children: summary.recommendedActions
-                            .map(
-                              (String tip) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.auto_awesome_rounded),
-                                title: Text(tip),
-                              ),
-                            )
-                            .toList(),
-                      ),
                     ),
                   ),
                 ),
