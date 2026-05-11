@@ -18,22 +18,16 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   ExpenseSection _activeSection = ExpenseSection.daily;
-  DateTime _selectedDay = DateUtils.dateOnly(DateTime.now());
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final List<ExpenseEntry> expenses = _filteredExpenses(state);
-    final List<ExpenseEntry> dailyExpenses =
-        _expensesForDay(expenses, _selectedDay);
     final List<ExpenseEntry> monthlyExpenses =
         _expensesForMonth(expenses, _selectedMonth);
+    final List<DateTime> availableDays = _availableDays(expenses);
     final List<DateTime> monthDays = _availableDays(monthlyExpenses);
-    final double dailyTotal = dailyExpenses.fold<double>(
-      0,
-      (double total, ExpenseEntry expense) => total + expense.amount,
-    );
     final double monthlyTotal = monthlyExpenses.fold<double>(
       0,
       (double total, ExpenseEntry expense) => total + expense.amount,
@@ -96,19 +90,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             const SizedBox(height: 12),
             if (_activeSection == ExpenseSection.daily)
               _DailySection(
-                dayLabel: _formatDayLabel(_selectedDay),
-                dailyExpenses: dailyExpenses,
-                dailyTotal: dailyTotal,
-                onTapDay: () => _showDayExpensesSheet(
+                availableDays: availableDays,
+                expenses: expenses,
+                onTapDay: (DateTime day) => _showDayExpensesSheet(
                   context,
                   ref,
-                  _selectedDay,
+                  day,
                   expenses,
-                ),
-                onTapExpense: (ExpenseEntry expense) => _showExpenseDialog(
-                  context,
-                  ref,
-                  existing: expense,
                 ),
               )
             else
@@ -189,8 +177,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     List<ExpenseEntry> expenses,
   ) async {
     final List<ExpenseEntry> dayExpenses = _expensesForDay(expenses, day);
-
-    await showModalBottomSheet<void>(
+    final ExpenseEntry? editExpense = await showModalBottomSheet<ExpenseEntry>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -237,37 +224,88 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   .surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: ListTile(
-                              onTap: () => _showExpenseDialog(
-                                context,
-                                ref,
-                                existing: expense,
-                              ),
-                              leading: CircleAvatar(
-                                backgroundColor: expense.category.color
-                                    .withValues(alpha: 0.14),
-                                child: Text(
-                                  expense.category.label.substring(0, 1),
-                                ),
-                              ),
-                              title: Text(
-                                expense.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                expense.note.isNotEmpty
-                                    ? '${expense.category.label} • ${expense.note}'
-                                    : expense.category.label,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: Text(
-                                formatPeso(expense.amount),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      CircleAvatar(
+                                        backgroundColor: expense.category.color
+                                            .withValues(alpha: 0.14),
+                                        child: Text(
+                                          expense.category.label
+                                              .substring(0, 1),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Text(
+                                              expense.title,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              expense.note.isNotEmpty
+                                                  ? '${expense.category.label} • ${expense.note}'
+                                                  : expense.category.label,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        formatPeso(expense.amount),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () {
+                                            Navigator.of(context).pop(expense);
+                                          },
+                                          icon: const Icon(
+                                            Icons.edit_outlined,
+                                          ),
+                                          label: const Text('Edit'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () {
+                                            ref
+                                                .read(
+                                                  budgetBuddyControllerProvider
+                                                      .notifier,
+                                                )
+                                                .deleteExpense(expense.id);
+                                            Navigator.of(context).pop();
+                                          },
+                                          icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                          ),
+                                          label: const Text('Delete'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           );
@@ -281,14 +319,22 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         );
       },
     );
+
+    if (editExpense != null) {
+      if (!context.mounted) {
+        return;
+      }
+      _showExpenseDialog(
+        context,
+        ref,
+        existing: editExpense,
+      );
+    }
   }
 
   void _jumpToDailyDay(DateTime day) {
     setState(() {
-      _selectedDay = DateUtils.dateOnly(day);
       _selectedMonth = DateTime(day.year, day.month);
-    });
-    setState(() {
       _activeSection = ExpenseSection.daily;
     });
   }
@@ -445,14 +491,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
-  String _formatDayLabel(DateTime dateTime) {
-    final DateTime now = DateTime.now();
-    if (DateUtils.isSameDay(dateTime, now)) {
-      return 'Today, ${DateFormat('MMMM d, yyyy').format(dateTime)}';
-    }
-    return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
-  }
-
   double _categoryLimit(BudgetCategory category, BudgetSettings settings) {
     return switch (category) {
       BudgetCategory.food => settings.foodBudget,
@@ -470,20 +508,24 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
 enum ExpenseSection { daily, monthly }
 
+String _formatDayLabel(DateTime dateTime) {
+  final DateTime now = DateTime.now();
+  if (DateUtils.isSameDay(dateTime, now)) {
+    return 'Today, ${DateFormat('MMMM d, yyyy').format(dateTime)}';
+  }
+  return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
+}
+
 class _DailySection extends StatelessWidget {
   const _DailySection({
-    required this.dayLabel,
-    required this.dailyExpenses,
-    required this.dailyTotal,
+    required this.availableDays,
+    required this.expenses,
     required this.onTapDay,
-    required this.onTapExpense,
   });
 
-  final String dayLabel;
-  final List<ExpenseEntry> dailyExpenses;
-  final double dailyTotal;
-  final VoidCallback onTapDay;
-  final ValueChanged<ExpenseEntry> onTapExpense;
+  final List<DateTime> availableDays;
+  final List<ExpenseEntry> expenses;
+  final ValueChanged<DateTime> onTapDay;
 
   @override
   Widget build(BuildContext context) {
@@ -499,62 +541,46 @@ class _DailySection extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onTapDay,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                dayLabel,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                    ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${dailyExpenses.length} expense${dailyExpenses.length == 1 ? '' : 's'} today',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text('Total spent: ${formatPeso(dailyTotal)}'),
-          const SizedBox(height: 12),
-          if (dailyExpenses.isEmpty)
+          if (availableDays.isEmpty)
             Text(
-              'No expenses for this day.',
+              'No expenses yet.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             )
           else
-            ...dailyExpenses.map(
-              (ExpenseEntry expense) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
+            ...availableDays.map(
+              (DateTime day) {
+                final List<ExpenseEntry> dayExpenses = expenses
+                    .where((ExpenseEntry expense) =>
+                        DateUtils.isSameDay(expense.dateTime, day))
+                    .toList();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    tileColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    leading: const Icon(Icons.calendar_today_outlined),
+                    title: Text(
+                      _formatDayLabel(day),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'} • Tap for details',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => onTapDay(day),
                   ),
-                  tileColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        expense.category.color.withValues(alpha: 0.14),
-                    child: Text(expense.category.label.substring(0, 1)),
-                  ),
-                  title: Text(expense.title),
-                  subtitle: Text(expense.category.label),
-                  trailing: Text(formatPeso(expense.amount)),
-                  onTap: () => onTapExpense(expense),
-                ),
-              ),
+                );
+              },
             ),
         ],
       ),
