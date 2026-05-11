@@ -5,12 +5,10 @@ import '../analytics/analytics_screen.dart';
 import '../budget/budget_planner_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../expenses/expense_tracker_screen.dart';
-import '../gala/gala_planner_screen.dart';
-import '../meals/meal_suggestions_screen.dart';
 import '../profile/profile_settings_screen.dart';
+import '../spend/spend_screen.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
-import '../../core/widgets/section_title.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -25,10 +23,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   late final List<Widget> _pages = <Widget>[
     DashboardScreen(onGetStarted: () => setState(() => _index = 1)),
     const BudgetPlannerScreen(),
-    const MealSuggestionsScreen(),
-    const GalaPlannerScreen(),
+    const SpendScreen(),
     const ExpenseTrackerScreen(),
-    const _MoreScreen(),
+    const AnalyticsScreen(),
+    const ProfileSettingsScreen(),
   ];
 
   @override
@@ -73,14 +71,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             label: 'Budget',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.restaurant_outlined),
-            selectedIcon: Icon(Icons.restaurant_rounded),
-            label: 'Meals',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore_rounded),
-            label: 'Trips',
+            icon: Icon(Icons.shopping_bag_outlined),
+            selectedIcon: Icon(Icons.shopping_bag_rounded),
+            label: 'Spend',
           ),
           NavigationDestination(
             icon: Badge(
@@ -96,9 +89,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             label: 'Bills',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.more_horiz_outlined),
-            selectedIcon: Icon(Icons.more_horiz_rounded),
-            label: 'More',
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics_rounded),
+            label: 'Stats',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Profile',
           ),
         ],
       ),
@@ -219,51 +217,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ),
         );
       },
-    );
-  }
-}
-
-class _MoreScreen extends StatelessWidget {
-  const _MoreScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: <Widget>[
-          const SectionTitle(
-            title: 'More',
-            subtitle: 'Extra tools and account options.',
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.analytics_rounded),
-              title: const Text('Stats'),
-              subtitle: const Text('Open analytics and trends'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AnalyticsScreen(),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.settings_rounded),
-              title: const Text('Profile'),
-              subtitle: const Text('Preferences, exports, and reset options'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ProfileSettingsScreen(),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
