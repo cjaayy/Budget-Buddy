@@ -7,7 +7,6 @@ import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
 
 enum ExpenseSortOption { newest, oldest, highestAmount, lowestAmount }
 
@@ -104,11 +103,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
-            const SectionTitle(
-              title: 'Expense tracker',
-              subtitle: 'Search, sort, group, and clean up daily logs.',
-            ),
-            const SizedBox(height: 12),
             SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
