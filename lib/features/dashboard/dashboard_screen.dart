@@ -46,7 +46,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final double totalBudget = selectedSummary.limit;
     final double spentAdjusted = selectedSummary.spent;
     final double remainingAdjusted = selectedSummary.remaining;
-    final double savingsAdjusted = selectedSummary.saved;
 
     return Scaffold(
       body: GestureDetector(
@@ -99,20 +98,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 )
               else ...<Widget>[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _BudgetHeroCard(
-                      summary: summary,
-                      period: _selectedPeriod,
-                      periodBudget: totalBudget,
-                      periodSpent: spentAdjusted,
-                      periodRemaining: remainingAdjusted,
-                      periodSavings: savingsAdjusted,
-                      expiryBanner: _buildBudgetExpiryBanner(state.settings),
-                    ),
-                  ),
-                ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   sliver: SliverGrid(
@@ -125,20 +110,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     delegate: SliverChildListDelegate(
                       <Widget>[
+                        _RemainingBudgetRingCard(
+                          remaining: remainingAdjusted,
+                          total: totalBudget,
+                          spent: spentAdjusted,
+                        ),
                         BudgetMetricCard(
-                          label: 'Today spent',
+                          label: _selectedPeriod == DashboardPeriod.daily
+                              ? 'Today spent'
+                              : 'Month spent',
                           value: formatPeso(spentAdjusted),
                           subtitle: 'Out of ${formatPeso(totalBudget)}',
                           icon: Icons.payments_rounded,
                           color: const Color(0xFF2563EB),
-                        ),
-                        BudgetMetricCard(
-                          label: 'Savings',
-                          value: formatPeso(savingsAdjusted),
-                          subtitle:
-                              'Goal ${formatPeso(state.settings.savingsGoal)}',
-                          icon: Icons.lock_rounded,
-                          color: const Color(0xFFF97316),
                         ),
                       ],
                     ),
@@ -205,43 +189,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (nextIndex != currentIndex) {
       setState(() => _selectedPeriod = periods[nextIndex]);
     }
-  }
-
-  String _budgetCountdownText(BudgetSettings settings) {
-    final DateTime? createdAt = settings.budgetCreatedAt;
-    if (createdAt == null) {
-      return 'Budget reset timing will appear after you save a budget.';
-    }
-
-    final Duration cycle = switch (settings.budgetExpiryPeriod) {
-      BudgetExpiryPeriod.daily => const Duration(days: 1),
-      BudgetExpiryPeriod.weekly => const Duration(days: 7),
-      BudgetExpiryPeriod.monthly => const Duration(days: 30),
-    };
-    final Duration remaining = createdAt.add(cycle).difference(DateTime.now());
-
-    if (remaining.isNegative) {
-      return 'Budget reset window reached. Save a new budget to start the next cycle.';
-    }
-
-    if (remaining.inDays >= 1) {
-      return 'Budget resets in ${remaining.inDays} day${remaining.inDays == 1 ? '' : 's'}';
-    }
-
-    if (remaining.inHours >= 1) {
-      return 'Budget resets in ${remaining.inHours} hour${remaining.inHours == 1 ? '' : 's'}';
-    }
-
-    final int minutes = remaining.inMinutes.clamp(1, 59);
-    return 'Budget resets in $minutes minute${minutes == 1 ? '' : 's'}';
-  }
-
-  Widget? _buildBudgetExpiryBanner(BudgetSettings settings) {
-    if (!settings.hasConfiguredBudget || settings.budgetCreatedAt == null) {
-      return null;
-    }
-
-    return _BudgetCountdownBanner(message: _budgetCountdownText(settings));
   }
 }
 
@@ -377,215 +324,6 @@ class _PeriodPills extends StatelessWidget {
   }
 }
 
-class _BudgetHeroCard extends StatelessWidget {
-  const _BudgetHeroCard({
-    required this.summary,
-    required this.period,
-    required this.periodBudget,
-    required this.periodSpent,
-    required this.periodRemaining,
-    required this.periodSavings,
-    required this.expiryBanner,
-  });
-
-  final BudgetSummary summary;
-  final DashboardPeriod period;
-  final double periodBudget;
-  final double periodSpent;
-  final double periodRemaining;
-  final double periodSavings;
-  final Widget? expiryBanner;
-
-  @override
-  Widget build(BuildContext context) {
-    final double consumedRatio = periodBudget <= 0
-        ? 0
-        : (periodSpent / periodBudget).clamp(0.0, 1.0).toDouble();
-    final Color ringColor = _ringColor(consumedRatio);
-    final String statusLabel = consumedRatio < 0.5
-        ? 'On track'
-        : consumedRatio < 0.8
-            ? 'Watch pace'
-            : 'Near limit';
-
-    return SectionCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              SizedBox(
-                width: 96,
-                height: 96,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    CircularProgressIndicator(
-                      value: consumedRatio,
-                      strokeWidth: 7,
-                      backgroundColor: ringColor.withValues(alpha: 0.16),
-                      valueColor: AlwaysStoppedAnimation<Color>(ringColor),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          '${(consumedRatio * 100).round()}%',
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                            height: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 0),
-                        Text(
-                          'used',
-                          maxLines: 1,
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.0,
-                                    fontSize: 8,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Remaining budget',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatPeso(periodRemaining),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${period.label} view • ${formatPeso(periodSpent)} spent of ${formatPeso(periodBudget)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: <Widget>[
-                        _BudgetStatusChip(
-                          label: statusLabel,
-                          color: ringColor,
-                        ),
-                        _BudgetStatusChip(
-                          label: 'Savings ${formatPeso(periodSavings)}',
-                          color: const Color(0xFF0F766E),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (expiryBanner != null) expiryBanner!,
-        ],
-      ),
-    );
-  }
-
-  Color _ringColor(double consumedRatio) {
-    if (consumedRatio < 0.5) {
-      return const Color(0xFF16A34A);
-    }
-    if (consumedRatio < 0.8) {
-      return const Color(0xFFF59E0B);
-    }
-    return const Color(0xFFDC2626);
-  }
-}
-
-class _BudgetStatusChip extends StatelessWidget {
-  const _BudgetStatusChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-}
-
-class _BudgetCountdownBanner extends StatelessWidget {
-  const _BudgetCountdownBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.14),
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(
-            Icons.schedule_rounded,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DashboardEmptyState extends StatelessWidget {
   const _DashboardEmptyState({
     required this.title,
@@ -645,6 +383,151 @@ class _DashboardEmptyState extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RemainingBudgetRingCard extends StatelessWidget {
+  const _RemainingBudgetRingCard({
+    required this.remaining,
+    required this.total,
+    required this.spent,
+  });
+
+  final double remaining;
+  final double total;
+  final double spent;
+
+  Color _ringColor(double consumedRatio) {
+    if (consumedRatio < 0.5) {
+      return const Color(0xFF16A34A);
+    }
+    if (consumedRatio < 0.8) {
+      return const Color(0xFFF59E0B);
+    }
+    return const Color(0xFFDC2626);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double consumedRatio =
+        total <= 0 ? 0 : (spent / total).clamp(0.0, 1.0).toDouble();
+    final Color ringColor = _ringColor(consumedRatio);
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            const Color(0xFF059669).withValues(alpha: 0.92),
+            const Color(0xFF059669).withValues(alpha: 0.72)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+              color: const Color(0xFF059669).withValues(alpha: 0.22),
+              blurRadius: 24,
+              offset: const Offset(0, 12)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: 30,
+                  height: 30,
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle),
+                  child: const Icon(Icons.trending_down_rounded,
+                      size: 18, color: Colors.white),
+                ),
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      CircularProgressIndicator(
+                        value: consumedRatio,
+                        strokeWidth: 4,
+                        backgroundColor: ringColor.withValues(alpha: 0.16),
+                        valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            '${(consumedRatio * 100).round()}%',
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                              color: Colors.white,
+                              height: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'used',
+                            maxLines: 1,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  height: 1.0,
+                                  fontSize: 7,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Remaining Budget',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.85), fontSize: 10),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              formatPeso(remaining),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${formatPeso(spent)} of ${formatPeso(total)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: 10,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
