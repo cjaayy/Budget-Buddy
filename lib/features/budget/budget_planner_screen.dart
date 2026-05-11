@@ -306,11 +306,6 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                   ],
                 ),
               ),
-              if (summary != null)
-                SoftPill(
-                  text: summary.statusLabel,
-                  color: statusColor,
-                ),
             ],
           ),
           const SizedBox(height: 12),
