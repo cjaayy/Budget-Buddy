@@ -18,6 +18,8 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   late final TextEditingController _dailyController;
   late final TextEditingController _monthlyController;
+  FocusNode? _dailyFocusNode;
+  FocusNode? _monthlyFocusNode;
   bool _seededFromState = false;
 
   @override
@@ -31,8 +33,14 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   void dispose() {
     _dailyController.dispose();
     _monthlyController.dispose();
+    _dailyFocusNode?.dispose();
+    _monthlyFocusNode?.dispose();
     super.dispose();
   }
+
+  FocusNode get _dailyFocusNodeOrCreate => _dailyFocusNode ??= FocusNode();
+
+  FocusNode get _monthlyFocusNodeOrCreate => _monthlyFocusNode ??= FocusNode();
 
   @override
   Widget build(BuildContext context) {
@@ -80,24 +88,35 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               title: 'Max per day',
               helper: 'Resets every midnight',
               controller: _dailyController,
+              focusNode: _dailyFocusNodeOrCreate,
               icon: Icons.calendar_today_rounded,
               periodSummary: periodSummaries[BudgetPeriod.daily],
+              onEdit: () => _startEditingLimit(
+                _dailyFocusNodeOrCreate,
+                _dailyController,
+              ),
+              onSave: () => _saveLimit(
+                state,
+                period: BudgetPeriod.daily,
+                controller: _dailyController,
+              ),
             ),
             const SizedBox(height: 12),
             _LimitEditorCard(
               title: 'Max per month',
               helper: 'Resets on the 1st of the month',
               controller: _monthlyController,
+              focusNode: _monthlyFocusNodeOrCreate,
               icon: Icons.calendar_month_rounded,
               periodSummary: periodSummaries[BudgetPeriod.monthly],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _confirmSaveLimits(state),
-                icon: const Icon(Icons.save_rounded),
-                label: const Text('Save limits'),
+              onEdit: () => _startEditingLimit(
+                _monthlyFocusNodeOrCreate,
+                _monthlyController,
+              ),
+              onSave: () => _saveLimit(
+                state,
+                period: BudgetPeriod.monthly,
+                controller: _monthlyController,
               ),
             ),
             const SizedBox(height: 16),
@@ -160,94 +179,72 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     });
   }
 
-  Future<void> _confirmSaveLimits(BudgetBuddyState state) async {
-    final bool shouldSave = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Confirm save'),
-              content: const Text(
-                'Do you want to save these budget limits?',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (!shouldSave || !mounted) {
-      return;
-    }
-
-    _saveLimits(state);
+  void _startEditingLimit(
+      FocusNode focusNode, TextEditingController controller) {
+    FocusScope.of(context).requestFocus(focusNode);
+    controller.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: controller.text.length,
+    );
   }
 
-  void _saveLimits(BudgetBuddyState state) {
-    final double dailyLimit = double.tryParse(_dailyController.text) ?? 0;
-    final double monthlyLimit = double.tryParse(_monthlyController.text) ?? 0;
-    final bool hasActiveLimit = dailyLimit > 0 || monthlyLimit > 0;
+  void _saveLimit(
+    BudgetBuddyState state, {
+    required BudgetPeriod period,
+    required TextEditingController controller,
+  }) {
+    final double limit = double.tryParse(controller.text.trim()) ?? 0;
+    final BudgetSettings updatedSettings = switch (period) {
+      BudgetPeriod.daily => state.settings.copyWith(
+          dailyLimit: limit > 0 ? limit : null,
+        ),
+      BudgetPeriod.monthly => state.settings.copyWith(
+          monthlyLimit: limit > 0 ? limit : null,
+        ),
+      BudgetPeriod.weekly => state.settings,
+    };
 
-    ref.read(budgetBuddyControllerProvider.notifier).updateBudget(
-          state.settings.copyWith(
-            totalDailyBudget: dailyLimit > 0 ? dailyLimit : 0,
-            monthlyLimit: monthlyLimit > 0 ? monthlyLimit : 0,
-            budgetCreatedAt: hasActiveLimit ? DateTime.now() : null,
-          ),
-        );
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .updateBudget(updatedSettings);
 
-    setState(() {
-      _seededFromState = true;
-    });
-
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Saved'),
-          content: Text(
-            hasActiveLimit
-                ? 'Budget limits saved successfully.'
-                : 'All limits cleared. Add at least one limit to start tracking.',
-          ),
-          actions: <Widget>[
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${period.label} limit saved.')),
     );
   }
 }
 
-class _LimitEditorCard extends StatelessWidget {
+class _LimitEditorCard extends StatefulWidget {
   const _LimitEditorCard({
     required this.title,
     required this.helper,
     required this.controller,
+    required this.focusNode,
     required this.icon,
     required this.periodSummary,
+    required this.onEdit,
+    required this.onSave,
   });
 
   final String title;
   final String helper;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final IconData icon;
   final BudgetPeriodSummary? periodSummary;
+  final VoidCallback onEdit;
+  final VoidCallback onSave;
+
+  @override
+  State<_LimitEditorCard> createState() => _LimitEditorCardState();
+}
+
+class _LimitEditorCardState extends State<_LimitEditorCard> {
+  bool _isEditing = false;
 
   @override
   Widget build(BuildContext context) {
-    final BudgetPeriodSummary? summary = periodSummary;
+    final BudgetPeriodSummary? summary = widget.periodSummary;
     final Color statusColor = summary == null
         ? const Color(0xFF64748B)
         : summary.isOverspent
@@ -255,6 +252,7 @@ class _LimitEditorCard extends StatelessWidget {
             : summary.isWarning
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF16A34A);
+    final bool hasBudget = summary != null;
 
     return SectionCard(
       child: Column(
@@ -268,7 +266,7 @@ class _LimitEditorCard extends StatelessWidget {
                   color: statusColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: statusColor),
+                child: Icon(widget.icon, color: statusColor),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -276,14 +274,14 @@ class _LimitEditorCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      title,
+                      widget.title,
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 2),
-                    Text(helper),
+                    Text(widget.helper),
                   ],
                 ),
               ),
@@ -296,10 +294,12 @@ class _LimitEditorCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           TextField(
-            controller: controller,
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            readOnly: !_isEditing,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: title,
+              labelText: widget.title,
               prefixText: '₱ ',
               hintText: 'Leave blank to disable',
               helperText: summary == null
@@ -323,6 +323,38 @@ class _LimitEditorCard extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
+          const SizedBox(height: 12),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = true;
+                    });
+                    widget.onEdit();
+                  },
+                  icon: const Icon(Icons.edit_rounded),
+                  label: Text(hasBudget ? 'Edit' : 'Set a budget'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () {
+                    widget.onSave();
+                    if (mounted) {
+                      setState(() {
+                        _isEditing = false;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.save_rounded),
+                  label: const Text('Save'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
