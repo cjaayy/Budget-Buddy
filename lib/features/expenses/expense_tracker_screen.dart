@@ -100,11 +100,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showExpenseDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add expense'),
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -284,7 +279,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Add an expense or clear the search/filter to see your logs.',
+                        'Use Spend to add new expenses, or clear the search/filter to see your logs.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme

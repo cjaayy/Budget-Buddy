@@ -9,9 +9,10 @@ import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
-  const DashboardScreen({super.key, this.onGetStarted});
+  const DashboardScreen({super.key, this.onGetStarted, this.onOpenSpend});
 
   final VoidCallback? onGetStarted;
+  final VoidCallback? onOpenSpend;
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
@@ -79,14 +80,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       body: hasConfiguredBudget
                           ? 'Log your first expense and the dashboard will start showing your ring, insights, and recent transactions.'
                           : 'Add a budget so the dashboard can track your ring, countdown banner, and spending breakdown.',
-                      buttonLabel: hasConfiguredBudget
-                          ? 'Quick add expense'
-                          : 'Go to Budget',
+                      buttonLabel:
+                          hasConfiguredBudget ? 'Go to Spend' : 'Go to Budget',
                       icon: hasConfiguredBudget
                           ? Icons.receipt_long_rounded
                           : Icons.savings_rounded,
                       onPressed: hasConfiguredBudget
-                          ? () => _showQuickExpenseSheet(context)
+                          ? widget.onOpenSpend
                           : widget.onGetStarted,
                     ),
                   ),
@@ -435,93 +435,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  void _showQuickExpenseSheet(BuildContext context) {
-    final TextEditingController titleController = TextEditingController();
-    final TextEditingController amountController = TextEditingController();
-    final BudgetBuddyState currentState =
-        ref.read(budgetBuddyControllerProvider);
-    BudgetCategory selectedCategory =
-        currentState.lastExpenseCategory ?? BudgetCategory.food;
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context,
-              void Function(void Function()) setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text('Quick add expense',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 16),
-                  TextField(
-                      controller: titleController,
-                      decoration:
-                          const InputDecoration(labelText: 'Expense name')),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: amountController,
-                    keyboardType: TextInputType.number,
-                    decoration:
-                        const InputDecoration(labelText: 'Amount in PHP'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<BudgetCategory>(
-                    initialValue: selectedCategory,
-                    items: BudgetCategory.values
-                        .map((BudgetCategory category) =>
-                            DropdownMenuItem<BudgetCategory>(
-                                value: category, child: Text(category.label)))
-                        .toList(),
-                    onChanged: (BudgetCategory? value) {
-                      if (value != null) {
-                        setModalState(() => selectedCategory = value);
-                      }
-                    },
-                    decoration: const InputDecoration(labelText: 'Category'),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        ref
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .addExpense(
-                              title: titleController.text.trim().isEmpty
-                                  ? 'Quick expense'
-                                  : titleController.text.trim(),
-                              amount:
-                                  double.tryParse(amountController.text) ?? 0,
-                              category: selectedCategory,
-                            );
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Save expense'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
         );
       },
     );
