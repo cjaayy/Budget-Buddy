@@ -108,14 +108,175 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final BudgetBuddyState loaded = await _repository.loadState();
     state = loaded.copyWith(isBootstrapping: false);
     _renewBudgetIfNeeded();
+    _refreshPeriodTracking();
     await _syncDailyRecord();
     await _repository.saveState(state);
   }
 
   Future<void> _persist() async {
     _renewBudgetIfNeeded();
+    _refreshPeriodTracking();
     await _syncDailyRecord();
     await _repository.saveState(state);
+  }
+
+  void _refreshPeriodTracking() {
+    final DateTime now = DateTime.now();
+    _archiveElapsedPeriods(now);
+    _recalculatePeriodSpending(now);
+  }
+
+  void _archiveElapsedPeriods(DateTime now) {
+    final DateTime currentDailyStart = _periodStart(BudgetPeriod.daily, now);
+    final DateTime currentWeeklyStart = _periodStart(BudgetPeriod.weekly, now);
+    final DateTime currentMonthlyStart =
+        _periodStart(BudgetPeriod.monthly, now);
+
+    final List<PeriodReport> updatedReports = <PeriodReport>[
+      ...state.periodReports
+    ];
+
+    DateTime? dailyStart = state.dailyPeriodStart;
+    DateTime? weeklyStart = state.weeklyPeriodStart;
+    DateTime? monthlyStart = state.monthlyPeriodStart;
+
+    if (dailyStart != null && dailyStart.isBefore(currentDailyStart)) {
+      DateTime cursor = dailyStart;
+      while (cursor.isBefore(currentDailyStart)) {
+        final DateTime next = _nextPeriodStart(BudgetPeriod.daily, cursor);
+        _appendPeriodReport(
+          reports: updatedReports,
+          period: BudgetPeriod.daily,
+          start: cursor,
+          endExclusive: next,
+        );
+        cursor = next;
+      }
+    }
+
+    if (weeklyStart != null && weeklyStart.isBefore(currentWeeklyStart)) {
+      DateTime cursor = weeklyStart;
+      while (cursor.isBefore(currentWeeklyStart)) {
+        final DateTime next = _nextPeriodStart(BudgetPeriod.weekly, cursor);
+        _appendPeriodReport(
+          reports: updatedReports,
+          period: BudgetPeriod.weekly,
+          start: cursor,
+          endExclusive: next,
+        );
+        cursor = next;
+      }
+    }
+
+    if (monthlyStart != null && monthlyStart.isBefore(currentMonthlyStart)) {
+      DateTime cursor = monthlyStart;
+      while (cursor.isBefore(currentMonthlyStart)) {
+        final DateTime next = _nextPeriodStart(BudgetPeriod.monthly, cursor);
+        _appendPeriodReport(
+          reports: updatedReports,
+          period: BudgetPeriod.monthly,
+          start: cursor,
+          endExclusive: next,
+        );
+        cursor = next;
+      }
+    }
+
+    if (updatedReports.length > 300) {
+      updatedReports.removeRange(0, updatedReports.length - 300);
+    }
+
+    state = state.copyWith(
+      dailyPeriodStart: currentDailyStart,
+      weeklyPeriodStart: currentWeeklyStart,
+      monthlyPeriodStart: currentMonthlyStart,
+      periodReports: updatedReports,
+    );
+  }
+
+  void _appendPeriodReport({
+    required List<PeriodReport> reports,
+    required BudgetPeriod period,
+    required DateTime start,
+    required DateTime endExclusive,
+  }) {
+    final double? limit = _periodLimit(period);
+    if (limit == null || limit <= 0) {
+      return;
+    }
+
+    final double spent = _sumExpensesInRange(start, endExclusive);
+    reports.add(
+      PeriodReport(
+        period: period,
+        startDate: start,
+        endDate: endExclusive.subtract(const Duration(milliseconds: 1)),
+        limit: limit,
+        totalSpent: spent,
+        savedAmount: limit - spent,
+      ),
+    );
+  }
+
+  void _recalculatePeriodSpending(DateTime now) {
+    final DateTime dailyStart =
+        state.dailyPeriodStart ?? _periodStart(BudgetPeriod.daily, now);
+    final DateTime weeklyStart =
+        state.weeklyPeriodStart ?? _periodStart(BudgetPeriod.weekly, now);
+    final DateTime monthlyStart =
+        state.monthlyPeriodStart ?? _periodStart(BudgetPeriod.monthly, now);
+
+    state = state.copyWith(
+      dailySpent: _sumExpensesSince(dailyStart, now),
+      weeklySpent: _sumExpensesSince(weeklyStart, now),
+      monthlySpent: _sumExpensesSince(monthlyStart, now),
+      dailyPeriodStart: dailyStart,
+      weeklyPeriodStart: weeklyStart,
+      monthlyPeriodStart: monthlyStart,
+    );
+  }
+
+  double _sumExpensesSince(DateTime start, DateTime endInclusive) {
+    return state.expenses
+        .where((ExpenseEntry expense) =>
+            !expense.dateTime.isBefore(start) &&
+            !expense.dateTime.isAfter(endInclusive))
+        .fold(0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+  }
+
+  double _sumExpensesInRange(DateTime start, DateTime endExclusive) {
+    return state.expenses
+        .where((ExpenseEntry expense) =>
+            !expense.dateTime.isBefore(start) &&
+            expense.dateTime.isBefore(endExclusive))
+        .fold(0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+  }
+
+  DateTime _periodStart(BudgetPeriod period, DateTime now) {
+    return switch (period) {
+      BudgetPeriod.daily => DateTime(now.year, now.month, now.day),
+      BudgetPeriod.weekly => DateTime(now.year, now.month, now.day).subtract(
+          Duration(days: now.weekday - DateTime.monday),
+        ),
+      BudgetPeriod.monthly => DateTime(now.year, now.month, 1),
+    };
+  }
+
+  DateTime _nextPeriodStart(BudgetPeriod period, DateTime currentStart) {
+    return switch (period) {
+      BudgetPeriod.daily => currentStart.add(const Duration(days: 1)),
+      BudgetPeriod.weekly => currentStart.add(const Duration(days: 7)),
+      BudgetPeriod.monthly =>
+        DateTime(currentStart.year, currentStart.month + 1, 1),
+    };
+  }
+
+  double? _periodLimit(BudgetPeriod period) {
+    return switch (period) {
+      BudgetPeriod.daily => state.settings.dailyLimit,
+      BudgetPeriod.weekly => state.settings.weeklyLimit,
+      BudgetPeriod.monthly => state.settings.monthlyLimit,
+    };
   }
 
   void _renewBudgetIfNeeded() {
@@ -423,12 +584,20 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   void _triggerWarningIfNeeded() {
     final BudgetSummary currentSummary = summary;
-    final BudgetPeriodSummary? primarySummary =
-        currentSummary.periodSummaries[BudgetPeriod.daily] ??
-            currentSummary.periodSummaries[BudgetPeriod.weekly] ??
-            currentSummary.periodSummaries[BudgetPeriod.monthly];
+    final BudgetPeriodSummary primarySummary = <BudgetPeriodSummary?>[
+      currentSummary.periodSummaries[BudgetPeriod.daily],
+      currentSummary.periodSummaries[BudgetPeriod.weekly],
+      currentSummary.periodSummaries[BudgetPeriod.monthly],
+    ].whereType<BudgetPeriodSummary>().firstWhere(
+          (BudgetPeriodSummary summary) => summary.isActive,
+          orElse: () => const BudgetPeriodSummary(
+            period: BudgetPeriod.daily,
+            limit: 0,
+            spent: 0,
+          ),
+        );
 
-    if (primarySummary == null || !primarySummary.isActive) {
+    if (!primarySummary.isActive) {
       return;
     }
 

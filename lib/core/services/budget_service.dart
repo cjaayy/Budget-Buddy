@@ -6,15 +6,16 @@ class BudgetService {
     final BudgetPeriod primaryPeriod = _primaryPeriod(state.settings);
     final Map<BudgetPeriod, double> periodLimits =
         _periodLimits(state.settings);
+    final Map<BudgetPeriod, double> periodSpent = <BudgetPeriod, double>{
+      BudgetPeriod.daily: state.dailySpent,
+      BudgetPeriod.weekly: state.weeklySpent,
+      BudgetPeriod.monthly: state.monthlySpent,
+    };
     final Map<BudgetPeriod, BudgetPeriodSummary> periodSummaries =
         <BudgetPeriod, BudgetPeriodSummary>{};
 
     for (final MapEntry<BudgetPeriod, double> entry in periodLimits.entries) {
-      final DateTime start = _periodStart(entry.key, now);
-      final double spent = entry.value <= 0
-          ? 0
-          : _expensesSince(state.expenses, start).fold(
-              0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+      final double spent = periodSpent[entry.key] ?? 0;
       periodSummaries[entry.key] = BudgetPeriodSummary(
         period: entry.key,
         limit: entry.value,

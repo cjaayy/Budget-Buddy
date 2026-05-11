@@ -174,13 +174,16 @@ extension DashboardPeriodX on DashboardPeriod {
 
 class BudgetSettings {
   const BudgetSettings({
-    required this.totalDailyBudget,
+    double? dailyLimit,
+    double? totalDailyBudget,
     required this.foodBudget,
     required this.transportationBudget,
     required this.leisureBudget,
     required this.savingsGoal,
-    this.weeklyBudget,
-    this.monthlyBudget,
+    double? weeklyLimit,
+    double? weeklyBudget,
+    double? monthlyLimit,
+    double? monthlyBudget,
     this.savingsTargetAmount = 0,
     this.savingsTargetDate,
     this.notificationsEnabled = true,
@@ -194,15 +197,17 @@ class BudgetSettings {
     this.autoRenewBudget = false,
     this.budgetExpiryPeriod = BudgetExpiryPeriod.daily,
     this.budgetCreatedAt,
-  });
+  })  : dailyLimit = dailyLimit ?? totalDailyBudget,
+        weeklyLimit = weeklyLimit ?? weeklyBudget,
+        monthlyLimit = monthlyLimit ?? monthlyBudget;
 
-  final double totalDailyBudget;
+  final double? dailyLimit;
   final double foodBudget;
   final double transportationBudget;
   final double leisureBudget;
   final double savingsGoal;
-  final double? weeklyBudget;
-  final double? monthlyBudget;
+  final double? weeklyLimit;
+  final double? monthlyLimit;
   final double savingsTargetAmount;
   final DateTime? savingsTargetDate;
   final bool notificationsEnabled;
@@ -217,15 +222,21 @@ class BudgetSettings {
   final BudgetExpiryPeriod budgetExpiryPeriod;
   final DateTime? budgetCreatedAt;
 
+  double get totalDailyBudget => dailyLimit ?? 0;
+
+  double? get weeklyBudget => weeklyLimit;
+
+  double? get monthlyBudget => monthlyLimit;
+
   factory BudgetSettings.defaults() {
     return const BudgetSettings(
-      totalDailyBudget: 0,
+      dailyLimit: null,
       foodBudget: 0,
       transportationBudget: 0,
       leisureBudget: 0,
       savingsGoal: 0,
-      weeklyBudget: null,
-      monthlyBudget: null,
+      weeklyLimit: null,
+      monthlyLimit: null,
       savingsTargetAmount: 0,
       notificationsEnabled: true,
       budgetWarningNotificationsEnabled: true,
@@ -254,12 +265,15 @@ class BudgetSettings {
   }
 
   BudgetSettings copyWith({
+    Object? dailyLimit = _dailyLimitSentinel,
     double? totalDailyBudget,
     double? foodBudget,
     double? transportationBudget,
     double? leisureBudget,
     double? savingsGoal,
+    Object? weeklyLimit = _weeklyLimitSentinel,
     double? weeklyBudget,
+    Object? monthlyLimit = _monthlyLimitSentinel,
     double? monthlyBudget,
     double? savingsTargetAmount,
     DateTime? savingsTargetDate,
@@ -275,14 +289,27 @@ class BudgetSettings {
     BudgetExpiryPeriod? budgetExpiryPeriod,
     DateTime? budgetCreatedAt,
   }) {
+    final double? resolvedDailyLimit =
+        identical(dailyLimit, _dailyLimitSentinel)
+            ? (totalDailyBudget ?? this.dailyLimit)
+            : dailyLimit as double?;
+    final double? resolvedWeeklyLimit =
+        identical(weeklyLimit, _weeklyLimitSentinel)
+            ? (weeklyBudget ?? this.weeklyLimit)
+            : weeklyLimit as double?;
+    final double? resolvedMonthlyLimit =
+        identical(monthlyLimit, _monthlyLimitSentinel)
+            ? (monthlyBudget ?? this.monthlyLimit)
+            : monthlyLimit as double?;
+
     return BudgetSettings(
-      totalDailyBudget: totalDailyBudget ?? this.totalDailyBudget,
+      dailyLimit: resolvedDailyLimit,
       foodBudget: foodBudget ?? this.foodBudget,
       transportationBudget: transportationBudget ?? this.transportationBudget,
       leisureBudget: leisureBudget ?? this.leisureBudget,
       savingsGoal: savingsGoal ?? this.savingsGoal,
-      weeklyBudget: weeklyBudget ?? this.weeklyBudget,
-      monthlyBudget: monthlyBudget ?? this.monthlyBudget,
+      weeklyLimit: resolvedWeeklyLimit,
+      monthlyLimit: resolvedMonthlyLimit,
       savingsTargetAmount: savingsTargetAmount ?? this.savingsTargetAmount,
       savingsTargetDate: savingsTargetDate ?? this.savingsTargetDate,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
@@ -306,12 +333,15 @@ class BudgetSettings {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'dailyLimit': dailyLimit,
       'totalDailyBudget': totalDailyBudget,
       'foodBudget': foodBudget,
       'transportationBudget': transportationBudget,
       'leisureBudget': leisureBudget,
       'savingsGoal': savingsGoal,
+      'weeklyLimit': weeklyLimit,
       'weeklyBudget': weeklyBudget,
+      'monthlyLimit': monthlyLimit,
       'monthlyBudget': monthlyBudget,
       'savingsTargetAmount': savingsTargetAmount,
       'savingsTargetDate': savingsTargetDate?.toIso8601String(),
@@ -330,15 +360,22 @@ class BudgetSettings {
   }
 
   factory BudgetSettings.fromJson(Map<String, dynamic> json) {
+    final double? dailyLimit = (json['dailyLimit'] as num?)?.toDouble() ??
+        (json['totalDailyBudget'] as num?)?.toDouble();
+    final double? weeklyLimit = (json['weeklyLimit'] as num?)?.toDouble() ??
+        (json['weeklyBudget'] as num?)?.toDouble();
+    final double? monthlyLimit = (json['monthlyLimit'] as num?)?.toDouble() ??
+        (json['monthlyBudget'] as num?)?.toDouble();
+
     return BudgetSettings(
-      totalDailyBudget: (json['totalDailyBudget'] as num?)?.toDouble() ?? 0,
+      dailyLimit: dailyLimit,
       foodBudget: (json['foodBudget'] as num?)?.toDouble() ?? 0,
       transportationBudget:
           (json['transportationBudget'] as num?)?.toDouble() ?? 0,
       leisureBudget: (json['leisureBudget'] as num?)?.toDouble() ?? 0,
       savingsGoal: (json['savingsGoal'] as num?)?.toDouble() ?? 0,
-      weeklyBudget: (json['weeklyBudget'] as num?)?.toDouble(),
-      monthlyBudget: (json['monthlyBudget'] as num?)?.toDouble(),
+      weeklyLimit: weeklyLimit,
+      monthlyLimit: monthlyLimit,
       savingsTargetAmount:
           (json['savingsTargetAmount'] as num?)?.toDouble() ?? 0,
       savingsTargetDate: json['savingsTargetDate'] != null
@@ -369,6 +406,12 @@ class BudgetSettings {
           : null,
     );
   }
+
+  static const Object _dailyLimitSentinel = Object();
+
+  static const Object _weeklyLimitSentinel = Object();
+
+  static const Object _monthlyLimitSentinel = Object();
 }
 
 class ExpenseEntry {
@@ -900,6 +943,57 @@ class UserProfile {
   }
 }
 
+class PeriodReport {
+  const PeriodReport({
+    required this.period,
+    required this.startDate,
+    required this.endDate,
+    required this.limit,
+    required this.totalSpent,
+    required this.savedAmount,
+  });
+
+  final BudgetPeriod period;
+  final DateTime startDate;
+  final DateTime endDate;
+  final double limit;
+  final double totalSpent;
+  final double savedAmount;
+
+  bool get isOverspent => savedAmount < 0;
+
+  String get statusLabel => isOverspent
+      ? 'Overspent ₱${savedAmount.abs().toStringAsFixed(0)}'
+      : 'Saved ₱${savedAmount.toStringAsFixed(0)}';
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'period': period.name,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'limit': limit,
+      'totalSpent': totalSpent,
+      'savedAmount': savedAmount,
+    };
+  }
+
+  factory PeriodReport.fromJson(Map<String, dynamic> json) {
+    return PeriodReport(
+      period: BudgetPeriod.values.firstWhere(
+        (BudgetPeriod period) => period.name == (json['period'] as String?),
+        orElse: () => BudgetPeriod.daily,
+      ),
+      startDate: DateTime.tryParse(json['startDate'] as String? ?? '') ??
+          DateTime.now(),
+      endDate:
+          DateTime.tryParse(json['endDate'] as String? ?? '') ?? DateTime.now(),
+      limit: (json['limit'] as num?)?.toDouble() ?? 0,
+      totalSpent: (json['totalSpent'] as num?)?.toDouble() ?? 0,
+      savedAmount: (json['savedAmount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
 class BudgetBuddyState {
   const BudgetBuddyState({
     required this.settings,
@@ -917,6 +1011,13 @@ class BudgetBuddyState {
     required this.isBootstrapping,
     required this.currentExpenseFilter,
     required this.dashboardPeriod,
+    required this.dailySpent,
+    required this.weeklySpent,
+    required this.monthlySpent,
+    required this.dailyPeriodStart,
+    required this.weeklyPeriodStart,
+    required this.monthlyPeriodStart,
+    required this.periodReports,
   });
 
   final BudgetSettings settings;
@@ -934,6 +1035,13 @@ class BudgetBuddyState {
   final bool isBootstrapping;
   final BudgetCategory? currentExpenseFilter;
   final DashboardPeriod dashboardPeriod;
+  final double dailySpent;
+  final double weeklySpent;
+  final double monthlySpent;
+  final DateTime? dailyPeriodStart;
+  final DateTime? weeklyPeriodStart;
+  final DateTime? monthlyPeriodStart;
+  final List<PeriodReport> periodReports;
 
   factory BudgetBuddyState.initial() {
     return BudgetBuddyState(
@@ -952,6 +1060,13 @@ class BudgetBuddyState {
       isBootstrapping: true,
       currentExpenseFilter: null,
       dashboardPeriod: DashboardPeriod.daily,
+      dailySpent: 0,
+      weeklySpent: 0,
+      monthlySpent: 0,
+      dailyPeriodStart: null,
+      weeklyPeriodStart: null,
+      monthlyPeriodStart: null,
+      periodReports: const <PeriodReport>[],
     );
   }
 
@@ -971,6 +1086,13 @@ class BudgetBuddyState {
     bool? isBootstrapping,
     Object? currentExpenseFilter = _currentExpenseFilterSentinel,
     DashboardPeriod? dashboardPeriod,
+    double? dailySpent,
+    double? weeklySpent,
+    double? monthlySpent,
+    Object? dailyPeriodStart = _dailyPeriodStartSentinel,
+    Object? weeklyPeriodStart = _weeklyPeriodStartSentinel,
+    Object? monthlyPeriodStart = _monthlyPeriodStartSentinel,
+    List<PeriodReport>? periodReports,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -994,12 +1116,33 @@ class BudgetBuddyState {
               ? this.currentExpenseFilter
               : currentExpenseFilter as BudgetCategory?,
       dashboardPeriod: dashboardPeriod ?? this.dashboardPeriod,
+      dailySpent: dailySpent ?? this.dailySpent,
+      weeklySpent: weeklySpent ?? this.weeklySpent,
+      monthlySpent: monthlySpent ?? this.monthlySpent,
+      dailyPeriodStart: identical(dailyPeriodStart, _dailyPeriodStartSentinel)
+          ? this.dailyPeriodStart
+          : dailyPeriodStart as DateTime?,
+      weeklyPeriodStart:
+          identical(weeklyPeriodStart, _weeklyPeriodStartSentinel)
+              ? this.weeklyPeriodStart
+              : weeklyPeriodStart as DateTime?,
+      monthlyPeriodStart:
+          identical(monthlyPeriodStart, _monthlyPeriodStartSentinel)
+              ? this.monthlyPeriodStart
+              : monthlyPeriodStart as DateTime?,
+      periodReports: periodReports ?? this.periodReports,
     );
   }
 
   static const Object _lastExpenseCategorySentinel = Object();
 
   static const Object _currentExpenseFilterSentinel = Object();
+
+  static const Object _dailyPeriodStartSentinel = Object();
+
+  static const Object _weeklyPeriodStartSentinel = Object();
+
+  static const Object _monthlyPeriodStartSentinel = Object();
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -1021,6 +1164,14 @@ class BudgetBuddyState {
       'notificationsEnabled': notificationsEnabled,
       'currentExpenseFilter': currentExpenseFilter?.name,
       'dashboardPeriod': dashboardPeriod.name,
+      'dailySpent': dailySpent,
+      'weeklySpent': weeklySpent,
+      'monthlySpent': monthlySpent,
+      'dailyPeriodStart': dailyPeriodStart?.toIso8601String(),
+      'weeklyPeriodStart': weeklyPeriodStart?.toIso8601String(),
+      'monthlyPeriodStart': monthlyPeriodStart?.toIso8601String(),
+      'periodReports':
+          periodReports.map((PeriodReport report) => report.toJson()).toList(),
     };
   }
 
@@ -1075,6 +1226,23 @@ class BudgetBuddyState {
       dashboardPeriod: DashboardPeriodX.fromString(
         json['dashboardPeriod'] as String? ?? DashboardPeriod.daily.name,
       ),
+      dailySpent: (json['dailySpent'] as num?)?.toDouble() ?? 0,
+      weeklySpent: (json['weeklySpent'] as num?)?.toDouble() ?? 0,
+      monthlySpent: (json['monthlySpent'] as num?)?.toDouble() ?? 0,
+      dailyPeriodStart: json['dailyPeriodStart'] != null
+          ? DateTime.tryParse(json['dailyPeriodStart'] as String)
+          : null,
+      weeklyPeriodStart: json['weeklyPeriodStart'] != null
+          ? DateTime.tryParse(json['weeklyPeriodStart'] as String)
+          : null,
+      monthlyPeriodStart: json['monthlyPeriodStart'] != null
+          ? DateTime.tryParse(json['monthlyPeriodStart'] as String)
+          : null,
+      periodReports: (json['periodReports'] as List<dynamic>?)
+              ?.map((dynamic item) =>
+                  PeriodReport.fromJson((item as Map).cast<String, dynamic>()))
+              .toList() ??
+          const <PeriodReport>[],
     );
   }
 
