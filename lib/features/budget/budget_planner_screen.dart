@@ -270,9 +270,8 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
             : summary.isWarning
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF16A34A);
-    final bool hasBudget = summary != null;
-    final bool hasChanges =
-        _isEditing && _editingSnapshot != widget.controller.text;
+    final bool hasBudget = summary?.isActive ?? false;
+    final bool hasValue = widget.controller.text.trim().isNotEmpty;
 
     return SectionCard(
       child: Column(
@@ -318,6 +317,11 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
             focusNode: widget.focusNode,
             readOnly: !_isEditing,
             keyboardType: TextInputType.number,
+            onChanged: (_) {
+              if (mounted) {
+                setState(() {});
+              }
+            },
             decoration: InputDecoration(
               labelText: widget.title,
               prefixText: '₱ ',
@@ -344,18 +348,19 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _beginEditing,
-                  icon: const Icon(Icons.edit_rounded),
-                  label: Text(hasBudget ? 'Edit' : 'Set a budget'),
+          if (!_isEditing) ...<Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _beginEditing,
+                    icon: const Icon(Icons.edit_rounded),
+                    label: Text(hasBudget ? 'Edit' : 'Set it'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          if (_isEditing) ...<Widget>[
+              ],
+            ),
+          ] else ...<Widget>[
             const SizedBox(height: 10),
             Row(
               children: <Widget>[
@@ -369,22 +374,12 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: hasChanges ? _confirmSave : null,
+                    onPressed: hasValue ? _confirmSave : null,
                     icon: const Icon(Icons.save_rounded),
                     label: const Text('Save'),
                   ),
                 ),
               ],
-            ),
-          ] else ...<Widget>[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.save_rounded),
-                label: const Text('Save'),
-              ),
             ),
           ],
         ],
