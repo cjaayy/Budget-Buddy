@@ -17,7 +17,6 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
 
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   late final TextEditingController _dailyController;
-  late final TextEditingController _weeklyController;
   late final TextEditingController _monthlyController;
   bool _seededFromState = false;
 
@@ -25,14 +24,12 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   void initState() {
     super.initState();
     _dailyController = TextEditingController();
-    _weeklyController = TextEditingController();
     _monthlyController = TextEditingController();
   }
 
   @override
   void dispose() {
     _dailyController.dispose();
-    _weeklyController.dispose();
     _monthlyController.dispose();
     super.dispose();
   }
@@ -62,17 +59,17 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             const SectionTitle(
               title: 'Budget planner',
               subtitle:
-                  'Set daily, weekly, and monthly limits. Any expense counts toward every active period.',
+                  'Set daily and monthly limits. Any expense counts toward every active period.',
             ),
             const SizedBox(height: 16),
             BudgetMetricCard(
               label: 'Limits set',
-              value: '$activeLimitCount / 3',
+              value: '$activeLimitCount / 2',
               subtitle: activeLimitCount == 0
                   ? 'Enable one or more limits to start tracking'
-                  : activeLimitCount == 3
+                  : activeLimitCount == 2
                       ? 'All periods active'
-                      : '${3 - activeLimitCount} optional period${3 - activeLimitCount == 1 ? '' : 's'} still open',
+                      : '${2 - activeLimitCount} optional period${2 - activeLimitCount == 1 ? '' : 's'} still open',
               icon: Icons.layers_rounded,
               color: activeLimitCount == 0
                   ? const Color(0xFF64748B)
@@ -85,14 +82,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               controller: _dailyController,
               icon: Icons.calendar_today_rounded,
               periodSummary: periodSummaries[BudgetPeriod.daily],
-            ),
-            const SizedBox(height: 12),
-            _LimitEditorCard(
-              title: 'Max per week',
-              helper: 'Resets every Monday',
-              controller: _weeklyController,
-              icon: Icons.date_range_rounded,
-              periodSummary: periodSummaries[BudgetPeriod.weekly],
             ),
             const SizedBox(height: 12),
             _LimitEditorCard(
@@ -176,7 +165,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 12),
-                  ...BudgetPeriod.values.map((BudgetPeriod period) {
+                  ...<BudgetPeriod>[BudgetPeriod.daily, BudgetPeriod.monthly]
+                      .map((BudgetPeriod period) {
                     final BudgetPeriodSummary? periodSummary =
                         periodSummaries[period];
                     if (periodSummary == null || !periodSummary.isActive) {
@@ -208,9 +198,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     _dailyController.text = state.settings.totalDailyBudget > 0
         ? state.settings.totalDailyBudget.toStringAsFixed(0)
         : '';
-    _weeklyController.text = (state.settings.weeklyBudget ?? 0) > 0
-        ? state.settings.weeklyBudget!.toStringAsFixed(0)
-        : '';
     _monthlyController.text = (state.settings.monthlyBudget ?? 0) > 0
         ? state.settings.monthlyBudget!.toStringAsFixed(0)
         : '';
@@ -222,16 +209,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
   void _saveLimits(BudgetBuddyState state) {
     final double dailyLimit = double.tryParse(_dailyController.text) ?? 0;
-    final double weeklyLimit = double.tryParse(_weeklyController.text) ?? 0;
     final double monthlyLimit = double.tryParse(_monthlyController.text) ?? 0;
-    final bool hasActiveLimit =
-        dailyLimit > 0 || weeklyLimit > 0 || monthlyLimit > 0;
+    final bool hasActiveLimit = dailyLimit > 0 || monthlyLimit > 0;
 
     ref.read(budgetBuddyControllerProvider.notifier).updateBudget(
           state.settings.copyWith(
-            totalDailyBudget: dailyLimit,
-            weeklyBudget: weeklyLimit > 0 ? weeklyLimit : 0,
-            monthlyBudget: monthlyLimit > 0 ? monthlyLimit : 0,
+            totalDailyBudget: dailyLimit > 0 ? dailyLimit : 0,
+            monthlyLimit: monthlyLimit > 0 ? monthlyLimit : 0,
             budgetCreatedAt: hasActiveLimit ? DateTime.now() : null,
           ),
         );

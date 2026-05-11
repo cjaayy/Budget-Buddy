@@ -31,14 +31,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
+    final BudgetPeriodSummary selectedSummary =
+        summary.periodSummaries[_budgetPeriodFor(_selectedPeriod)] ??
+            BudgetPeriodSummary(
+              period: _budgetPeriodFor(_selectedPeriod),
+              limit: 0,
+              spent: 0,
+            );
     final bool hasConfiguredBudget = state.settings.hasConfiguredBudget;
     final bool hasExpenses = state.expenses.isNotEmpty;
-    final double totalBudget = summary.totalBudget * _selectedPeriod.multiplier;
-    final double spentAdjusted =
-        summary.totalSpent * _selectedPeriod.multiplier;
-    final double remainingAdjusted =
-        summary.remainingBalance * _selectedPeriod.multiplier;
-    final double savingsAdjusted = summary.savings * _selectedPeriod.multiplier;
+    final double totalBudget = selectedSummary.limit;
+    final double spentAdjusted = selectedSummary.spent;
+    final double remainingAdjusted = selectedSummary.remaining;
+    final double savingsAdjusted = selectedSummary.saved;
     final List<ExpenseEntry> recentExpenses = state.expenses.take(5).toList();
 
     return Scaffold(
@@ -138,16 +143,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Today spent',
                             value: formatPeso(spentAdjusted),
                             detail:
-                                'This is the current period total, scaled from your stored daily budget.',
+                                'This is the current period total for your selected budget period.',
                             extra:
-                                'Use the period selector to compare daily, weekly, and monthly views.',
+                                'Use the period selector to compare daily, weekly, and monthly views without auto-scaling.',
                           ),
                         ),
                         BudgetMetricCard(
                           label: 'Savings',
                           value: formatPeso(savingsAdjusted),
                           subtitle:
-                              'Goal ${formatPeso(state.settings.savingsGoal * _selectedPeriod.multiplier)}',
+                              'Goal ${formatPeso(state.settings.savingsGoal)}',
                           icon: Icons.lock_rounded,
                           color: const Color(0xFFF97316),
                           onTap: () => _showMetricDetails(
@@ -155,9 +160,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: 'Savings',
                             value: formatPeso(savingsAdjusted),
                             detail:
-                                'This shows how much of your savings goal remains after spending.',
+                                'This shows how much of your selected period budget remains after spending.',
                             extra:
-                                'Goal: ${formatPeso(state.settings.savingsGoal * _selectedPeriod.multiplier)}',
+                                'Goal: ${formatPeso(state.settings.savingsGoal)}',
                           ),
                         ),
                         BudgetMetricCard(
@@ -328,6 +333,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  BudgetPeriod _budgetPeriodFor(DashboardPeriod period) {
+    return switch (period) {
+      DashboardPeriod.daily => BudgetPeriod.daily,
+      DashboardPeriod.weekly => BudgetPeriod.weekly,
+      DashboardPeriod.monthly => BudgetPeriod.monthly,
+    };
   }
 
   void _handleHorizontalDragEnd(DragEndDetails details) {

@@ -270,7 +270,6 @@ class BudgetService {
   Map<BudgetPeriod, double> _periodLimits(BudgetSettings settings) {
     return <BudgetPeriod, double>{
       BudgetPeriod.daily: settings.totalDailyBudget,
-      BudgetPeriod.weekly: settings.weeklyBudget ?? 0,
       BudgetPeriod.monthly: settings.monthlyBudget ?? 0,
     };
   }
@@ -278,9 +277,6 @@ class BudgetService {
   BudgetPeriod _primaryPeriod(BudgetSettings settings) {
     if (settings.totalDailyBudget > 0) {
       return BudgetPeriod.daily;
-    }
-    if ((settings.weeklyBudget ?? 0) > 0) {
-      return BudgetPeriod.weekly;
     }
     if ((settings.monthlyBudget ?? 0) > 0) {
       return BudgetPeriod.monthly;

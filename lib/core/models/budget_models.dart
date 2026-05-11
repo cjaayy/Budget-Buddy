@@ -251,15 +251,11 @@ class BudgetSettings {
   double get allocatedTotal =>
       foodBudget + transportationBudget + leisureBudget + savingsGoal;
 
-  bool get hasActiveLimit =>
-      totalDailyBudget > 0 ||
-      (weeklyBudget ?? 0) > 0 ||
-      (monthlyBudget ?? 0) > 0;
+  bool get hasActiveLimit => totalDailyBudget > 0 || (monthlyBudget ?? 0) > 0;
 
   int get activeLimitCount {
     int count = 0;
     if (totalDailyBudget > 0) count++;
-    if ((weeklyBudget ?? 0) > 0) count++;
     if ((monthlyBudget ?? 0) > 0) count++;
     return count;
   }
