@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
