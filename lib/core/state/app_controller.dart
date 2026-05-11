@@ -187,7 +187,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   void updateBudget(BudgetSettings settings) {
     state = state.copyWith(
-      settings: settings.copyWith(hasConfiguredBudget: true),
+      settings: settings.copyWith(hasConfiguredBudget: settings.hasActiveLimit),
     );
     _persist();
   }
@@ -397,7 +397,6 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void resetForNextDay() {
-    state = state.copyWith(expenses: <ExpenseEntry>[]);
     _persist();
   }
 
@@ -424,10 +423,19 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   void _triggerWarningIfNeeded() {
     final BudgetSummary currentSummary = summary;
-    if (currentSummary.remainingBalance <= 0) {
+    final BudgetPeriodSummary? primarySummary =
+        currentSummary.periodSummaries[BudgetPeriod.daily] ??
+            currentSummary.periodSummaries[BudgetPeriod.weekly] ??
+            currentSummary.periodSummaries[BudgetPeriod.monthly];
+
+    if (primarySummary == null || !primarySummary.isActive) {
+      return;
+    }
+
+    if (primarySummary.isOverspent || primarySummary.isWarning) {
       _notificationService.showBudgetReminder(
         title: 'Budget warning',
-        body: 'You have reached your daily budget cap.',
+        body: primarySummary.warningMessage,
       );
     }
   }

@@ -119,6 +119,22 @@ enum BudgetExpiryPeriod { daily, weekly, monthly }
 
 enum DashboardPeriod { daily, weekly, monthly }
 
+enum BudgetPeriod { daily, weekly, monthly }
+
+extension BudgetPeriodX on BudgetPeriod {
+  String get label => switch (this) {
+        BudgetPeriod.daily => 'Daily',
+        BudgetPeriod.weekly => 'Weekly',
+        BudgetPeriod.monthly => 'Monthly',
+      };
+
+  String get resetLabel => switch (this) {
+        BudgetPeriod.daily => 'Resets every midnight',
+        BudgetPeriod.weekly => 'Resets every Monday',
+        BudgetPeriod.monthly => 'Resets on the 1st of the month',
+      };
+}
+
 enum NotificationFrequency { daily, weekly }
 
 extension NotificationFrequencyX on NotificationFrequency {
@@ -163,6 +179,8 @@ class BudgetSettings {
     required this.transportationBudget,
     required this.leisureBudget,
     required this.savingsGoal,
+    this.weeklyBudget,
+    this.monthlyBudget,
     this.savingsTargetAmount = 0,
     this.savingsTargetDate,
     this.notificationsEnabled = true,
@@ -183,6 +201,8 @@ class BudgetSettings {
   final double transportationBudget;
   final double leisureBudget;
   final double savingsGoal;
+  final double? weeklyBudget;
+  final double? monthlyBudget;
   final double savingsTargetAmount;
   final DateTime? savingsTargetDate;
   final bool notificationsEnabled;
@@ -204,6 +224,8 @@ class BudgetSettings {
       transportationBudget: 0,
       leisureBudget: 0,
       savingsGoal: 0,
+      weeklyBudget: null,
+      monthlyBudget: null,
       savingsTargetAmount: 0,
       notificationsEnabled: true,
       budgetWarningNotificationsEnabled: true,
@@ -218,12 +240,27 @@ class BudgetSettings {
   double get allocatedTotal =>
       foodBudget + transportationBudget + leisureBudget + savingsGoal;
 
+  bool get hasActiveLimit =>
+      totalDailyBudget > 0 ||
+      (weeklyBudget ?? 0) > 0 ||
+      (monthlyBudget ?? 0) > 0;
+
+  int get activeLimitCount {
+    int count = 0;
+    if (totalDailyBudget > 0) count++;
+    if ((weeklyBudget ?? 0) > 0) count++;
+    if ((monthlyBudget ?? 0) > 0) count++;
+    return count;
+  }
+
   BudgetSettings copyWith({
     double? totalDailyBudget,
     double? foodBudget,
     double? transportationBudget,
     double? leisureBudget,
     double? savingsGoal,
+    double? weeklyBudget,
+    double? monthlyBudget,
     double? savingsTargetAmount,
     DateTime? savingsTargetDate,
     bool? notificationsEnabled,
@@ -244,6 +281,8 @@ class BudgetSettings {
       transportationBudget: transportationBudget ?? this.transportationBudget,
       leisureBudget: leisureBudget ?? this.leisureBudget,
       savingsGoal: savingsGoal ?? this.savingsGoal,
+      weeklyBudget: weeklyBudget ?? this.weeklyBudget,
+      monthlyBudget: monthlyBudget ?? this.monthlyBudget,
       savingsTargetAmount: savingsTargetAmount ?? this.savingsTargetAmount,
       savingsTargetDate: savingsTargetDate ?? this.savingsTargetDate,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
@@ -272,6 +311,8 @@ class BudgetSettings {
       'transportationBudget': transportationBudget,
       'leisureBudget': leisureBudget,
       'savingsGoal': savingsGoal,
+      'weeklyBudget': weeklyBudget,
+      'monthlyBudget': monthlyBudget,
       'savingsTargetAmount': savingsTargetAmount,
       'savingsTargetDate': savingsTargetDate?.toIso8601String(),
       'notificationsEnabled': notificationsEnabled,
@@ -296,6 +337,8 @@ class BudgetSettings {
           (json['transportationBudget'] as num?)?.toDouble() ?? 0,
       leisureBudget: (json['leisureBudget'] as num?)?.toDouble() ?? 0,
       savingsGoal: (json['savingsGoal'] as num?)?.toDouble() ?? 0,
+      weeklyBudget: (json['weeklyBudget'] as num?)?.toDouble(),
+      monthlyBudget: (json['monthlyBudget'] as num?)?.toDouble(),
       savingsTargetAmount:
           (json['savingsTargetAmount'] as num?)?.toDouble() ?? 0,
       savingsTargetDate: json['savingsTargetDate'] != null
@@ -1054,6 +1097,8 @@ class BudgetSummary {
     required this.overspendingCategories,
     required this.recommendedActions,
     required this.savingsProgress,
+    required this.periodSummaries,
+    required this.activeLimitCount,
   });
 
   final double totalBudget;
@@ -1066,4 +1111,52 @@ class BudgetSummary {
   final List<String> overspendingCategories;
   final List<String> recommendedActions;
   final double savingsProgress;
+  final Map<BudgetPeriod, BudgetPeriodSummary> periodSummaries;
+  final int activeLimitCount;
+}
+
+class BudgetPeriodSummary {
+  const BudgetPeriodSummary({
+    required this.period,
+    required this.limit,
+    required this.spent,
+  });
+
+  final BudgetPeriod period;
+  final double limit;
+  final double spent;
+
+  double get remaining => limit - spent;
+
+  double get saved => remaining > 0 ? remaining : 0;
+
+  double get overspentAmount => remaining < 0 ? remaining.abs() : 0;
+
+  double get warningThreshold => limit * 0.8;
+
+  double get usageRatio =>
+      limit <= 0 ? 0 : (spent / limit).clamp(0, 2).toDouble();
+
+  bool get isActive => limit > 0;
+
+  bool get isWarning => isActive && spent >= warningThreshold && spent < limit;
+
+  bool get isOverspent => isActive && spent >= limit;
+
+  String get statusLabel => switch (isOverspent) {
+        true => 'Overspent',
+        false => isWarning ? 'Warning' : 'On track',
+      };
+
+  String get resetLabel => period.resetLabel;
+
+  String get warningMessage {
+    if (!isActive) {
+      return 'No limit set for ${period.label.toLowerCase()}.';
+    }
+    if (isOverspent) {
+      return 'You are over your ${period.label.toLowerCase()} limit by ₱${overspentAmount.toStringAsFixed(0)}.';
+    }
+    return 'You\'re ₱${remaining.toStringAsFixed(0)} from your ${period.label.toLowerCase()} limit.';
+  }
 }

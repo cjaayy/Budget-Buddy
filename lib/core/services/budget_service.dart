@@ -2,7 +2,39 @@ import '../models/budget_models.dart';
 
 class BudgetService {
   BudgetSummary computeSummary(BudgetBuddyState state) {
-    if (!state.settings.hasConfiguredBudget) {
+    final DateTime now = DateTime.now();
+    final BudgetPeriod primaryPeriod = _primaryPeriod(state.settings);
+    final Map<BudgetPeriod, double> periodLimits =
+        _periodLimits(state.settings);
+    final Map<BudgetPeriod, BudgetPeriodSummary> periodSummaries =
+        <BudgetPeriod, BudgetPeriodSummary>{};
+
+    for (final MapEntry<BudgetPeriod, double> entry in periodLimits.entries) {
+      final DateTime start = _periodStart(entry.key, now);
+      final double spent = entry.value <= 0
+          ? 0
+          : _expensesSince(state.expenses, start).fold(
+              0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+      periodSummaries[entry.key] = BudgetPeriodSummary(
+        period: entry.key,
+        limit: entry.value,
+        spent: spent,
+      );
+    }
+
+    final BudgetPeriodSummary primarySummary = periodSummaries[primaryPeriod] ??
+        const BudgetPeriodSummary(
+          period: BudgetPeriod.daily,
+          limit: 0,
+          spent: 0,
+        );
+
+    final List<ExpenseEntry> primaryExpenses = _expensesSince(
+      state.expenses,
+      _periodStart(primaryPeriod, now),
+    );
+
+    if (!state.settings.hasActiveLimit) {
       return BudgetSummary(
         totalBudget: 0,
         totalSpent: 0,
@@ -22,6 +54,8 @@ class BudgetService {
           'Set your budget to see live spending insights.'
         ],
         savingsProgress: 0,
+        periodSummaries: periodSummaries,
+        activeLimitCount: state.settings.activeLimitCount,
       );
     }
 
@@ -30,23 +64,22 @@ class BudgetService {
         category.label: 0,
     };
 
-    for (final ExpenseEntry expense in state.expenses) {
+    for (final ExpenseEntry expense in primaryExpenses) {
       categoryTotals[expense.category.label] =
           (categoryTotals[expense.category.label] ?? 0) + expense.amount;
     }
 
     final double totalSpent = categoryTotals.values
         .fold(0, (double sum, double value) => sum + value);
-    final double remainingBalance =
-        state.settings.totalDailyBudget - totalSpent;
-    final double savings =
-        remainingBalance.clamp(0, state.settings.totalDailyBudget).toDouble();
+    final double remainingBalance = primarySummary.remaining;
+    final double savings = primarySummary.saved;
 
     final Map<String, double> categoryPercentages = <String, double>{};
-    final Map<String, double> limits = _categoryLimits(state.settings);
+    final Map<String, double> limits =
+        _categoryLimits(state.settings, primarySummary.limit);
     final List<String> overspendingCategories = <String>[];
     for (final MapEntry<String, double> entry in categoryTotals.entries) {
-      final double limit = limits[entry.key] ?? state.settings.totalDailyBudget;
+      final double limit = limits[entry.key] ?? primarySummary.limit;
       categoryPercentages[entry.key] =
           limit == 0 ? 0 : (entry.value / limit).clamp(0, 1.5).toDouble();
       if (entry.value > limit && entry.value > 0) {
@@ -72,6 +105,7 @@ class BudgetService {
       overspendingCategories: overspendingCategories,
       categoryTotals: categoryTotals,
       categoryLimits: limits,
+      primarySummary: primarySummary,
     );
 
     final double savingsProgress = state.settings.savingsGoal <= 0
@@ -79,7 +113,7 @@ class BudgetService {
         : (savings / state.settings.savingsGoal).clamp(0, 1.5).toDouble();
 
     return BudgetSummary(
-      totalBudget: state.settings.totalDailyBudget,
+      totalBudget: primarySummary.limit,
       totalSpent: totalSpent,
       remainingBalance: remainingBalance,
       savings: savings,
@@ -89,6 +123,8 @@ class BudgetService {
       overspendingCategories: overspendingCategories,
       recommendedActions: recommendations,
       savingsProgress: savingsProgress,
+      periodSummaries: periodSummaries,
+      activeLimitCount: state.settings.activeLimitCount,
     );
   }
 
@@ -171,13 +207,13 @@ class BudgetService {
         .toList();
   }
 
-  Map<String, double> _categoryLimits(BudgetSettings settings) {
+  Map<String, double> _categoryLimits(BudgetSettings settings, double budget) {
     return <String, double>{
       BudgetCategory.food.label: settings.foodBudget,
       BudgetCategory.transportation.label: settings.transportationBudget,
       BudgetCategory.entertainment.label: settings.leisureBudget,
-      BudgetCategory.shopping.label: settings.totalDailyBudget * 0.15,
-      BudgetCategory.miscellaneous.label: settings.totalDailyBudget * 0.10,
+      BudgetCategory.shopping.label: budget * 0.15,
+      BudgetCategory.miscellaneous.label: budget * 0.10,
     };
   }
 
@@ -188,12 +224,15 @@ class BudgetService {
     required List<String> overspendingCategories,
     required Map<String, double> categoryTotals,
     required Map<String, double> categoryLimits,
+    required BudgetPeriodSummary primarySummary,
   }) {
     final List<String> tips = <String>[];
 
-    if (remainingBalance < 0) {
+    if (primarySummary.isOverspent) {
       tips.add(
-          'You are overspending by ${remainingBalance.abs().toStringAsFixed(0)} pesos. Reduce non-essential purchases today.');
+          'You are overspending by ${remainingBalance.abs().toStringAsFixed(0)} pesos in your ${primarySummary.period.label.toLowerCase()} budget.');
+    } else if (primarySummary.isWarning) {
+      tips.add(primarySummary.warningMessage);
     } else if (remainingBalance < settings.savingsGoal * 0.4) {
       tips.add(
           'Your savings buffer is getting thin. Try a cheaper meal or skip one extra ride.');
@@ -225,5 +264,45 @@ class BudgetService {
     }
 
     return tips;
+  }
+
+  Map<BudgetPeriod, double> _periodLimits(BudgetSettings settings) {
+    return <BudgetPeriod, double>{
+      BudgetPeriod.daily: settings.totalDailyBudget,
+      BudgetPeriod.weekly: settings.weeklyBudget ?? 0,
+      BudgetPeriod.monthly: settings.monthlyBudget ?? 0,
+    };
+  }
+
+  BudgetPeriod _primaryPeriod(BudgetSettings settings) {
+    if (settings.totalDailyBudget > 0) {
+      return BudgetPeriod.daily;
+    }
+    if ((settings.weeklyBudget ?? 0) > 0) {
+      return BudgetPeriod.weekly;
+    }
+    if ((settings.monthlyBudget ?? 0) > 0) {
+      return BudgetPeriod.monthly;
+    }
+    return BudgetPeriod.daily;
+  }
+
+  DateTime _periodStart(BudgetPeriod period, DateTime now) {
+    return switch (period) {
+      BudgetPeriod.daily => DateTime(now.year, now.month, now.day),
+      BudgetPeriod.weekly => DateTime(now.year, now.month, now.day).subtract(
+          Duration(days: now.weekday - DateTime.monday),
+        ),
+      BudgetPeriod.monthly => DateTime(now.year, now.month, 1),
+    };
+  }
+
+  List<ExpenseEntry> _expensesSince(
+      List<ExpenseEntry> expenses, DateTime start) {
+    return expenses
+        .where((ExpenseEntry expense) =>
+            !expense.dateTime.isBefore(start) &&
+            !expense.dateTime.isAfter(DateTime.now()))
+        .toList();
   }
 }
