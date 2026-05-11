@@ -30,9 +30,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final List<DateTime> availableDays = _availableDays(dailyExpenses);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
