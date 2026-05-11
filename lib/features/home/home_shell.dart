@@ -5,6 +5,7 @@ import '../budget/budget_planner_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../expenses/expense_tracker_screen.dart';
 import '../profile/profile_settings_screen.dart';
+import '../savings/savings_screen.dart';
 import '../spend/spend_screen.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -26,6 +27,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ),
     const BudgetPlannerScreen(),
     const SpendScreen(),
+    const SavingsScreen(),
     const ExpenseTrackerScreen(),
     const ProfileSettingsScreen(),
   ];
@@ -64,6 +66,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             icon: Icon(Icons.shopping_bag_outlined),
             selectedIcon: Icon(Icons.shopping_bag_rounded),
             label: 'Spend',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.savings_outlined),
+            selectedIcon: Icon(Icons.savings_rounded),
+            label: 'Savings',
           ),
           const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
