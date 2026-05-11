@@ -95,56 +95,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => _saveLimits(state),
+                onPressed: () => _confirmSaveLimits(state),
                 icon: const Icon(Icons.save_rounded),
                 label: const Text('Save limits'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Rules & behaviors',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 12),
-                  const _RuleTile(
-                    icon: Icons.warning_amber_rounded,
-                    color: Color(0xFFF59E0B),
-                    title: 'Warning thresholds',
-                    body:
-                        'Amber at 80%. Red at 100%. The app will surface messages like “You\'re ₱120 from your daily limit.”',
-                  ),
-                  const SizedBox(height: 12),
-                  const _RuleTile(
-                    icon: Icons.block_rounded,
-                    color: Color(0xFFDC2626),
-                    title: 'Overspend indicator, not a blocker',
-                    body:
-                        'You can still log expenses over the limit. They are marked Overspent and carried into the report as over-limit spend.',
-                  ),
-                  const SizedBox(height: 12),
-                  const _RuleTile(
-                    icon: Icons.restart_alt_rounded,
-                    color: Color(0xFF2563EB),
-                    title: 'Auto-reset per period',
-                    body:
-                        'Daily resets at midnight, weekly resets Monday 12:00 AM, and monthly resets on the 1st. Saved balances carry forward in the report.',
-                  ),
-                  const SizedBox(height: 12),
-                  const _RuleTile(
-                    icon: Icons.toggle_on_rounded,
-                    color: Color(0xFF7C3AED),
-                    title: 'Independent limits',
-                    body:
-                        'Set only one or two limits if you want. Blank fields stay inactive and do not block the other periods.',
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -207,6 +160,37 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     });
   }
 
+  Future<void> _confirmSaveLimits(BudgetBuddyState state) async {
+    final bool shouldSave = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Confirm save'),
+              content: const Text(
+                'Do you want to save these budget limits?',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldSave || !mounted) {
+      return;
+    }
+
+    _saveLimits(state);
+  }
+
   void _saveLimits(BudgetBuddyState state) {
     final double dailyLimit = double.tryParse(_dailyController.text) ?? 0;
     final double monthlyLimit = double.tryParse(_monthlyController.text) ?? 0;
@@ -224,14 +208,24 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       _seededFromState = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          hasActiveLimit
-              ? 'Budget limits saved. All active periods now track together.'
-              : 'All limits cleared. Add at least one limit to start tracking.',
-        ),
-      ),
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Saved'),
+          content: Text(
+            hasActiveLimit
+                ? 'Budget limits saved successfully.'
+                : 'All limits cleared. Add at least one limit to start tracking.',
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
