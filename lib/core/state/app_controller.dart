@@ -557,6 +557,13 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     state = state.copyWith(dashboardPeriod: period);
   }
 
+  void updateProfileImage(String imagePath) {
+    final UserProfile updatedProfile =
+        state.profile.copyWith(profileImagePath: imagePath);
+    state = state.copyWith(profile: updatedProfile);
+    _persist();
+  }
+
   void resetForNextDay() {
     _persist();
   }

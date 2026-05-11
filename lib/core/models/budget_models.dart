@@ -890,12 +890,14 @@ class UserProfile {
     required this.city,
     required this.savingsStreak,
     required this.avatarSeed,
+    this.profileImagePath,
   });
 
   final String displayName;
   final String city;
   final int savingsStreak;
   final String avatarSeed;
+  final String? profileImagePath;
 
   factory UserProfile.defaults() {
     return const UserProfile(
@@ -903,6 +905,7 @@ class UserProfile {
       city: 'Makati',
       savingsStreak: 7,
       avatarSeed: 'BB',
+      profileImagePath: null,
     );
   }
 
@@ -911,12 +914,14 @@ class UserProfile {
     String? city,
     int? savingsStreak,
     String? avatarSeed,
+    String? profileImagePath,
   }) {
     return UserProfile(
       displayName: displayName ?? this.displayName,
       city: city ?? this.city,
       savingsStreak: savingsStreak ?? this.savingsStreak,
       avatarSeed: avatarSeed ?? this.avatarSeed,
+      profileImagePath: profileImagePath ?? this.profileImagePath,
     );
   }
 
@@ -926,6 +931,7 @@ class UserProfile {
       'city': city,
       'savingsStreak': savingsStreak,
       'avatarSeed': avatarSeed,
+      'profileImagePath': profileImagePath,
     };
   }
 
@@ -935,6 +941,7 @@ class UserProfile {
       city: json['city'] as String? ?? 'Makati',
       savingsStreak: (json['savingsStreak'] as num?)?.toInt() ?? 0,
       avatarSeed: json['avatarSeed'] as String? ?? 'BB',
+      profileImagePath: json['profileImagePath'] as String?,
     );
   }
 }

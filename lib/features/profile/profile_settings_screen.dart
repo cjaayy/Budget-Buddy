@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -9,7 +10,6 @@ import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -20,7 +20,6 @@ class ProfileSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
-  static const List<int> _streakMilestones = <int>[3, 7, 14, 30];
   final TextEditingController _backupRestoreController =
       TextEditingController();
 
@@ -30,45 +29,92 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     super.dispose();
   }
 
+  Future<void> _pickProfileImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      // Get application documents directory
+      final Directory docDir = await getApplicationDocumentsDirectory();
+      final String fileName =
+          'profile_${DateTime.now().millisecondsSinceEpoch}.png';
+      final File profileImageFile = File('${docDir.path}/$fileName');
+
+      // Copy image to app directory
+      await profileImageFile.writeAsBytes(await image.readAsBytes());
+
+      // Update profile with new image path
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .updateProfileImage(profileImageFile.path);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     final BudgetSettings settings = state.settings;
-    final List<int> earnedMilestones = _streakMilestones
-        .where((int milestone) => state.profile.savingsStreak >= milestone)
-        .toList();
 
     return Scaffold(
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
-            const SectionTitle(
-              title: 'Profile & settings',
-              subtitle:
-                  'Manage your profile, preferences, saved data, and app reset options.',
+            const Text(
+              'Profile & settings',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Manage your profile and preferences.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             SectionCard(
               child: Column(
                 children: <Widget>[
-                  Semantics(
-                    label: 'Profile avatar for ${state.profile.displayName}',
-                    image: true,
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.12),
-                      child: Text(
-                        state.profile.avatarSeed,
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                      ),
+                  GestureDetector(
+                    onTap: _pickProfileImage,
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: <Widget>[
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.12),
+                          backgroundImage: state.profile.profileImagePath !=
+                                  null
+                              ? FileImage(File(state.profile.profileImagePath!))
+                              : null,
+                          child: state.profile.profileImagePath == null
+                              ? Text(
+                                  state.profile.avatarSeed,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                )
+                              : null,
+                        ),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -77,28 +123,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(state.profile.city),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: <Widget>[
-                      _MilestoneChip(
-                        label: '${state.profile.savingsStreak} day streak',
-                        color: const Color(0xFF0F766E),
-                        icon: Icons.local_fire_department_rounded,
-                      ),
-                      ...earnedMilestones.map(
-                        (int milestone) => _MilestoneChip(
-                          label: '$milestone day badge',
-                          color: const Color(0xFFF97316),
-                          icon: Icons.emoji_events_rounded,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -114,21 +138,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     child: _ReadonlyRow(
                         label: 'Display name',
                         value: state.profile.displayName),
-                  ),
-                  const SizedBox(height: 8),
-                  Semantics(
-                    label: 'City',
-                    textField: true,
-                    child:
-                        _ReadonlyRow(label: 'City', value: state.profile.city),
-                  ),
-                  const SizedBox(height: 8),
-                  Semantics(
-                    label: 'Savings streak',
-                    child: _ReadonlyRow(
-                      label: 'Savings streak',
-                      value: '${state.profile.savingsStreak} days',
-                    ),
                   ),
                 ],
               ),
@@ -674,52 +683,6 @@ class _ReadonlyRow extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ],
-    );
-  }
-}
-
-class _MilestoneChip extends StatelessWidget {
-  const _MilestoneChip({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: label,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0.92, end: 1),
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutBack,
-        builder: (BuildContext context, double scale, Widget? child) {
-          return Transform.scale(scale: scale, child: child);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: color.withValues(alpha: 0.18)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(color: color, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
