@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -18,161 +17,107 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
-  static const String _swipeHintSeenKey = 'expense_swipe_hint_seen';
-
-  final Set<String> _selectedExpenseIds = <String>{};
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showSwipeHintIfNeeded();
-    });
-  }
+  ExpenseSection _activeSection = ExpenseSection.daily;
+  DateTime _selectedDay = DateUtils.dateOnly(DateTime.now());
+  DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final List<ExpenseEntry> visibleExpenses = _filteredExpenses(state);
-    final List<_ExpenseGroup> groups = _groupExpenses(visibleExpenses);
-    final bool hasSelection = _selectedExpenseIds.isNotEmpty;
-    final double budgetProgress = summary.totalBudget <= 0
-        ? 0
-        : (summary.totalSpent / summary.totalBudget).clamp(0, 1).toDouble();
-    final Color progressColor = summary.remainingBalance < 0
-        ? const Color(0xFFDC2626)
-        : Theme.of(context).colorScheme.primary;
+    final List<ExpenseEntry> expenses = _filteredExpenses(state);
+    final List<ExpenseEntry> dailyExpenses =
+        _expensesForDay(expenses, _selectedDay);
+    final List<ExpenseEntry> monthlyExpenses =
+        _expensesForMonth(expenses, _selectedMonth);
+    final List<DateTime> monthDays = _availableDays(monthlyExpenses);
+    final double dailyTotal = dailyExpenses.fold<double>(
+      0,
+      (double total, ExpenseEntry expense) => total + expense.amount,
+    );
+    final double monthlyTotal = monthlyExpenses.fold<double>(
+      0,
+      (double total, ExpenseEntry expense) => total + expense.amount,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _selectedExpenseIds.isEmpty
-              ? ''
-              : '${_selectedExpenseIds.length} selected',
-        ),
-        actions: <Widget>[
-          if (hasSelection)
-            IconButton(
-              onPressed: () => _confirmDeleteSelected(context, ref),
-              tooltip: 'Delete selected',
-              icon: const Icon(Icons.delete_outline_rounded),
-            ),
-          if (hasSelection)
-            IconButton(
-              onPressed: _clearSelection,
-              tooltip: 'Clear selection',
-              icon: const Icon(Icons.close_rounded),
-            ),
-        ],
+        title: const Text('Expenses'),
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          padding: const EdgeInsets.all(20),
           children: <Widget>[
             const SectionTitle(
-              title: 'Expense tracker',
-              subtitle: 'View all logged expenses and their categories.',
-            ),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Today\'s summary',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Remaining balance: ${formatPeso(summary.remainingBalance)}',
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Spent today: ${formatPeso(summary.totalSpent)} of ${formatPeso(summary.totalBudget)}',
-                  ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      minHeight: 8,
-                      value: budgetProgress,
-                      backgroundColor: progressColor.withValues(alpha: 0.12),
-                      valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Savings: ${formatPeso(summary.savings)}'),
-                ],
-              ),
+              title: 'Expenses',
+              subtitle: 'View and manage your logged expenses.',
             ),
             const SizedBox(height: 12),
-            Text(
-              visibleExpenses.isEmpty
-                  ? 'No expenses yet. Use Spend to add expenses.'
-                  : '${visibleExpenses.length} expense${visibleExpenses.length == 1 ? '' : 's'} total',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => setState(() {
+                      _activeSection = ExpenseSection.daily;
+                    }),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _activeSection == ExpenseSection.daily
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                      foregroundColor: _activeSection == ExpenseSection.daily
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurface,
+                    ),
+                    child: const Text('Daily'),
                   ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => setState(() {
+                      _activeSection = ExpenseSection.monthly;
+                    }),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _activeSection == ExpenseSection.monthly
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                      foregroundColor: _activeSection == ExpenseSection.monthly
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurface,
+                    ),
+                    child: const Text('Monthly'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            if (groups.isEmpty)
-              SectionCard(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Text(
-                        'No expenses yet',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Use Spend to add new expenses.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ),
+            const SizedBox(height: 12),
+            if (_activeSection == ExpenseSection.daily)
+              _DailySection(
+                dayLabel: _formatDayLabel(_selectedDay),
+                dailyExpenses: dailyExpenses,
+                dailyTotal: dailyTotal,
+                onTapDay: () => _showDayExpensesSheet(
+                  context,
+                  ref,
+                  _selectedDay,
+                  expenses,
+                ),
+                onTapExpense: (ExpenseEntry expense) => _showExpenseDialog(
+                  context,
+                  ref,
+                  existing: expense,
                 ),
               )
             else
-              ...groups.expand(
-                (_ExpenseGroup group) => <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 10),
-                    child: Row(
-                      children: <Widget>[
-                        Text(
-                          _groupLabel(group.date),
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(width: 10),
-                        SoftPill(
-                          text: '${group.expenses.length}',
-                          color: Theme.of(context).colorScheme.primary,
-                          icon: Icons.receipt_long_rounded,
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...group.expenses.map(
-                    (ExpenseEntry expense) => _buildExpenseTile(
-                      context,
-                      ref,
-                      expense,
-                    ),
-                  ),
-                ],
+              _MonthlySection(
+                monthLabel: DateFormat('MMMM yyyy').format(_selectedMonth),
+                monthDays: monthDays,
+                monthlyExpenses: monthlyExpenses,
+                monthlyTotal: monthlyTotal,
+                onTapDay: _jumpToDailyDay,
               ),
           ],
         ),
@@ -181,41 +126,50 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   List<ExpenseEntry> _filteredExpenses(BudgetBuddyState state) {
-    return state.expenses.where((ExpenseEntry expense) {
+    final List<ExpenseEntry> filtered =
+        state.expenses.where((ExpenseEntry expense) {
       if (state.currentExpenseFilter != null &&
           expense.category != state.currentExpenseFilter) {
         return false;
       }
       return true;
     }).toList();
+    return _sortExpenses(filtered);
   }
 
-  List<_ExpenseGroup> _groupExpenses(List<ExpenseEntry> expenses) {
-    if (expenses.isEmpty) {
-      return <_ExpenseGroup>[];
-    }
-
-    final List<ExpenseEntry> sortedExpenses = _sortExpenses(expenses);
-    final Map<DateTime, List<ExpenseEntry>> groups =
-        <DateTime, List<ExpenseEntry>>{};
-    for (final ExpenseEntry expense in sortedExpenses) {
-      final DateTime dayKey = DateTime(
+  List<DateTime> _availableDays(List<ExpenseEntry> expenses) {
+    final Set<DateTime> days = <DateTime>{};
+    for (final ExpenseEntry expense in expenses) {
+      days.add(DateTime(
         expense.dateTime.year,
         expense.dateTime.month,
         expense.dateTime.day,
-      );
-      groups.putIfAbsent(dayKey, () => <ExpenseEntry>[]).add(expense);
+      ));
     }
-
-    final List<DateTime> sortedKeys = groups.keys.toList()
+    final List<DateTime> sortedDays = days.toList()
       ..sort((DateTime left, DateTime right) => right.compareTo(left));
+    return sortedDays;
+  }
 
-    return sortedKeys
-        .map(
-          (DateTime key) => _ExpenseGroup(
-            date: key,
-            expenses: _sortExpenses(groups[key] ?? <ExpenseEntry>[]),
-          ),
+  List<ExpenseEntry> _expensesForDay(
+    List<ExpenseEntry> expenses,
+    DateTime day,
+  ) {
+    return expenses
+        .where((ExpenseEntry expense) =>
+            DateUtils.isSameDay(expense.dateTime, day))
+        .toList();
+  }
+
+  List<ExpenseEntry> _expensesForMonth(
+    List<ExpenseEntry> expenses,
+    DateTime month,
+  ) {
+    return expenses
+        .where(
+          (ExpenseEntry expense) =>
+              expense.dateTime.year == month.year &&
+              expense.dateTime.month == month.month,
         )
         .toList();
   }
@@ -228,238 +182,122 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return sorted;
   }
 
-  Widget _buildExpenseTile(
-      BuildContext context, WidgetRef ref, ExpenseEntry expense) {
-    final bool selected = _selectedExpenseIds.contains(expense.id);
-    final bool selectionMode = _selectedExpenseIds.isNotEmpty;
+  Future<void> _showDayExpensesSheet(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime day,
+    List<ExpenseEntry> expenses,
+  ) async {
+    final List<ExpenseEntry> dayExpenses = _expensesForDay(expenses, day);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Dismissible(
-        key: ValueKey<String>(expense.id),
-        direction:
-            selectionMode ? DismissDirection.none : DismissDirection.endToStart,
-        background: Container(
-          decoration: BoxDecoration(
-            color: Colors.red.shade400,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          child: const Icon(Icons.delete, color: Colors.white),
-        ),
-        onDismissed: (_) => _deleteExpenseWithUndo(context, ref, expense),
-        child: SectionCard(
-          padding: EdgeInsets.zero,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border(
-                left: BorderSide(color: expense.category.color, width: 5),
-              ),
-              color: selected
-                  ? expense.category.color.withValues(alpha: 0.08)
-                  : Colors.transparent,
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.78,
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
-              onTap: () {
-                if (selectionMode) {
-                  _toggleExpenseSelection(expense.id);
-                  return;
-                }
-                _showExpenseDialog(context, ref, existing: expense);
-              },
-              onLongPress: () => _toggleExpenseSelection(expense.id),
-              leading: selectionMode
-                  ? Checkbox(
-                      value: selected,
-                      onChanged: (_) => _toggleExpenseSelection(expense.id),
-                    )
-                  : CircleAvatar(
-                      backgroundColor:
-                          expense.category.color.withValues(alpha: 0.14),
-                      child: Text(expense.category.label.substring(0, 1)),
-                    ),
-              title: Text(
-                expense.title,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      '${expense.category.label} • ${_groupLabel(expense.dateTime)}',
-                    ),
-                    if (expense.note.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 4),
-                      Text(
-                        expense.note,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(
-                    formatPeso(expense.amount),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    DateFormat('EEEE, MMM d, yyyy').format(day),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
-                  IconButton(
-                    onPressed: () =>
-                        _deleteExpenseWithUndo(context, ref, expense),
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 36, height: 36),
+                  Text(
+                    '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
+                  const SizedBox(height: 12),
+                  if (dayExpenses.isEmpty)
+                    const Text('No expenses for this date.')
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: dayExpenses.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (BuildContext context, int index) {
+                          final ExpenseEntry expense = dayExpenses[index];
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: ListTile(
+                              onTap: () => _showExpenseDialog(
+                                context,
+                                ref,
+                                existing: expense,
+                              ),
+                              leading: CircleAvatar(
+                                backgroundColor: expense.category.color
+                                    .withValues(alpha: 0.14),
+                                child: Text(
+                                  expense.category.label.substring(0, 1),
+                                ),
+                              ),
+                              title: Text(
+                                expense.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                expense.note.isNotEmpty
+                                    ? '${expense.category.label} • ${expense.note}'
+                                    : expense.category.label,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Text(
+                                formatPeso(expense.amount),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  void _toggleExpenseSelection(String expenseId) {
-    setState(() {
-      if (_selectedExpenseIds.contains(expenseId)) {
-        _selectedExpenseIds.remove(expenseId);
-      } else {
-        _selectedExpenseIds.add(expenseId);
-      }
-    });
-  }
-
-  void _clearSelection() {
-    setState(() {
-      _selectedExpenseIds.clear();
-    });
-  }
-
-  void _selectAllVisible(List<ExpenseEntry> visibleExpenses) {
-    setState(() {
-      _selectedExpenseIds
-        ..clear()
-        ..addAll(visibleExpenses.map((ExpenseEntry expense) => expense.id));
-    });
-  }
-
-  Future<void> _confirmDeleteSelected(
-      BuildContext context, WidgetRef ref) async {
-    if (_selectedExpenseIds.isEmpty) {
-      return;
-    }
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final bool? shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete selected expenses?'),
-          content: Text(
-            'This will permanently delete ${_selectedExpenseIds.length} expense${_selectedExpenseIds.length == 1 ? '' : 's'}.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
         );
       },
     );
-
-    if (!mounted || shouldDelete != true) {
-      return;
-    }
-
-    ref
-        .read(budgetBuddyControllerProvider.notifier)
-        .deleteExpenses(_selectedExpenseIds);
-    _clearSelection();
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Selected expenses deleted.')),
-    );
   }
 
-  void _deleteExpenseWithUndo(
-      BuildContext context, WidgetRef ref, ExpenseEntry expense) {
-    ref.read(budgetBuddyControllerProvider.notifier).deleteExpense(expense.id);
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${expense.title} deleted'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () => ref
-                .read(budgetBuddyControllerProvider.notifier)
-                .restoreExpense(expense),
-          ),
-        ),
-      );
+  void _jumpToDailyDay(DateTime day) {
+    setState(() {
+      _selectedDay = DateUtils.dateOnly(day);
+      _selectedMonth = DateTime(day.year, day.month);
+    });
+    setState(() {
+      _activeSection = ExpenseSection.daily;
+    });
   }
 
-  Future<void> _showSwipeHintIfNeeded() async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (!mounted || prefs.getBool(_swipeHintSeenKey) == true) {
-      return;
-    }
-    await prefs.setBool(_swipeHintSeenKey, true);
-    if (!mounted) {
-      return;
-    }
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Swipe left on any expense to delete it.'),
-        duration: Duration(seconds: 4),
-      ),
-    );
-  }
-
-  String _groupLabel(DateTime dateTime) {
-    final DateTime now = DateTime.now();
-    if (DateUtils.isSameDay(dateTime, now)) {
-      return 'Today';
-    }
-    if (DateUtils.isSameDay(dateTime, now.subtract(const Duration(days: 1)))) {
-      return 'Yesterday';
-    }
-    if (dateTime.year == now.year) {
-      return DateFormat('MMM d').format(dateTime);
-    }
-    return formatShortDate(dateTime);
-  }
-
-  void _showExpenseDialog(BuildContext context, WidgetRef ref,
-      {ExpenseEntry? existing}) {
+  Future<void> _showExpenseDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    ExpenseEntry? existing,
+  }) async {
     final TextEditingController titleController =
         TextEditingController(text: existing?.title ?? '');
     final TextEditingController amountController = TextEditingController(
@@ -607,6 +445,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
+  String _formatDayLabel(DateTime dateTime) {
+    final DateTime now = DateTime.now();
+    if (DateUtils.isSameDay(dateTime, now)) {
+      return 'Today, ${DateFormat('MMMM d, yyyy').format(dateTime)}';
+    }
+    return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
+  }
+
   double _categoryLimit(BudgetCategory category, BudgetSettings settings) {
     return switch (category) {
       BudgetCategory.food => settings.foodBudget,
@@ -622,9 +468,191 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 }
 
-class _ExpenseGroup {
-  const _ExpenseGroup({required this.date, required this.expenses});
+enum ExpenseSection { daily, monthly }
 
-  final DateTime date;
-  final List<ExpenseEntry> expenses;
+class _DailySection extends StatelessWidget {
+  const _DailySection({
+    required this.dayLabel,
+    required this.dailyExpenses,
+    required this.dailyTotal,
+    required this.onTapDay,
+    required this.onTapExpense,
+  });
+
+  final String dayLabel;
+  final List<ExpenseEntry> dailyExpenses;
+  final double dailyTotal;
+  final VoidCallback onTapDay;
+  final ValueChanged<ExpenseEntry> onTapExpense;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'DAILY',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTapDay,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                dayLabel,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${dailyExpenses.length} expense${dailyExpenses.length == 1 ? '' : 's'} today',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text('Total spent: ${formatPeso(dailyTotal)}'),
+          const SizedBox(height: 12),
+          if (dailyExpenses.isEmpty)
+            Text(
+              'No expenses for this day.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            )
+          else
+            ...dailyExpenses.map(
+              (ExpenseEntry expense) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 2,
+                  ),
+                  tileColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        expense.category.color.withValues(alpha: 0.14),
+                    child: Text(expense.category.label.substring(0, 1)),
+                  ),
+                  title: Text(expense.title),
+                  subtitle: Text(expense.category.label),
+                  trailing: Text(formatPeso(expense.amount)),
+                  onTap: () => onTapExpense(expense),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthlySection extends StatelessWidget {
+  const _MonthlySection({
+    required this.monthLabel,
+    required this.monthDays,
+    required this.monthlyExpenses,
+    required this.monthlyTotal,
+    required this.onTapDay,
+  });
+
+  final String monthLabel;
+  final List<DateTime> monthDays;
+  final List<ExpenseEntry> monthlyExpenses;
+  final double monthlyTotal;
+  final ValueChanged<DateTime> onTapDay;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'MONTHLY',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Month of $monthLabel',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${monthlyExpenses.length} expense${monthlyExpenses.length == 1 ? '' : 's'} in $monthLabel',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text('Total for the month: ${formatPeso(monthlyTotal)}'),
+          const SizedBox(height: 12),
+          if (monthDays.isEmpty)
+            Text(
+              'No expenses for this month yet.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            )
+          else
+            ...monthDays.map(
+              (DateTime day) {
+                final List<ExpenseEntry> dayExpenses = monthlyExpenses
+                    .where((ExpenseEntry expense) =>
+                        DateUtils.isSameDay(expense.dateTime, day))
+                    .toList();
+                final double total = dayExpenses.fold<double>(
+                  0,
+                  (double value, ExpenseEntry expense) =>
+                      value + expense.amount,
+                );
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 2,
+                    ),
+                    tileColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    title: Text(
+                      DateFormat('EEEE, MMM d').format(day),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                    ),
+                    trailing: Text(formatPeso(total)),
+                    onTap: () => onTapDay(day),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
 }
