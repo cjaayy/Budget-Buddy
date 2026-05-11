@@ -110,15 +110,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       periodRemaining: remainingAdjusted,
                       periodSavings: savingsAdjusted,
                       expiryBanner: _buildBudgetExpiryBanner(state.settings),
-                      onTap: () => _showMetricDetails(
-                        context,
-                        title: 'Remaining budget',
-                        value: formatPeso(remainingAdjusted),
-                        detail:
-                            'This ring shows how much of your ${_selectedPeriod.label.toLowerCase()} budget has already been used.',
-                        extra:
-                            'Your selected period is ${_selectedPeriod.label.toLowerCase()} and the card scales the daily budget to match it.',
-                      ),
                     ),
                   ),
                 ),
@@ -140,15 +131,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           subtitle: 'Out of ${formatPeso(totalBudget)}',
                           icon: Icons.payments_rounded,
                           color: const Color(0xFF2563EB),
-                          onTap: () => _showMetricDetails(
-                            context,
-                            title: 'Today spent',
-                            value: formatPeso(spentAdjusted),
-                            detail:
-                                'This is the current period total for your selected budget period.',
-                            extra:
-                                'Use the period selector to compare daily, weekly, and monthly views without auto-scaling.',
-                          ),
                         ),
                         BudgetMetricCard(
                           label: 'Savings',
@@ -157,15 +139,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               'Goal ${formatPeso(state.settings.savingsGoal)}',
                           icon: Icons.lock_rounded,
                           color: const Color(0xFFF97316),
-                          onTap: () => _showMetricDetails(
-                            context,
-                            title: 'Savings',
-                            value: formatPeso(savingsAdjusted),
-                            detail:
-                                'This shows how much of your selected period budget remains after spending.',
-                            extra:
-                                'Goal: ${formatPeso(state.settings.savingsGoal)}',
-                          ),
                         ),
                       ],
                     ),
@@ -269,52 +242,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
 
     return _BudgetCountdownBanner(message: _budgetCountdownText(settings));
-  }
-
-  void _showMetricDetails(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required String detail,
-    required String extra,
-  }) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                value,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(detail),
-              const SizedBox(height: 8),
-              Text(
-                extra,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 }
 
@@ -459,7 +386,6 @@ class _BudgetHeroCard extends StatelessWidget {
     required this.periodRemaining,
     required this.periodSavings,
     required this.expiryBanner,
-    required this.onTap,
   });
 
   final BudgetSummary summary;
@@ -469,7 +395,6 @@ class _BudgetHeroCard extends StatelessWidget {
   final double periodRemaining;
   final double periodSavings;
   final Widget? expiryBanner;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -485,108 +410,102 @@ class _BudgetHeroCard extends StatelessWidget {
 
     return SectionCard(
       padding: const EdgeInsets.all(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                SizedBox(
-                  width: 96,
-                  height: 96,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      CircularProgressIndicator(
-                        value: consumedRatio,
-                        strokeWidth: 7,
-                        backgroundColor: ringColor.withValues(alpha: 0.16),
-                        valueColor: AlwaysStoppedAnimation<Color>(ringColor),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            '${(consumedRatio * 100).round()}%',
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                              height: 1.0,
-                            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    CircularProgressIndicator(
+                      value: consumedRatio,
+                      strokeWidth: 7,
+                      backgroundColor: ringColor.withValues(alpha: 0.16),
+                      valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          '${(consumedRatio * 100).round()}%',
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            height: 1.0,
                           ),
-                          const SizedBox(height: 0),
-                          Text(
-                            'used',
-                            maxLines: 1,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.0,
-                                  fontSize: 8,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        const SizedBox(height: 0),
+                        Text(
+                          'used',
+                          maxLines: 1,
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.0,
+                                    fontSize: 8,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Remaining budget',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        formatPeso(periodRemaining),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${period.label} view • ${formatPeso(periodSpent)} spent of ${formatPeso(periodBudget)}',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          _BudgetStatusChip(
-                            label: statusLabel,
-                            color: ringColor,
-                          ),
-                          _BudgetStatusChip(
-                            label: 'Savings ${formatPeso(periodSavings)}',
-                            color: const Color(0xFF0F766E),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Remaining budget',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      formatPeso(periodRemaining),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${period.label} view • ${formatPeso(periodSpent)} spent of ${formatPeso(periodBudget)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: <Widget>[
+                        _BudgetStatusChip(
+                          label: statusLabel,
+                          color: ringColor,
+                        ),
+                        _BudgetStatusChip(
+                          label: 'Savings ${formatPeso(periodSavings)}',
+                          color: const Color(0xFF0F766E),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (expiryBanner != null) expiryBanner!,
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (expiryBanner != null) expiryBanner!,
+        ],
       ),
     );
   }
