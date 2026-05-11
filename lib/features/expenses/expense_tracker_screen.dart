@@ -7,17 +7,7 @@ import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
-
-enum ExpenseSortOption { newest, oldest, highestAmount, lowestAmount }
-
-extension ExpenseSortOptionX on ExpenseSortOption {
-  String get label => switch (this) {
-        ExpenseSortOption.newest => 'Newest',
-        ExpenseSortOption.oldest => 'Oldest',
-        ExpenseSortOption.highestAmount => 'Highest amount',
-        ExpenseSortOption.lowestAmount => 'Lowest amount',
-      };
-}
+import '../../core/widgets/section_title.dart';
 
 class ExpenseTrackerScreen extends ConsumerStatefulWidget {
   const ExpenseTrackerScreen({super.key});
@@ -30,31 +20,14 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   static const String _swipeHintSeenKey = 'expense_swipe_hint_seen';
 
-  final TextEditingController _searchController = TextEditingController();
   final Set<String> _selectedExpenseIds = <String>{};
-  ExpenseSortOption _sortOption = ExpenseSortOption.newest;
-  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _searchQuery = _searchController.text.trim();
-      });
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showSwipeHintIfNeeded();
     });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override
@@ -74,17 +47,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          hasSelection
-              ? '${_selectedExpenseIds.length} selected'
-              : 'Expense tracker',
+          _selectedExpenseIds.isEmpty
+              ? ''
+              : '${_selectedExpenseIds.length} selected',
         ),
         actions: <Widget>[
-          if (visibleExpenses.isNotEmpty)
-            IconButton(
-              onPressed: () => _selectAllVisible(visibleExpenses),
-              tooltip: 'Select all',
-              icon: const Icon(Icons.select_all_rounded),
-            ),
           if (hasSelection)
             IconButton(
               onPressed: () => _confirmDeleteSelected(context, ref),
@@ -101,8 +68,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           children: <Widget>[
+            const SectionTitle(
+              title: 'Expense tracker',
+              subtitle: 'View all logged expenses and their categories.',
+            ),
             SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,127 +108,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: 'Search expenses',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              onPressed: () => _searchController.clear(),
-                              icon: const Icon(Icons.close_rounded),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<ExpenseSortOption>(
-                    initialValue: _sortOption,
-                    items: ExpenseSortOption.values
-                        .map(
-                          (ExpenseSortOption option) =>
-                              DropdownMenuItem<ExpenseSortOption>(
-                            value: option,
-                            child: Text(option.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (ExpenseSortOption? value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() {
-                        _sortOption = value;
-                      });
-                    },
-                    decoration: const InputDecoration(labelText: 'Sort by'),
-                  ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: <Widget>[
-                        ChoiceChip(
-                          selected: state.currentExpenseFilter == null,
-                          label: const Text('All'),
-                          onSelected: (_) => ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .setExpenseFilter(null),
-                        ),
-                        const SizedBox(width: 8),
-                        ...BudgetCategory.values.map(
-                          (BudgetCategory category) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              selected: state.currentExpenseFilter == category,
-                              label: Text(category.label),
-                              avatar: CircleAvatar(
-                                backgroundColor:
-                                    category.color.withValues(alpha: 0.18),
-                                radius: 10,
-                                child: Icon(
-                                  Icons.circle,
-                                  size: 12,
-                                  color: category.color,
-                                ),
-                              ),
-                              onSelected: (_) => ref
-                                  .read(budgetBuddyControllerProvider.notifier)
-                                  .setExpenseFilter(category),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 12),
             Text(
               visibleExpenses.isEmpty
-                  ? 'No expenses match the current search or filter.'
-                  : '${visibleExpenses.length} expense${visibleExpenses.length == 1 ? '' : 's'} found',
+                  ? 'No expenses yet. Use Spend to add expenses.'
+                  : '${visibleExpenses.length} expense${visibleExpenses.length == 1 ? '' : 's'} total',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: MediaQuery.of(context).size.width > 500 ? 2 : 1,
-              shrinkWrap: true,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio:
-                  MediaQuery.of(context).size.width > 500 ? 1.7 : 2.2,
-              physics: const NeverScrollableScrollPhysics(),
-              children: <Widget>[
-                BudgetMetricCard(
-                  label: 'Expense count',
-                  value: '${visibleExpenses.length}',
-                  subtitle: 'Current filter',
-                  icon: Icons.receipt_long_rounded,
-                  color: const Color(0xFF2563EB),
-                ),
-                BudgetMetricCard(
-                  label: 'Spent total',
-                  value: formatPeso(
-                    visibleExpenses.fold(
-                      0,
-                      (double total, ExpenseEntry expense) =>
-                          total + expense.amount,
-                    ),
-                  ),
-                  subtitle: 'Visible entries',
-                  icon: Icons.payments_rounded,
-                  color: const Color(0xFFF97316),
-                ),
-              ],
             ),
             const SizedBox(height: 16),
             if (groups.isEmpty)
@@ -273,7 +131,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Use Spend to add new expenses, or clear the search/filter to see your logs.',
+                        'Use Spend to add new expenses.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
@@ -323,17 +181,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   List<ExpenseEntry> _filteredExpenses(BudgetBuddyState state) {
-    final String query = _searchQuery.toLowerCase();
     return state.expenses.where((ExpenseEntry expense) {
       if (state.currentExpenseFilter != null &&
           expense.category != state.currentExpenseFilter) {
         return false;
       }
-      if (query.isEmpty) {
-        return true;
-      }
-      return expense.title.toLowerCase().contains(query) ||
-          expense.note.toLowerCase().contains(query);
+      return true;
     }).toList();
   }
 
@@ -355,12 +208,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     }
 
     final List<DateTime> sortedKeys = groups.keys.toList()
-      ..sort((DateTime left, DateTime right) {
-        if (_sortOption == ExpenseSortOption.oldest) {
-          return left.compareTo(right);
-        }
-        return right.compareTo(left);
-      });
+      ..sort((DateTime left, DateTime right) => right.compareTo(left));
 
     return sortedKeys
         .map(
@@ -375,18 +223,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   List<ExpenseEntry> _sortExpenses(List<ExpenseEntry> expenses) {
     final List<ExpenseEntry> sorted = List<ExpenseEntry>.from(expenses);
     sorted.sort((ExpenseEntry left, ExpenseEntry right) {
-      return switch (_sortOption) {
-        ExpenseSortOption.newest => right.dateTime.compareTo(left.dateTime),
-        ExpenseSortOption.oldest => left.dateTime.compareTo(right.dateTime),
-        ExpenseSortOption.highestAmount =>
-          right.amount.compareTo(left.amount) != 0
-              ? right.amount.compareTo(left.amount)
-              : right.dateTime.compareTo(left.dateTime),
-        ExpenseSortOption.lowestAmount =>
-          left.amount.compareTo(right.amount) != 0
-              ? left.amount.compareTo(right.amount)
-              : right.dateTime.compareTo(left.dateTime),
-      };
+      return right.dateTime.compareTo(left.dateTime);
     });
     return sorted;
   }

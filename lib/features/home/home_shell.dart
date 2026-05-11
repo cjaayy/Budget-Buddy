@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../analytics/analytics_screen.dart';
 import '../budget/budget_planner_screen.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../expenses/expense_tracker_screen.dart';
 import '../profile/profile_settings_screen.dart';
 import '../spend/spend_screen.dart';
 import '../../core/models/budget_models.dart';
@@ -27,8 +25,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ),
     const BudgetPlannerScreen(),
     const SpendScreen(),
-    const ExpenseTrackerScreen(),
-    const AnalyticsScreen(),
     const ProfileSettingsScreen(),
   ];
 
@@ -37,7 +33,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     final bool budgetExpired = _isBudgetExpired(state.settings);
-    final bool billsNeedReview = summary.overspendingCategories.isNotEmpty;
 
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
@@ -68,24 +63,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             icon: Icon(Icons.shopping_bag_outlined),
             selectedIcon: Icon(Icons.shopping_bag_rounded),
             label: 'Spend',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: billsNeedReview,
-              backgroundColor: const Color(0xFFF97316),
-              child: const Icon(Icons.receipt_long_outlined),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: billsNeedReview,
-              backgroundColor: const Color(0xFFF97316),
-              child: const Icon(Icons.receipt_long_rounded),
-            ),
-            label: 'Bills',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics_rounded),
-            label: 'Stats',
           ),
           const NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
