@@ -19,21 +19,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final DateTime now = DateTime.now();
-
-    final List<ExpenseEntry> plannedToday = state.expenses
-        .where((ExpenseEntry entry) =>
-            _isSpendTagged(entry.note) && _isSameDay(entry.dateTime, now))
-        .toList();
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCustomSpendSheet(context),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add spend'),
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -41,7 +29,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             const SectionTitle(
               title: 'Spend',
               subtitle:
-                  'Plan and log spending in one place. Every entry is deducted from active day, week, and month limits.',
+                  'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
             ),
             const SizedBox(height: 12),
             _RemainingPills(summary: summary),
@@ -83,53 +71,16 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                       );
                     },
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Planned today',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  if (plannedToday.isEmpty)
-                    Text(
-                      'No spends logged from this screen yet.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    )
-                  else
-                    ...plannedToday.map(
-                      (ExpenseEntry entry) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              entry.category.color.withValues(alpha: 0.12),
-                          child: Icon(
-                            _categoryIcon(entry.category),
-                            color: entry.category.color,
-                          ),
-                        ),
-                        title: Text(
-                          entry.title,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: Text(
-                          '${_stripSpendTag(entry.note)} • ${_timeLabel(context, entry.dateTime)}',
-                        ),
-                        trailing: Text(
-                          formatPeso(entry.amount),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        onTap: () => _showEditSpendSheet(context, entry),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: SizedBox(
+                      width: 120,
+                      child: _CategoryGridTile(
+                        option: _customSpendCategory,
+                        onTap: () => _showCustomSpendSheet(context),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -245,8 +196,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
     final TextEditingController noteController =
         TextEditingController(text: _stripSpendTag(existing?.note ?? ''));
-
-    _SpendCategoryOption selected = _categoryOptionForExpense(existing);
+    final BudgetCategory selectedCategory =
+        existing?.category ?? BudgetCategory.miscellaneous;
 
     showModalBottomSheet<void>(
       context: context,
@@ -288,26 +239,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                       labelText: 'Amount',
                       prefixText: '₱ ',
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<_SpendCategoryOption>(
-                    initialValue: selected,
-                    items: _spendCategories
-                        .map(
-                          (_SpendCategoryOption option) =>
-                              DropdownMenuItem<_SpendCategoryOption>(
-                            value: option,
-                            child: Text(option.title),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (_SpendCategoryOption? value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setModalState(() => selected = value);
-                    },
-                    decoration: const InputDecoration(labelText: 'Category'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -352,7 +283,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                 context,
                                 title: title,
                                 amount: amount,
-                                category: selected.budgetCategory,
+                                category: selectedCategory,
                                 note: noteController.text.trim(),
                               );
                               return;
@@ -364,7 +295,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                   existing.copyWith(
                                     title: title,
                                     amount: amount,
-                                    category: selected.budgetCategory,
+                                    category: selectedCategory,
                                     note: _withSpendTag(
                                         noteController.text.trim()),
                                   ),
@@ -383,10 +314,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         );
       },
     );
-  }
-
-  void _showEditSpendSheet(BuildContext context, ExpenseEntry entry) {
-    _showCustomSpendSheet(context, existing: entry);
   }
 
   void _logSpend(
@@ -436,38 +363,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final String stripped = note.replaceFirst(_spendTag, '').trim();
     return stripped.isEmpty ? 'No note' : stripped;
   }
-
-  bool _isSameDay(DateTime left, DateTime right) {
-    return left.year == right.year &&
-        left.month == right.month &&
-        left.day == right.day;
-  }
-
-  String _timeLabel(BuildContext context, DateTime dateTime) {
-    final TimeOfDay time = TimeOfDay.fromDateTime(dateTime);
-    return MaterialLocalizations.of(context)
-        .formatTimeOfDay(time, alwaysUse24HourFormat: false);
-  }
-
-  _SpendCategoryOption _categoryOptionForExpense(ExpenseEntry? entry) {
-    if (entry == null) {
-      return _spendCategories.first;
-    }
-    return _spendCategories.firstWhere(
-      (_SpendCategoryOption option) => option.budgetCategory == entry.category,
-      orElse: () => _spendCategories.first,
-    );
-  }
-
-  IconData _categoryIcon(BudgetCategory category) {
-    return switch (category) {
-      BudgetCategory.food => Icons.restaurant_rounded,
-      BudgetCategory.transportation => Icons.directions_bus_rounded,
-      BudgetCategory.shopping => Icons.shopping_bag_rounded,
-      BudgetCategory.entertainment => Icons.celebration_rounded,
-      BudgetCategory.miscellaneous => Icons.category_rounded,
-    };
-  }
 }
 
 class _RemainingPills extends StatelessWidget {
@@ -479,8 +374,6 @@ class _RemainingPills extends StatelessWidget {
   Widget build(BuildContext context) {
     final BudgetPeriodSummary? day =
         summary.periodSummaries[BudgetPeriod.daily];
-    final BudgetPeriodSummary? week =
-        summary.periodSummaries[BudgetPeriod.weekly];
     final BudgetPeriodSummary? month =
         summary.periodSummaries[BudgetPeriod.monthly];
 
@@ -489,7 +382,6 @@ class _RemainingPills extends StatelessWidget {
       runSpacing: 8,
       children: <Widget>[
         _pill('Day', day),
-        _pill('Week', week),
         _pill('Month', month),
       ],
     );
@@ -531,36 +423,69 @@ class _CategoryGridTile extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
-            children: <Widget>[
-              Icon(option.icon, color: option.color),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: option.isCustom
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: option.color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          option.icon,
+                          color: option.color,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        option.title,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                )
+              : Row(
                   children: <Widget>[
-                    Text(
-                      option.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      option.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                    Icon(option.icon, color: option.color),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            option.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            option.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -575,6 +500,7 @@ class _SpendCategoryOption {
     required this.budgetCategory,
     required this.defaultAmount,
     required this.color,
+    this.isCustom = false,
   });
 
   final String title;
@@ -583,6 +509,7 @@ class _SpendCategoryOption {
   final BudgetCategory budgetCategory;
   final double defaultAmount;
   final Color color;
+  final bool isCustom;
 }
 
 const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
@@ -635,3 +562,13 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     color: Color(0xFF475569),
   ),
 ];
+
+const _SpendCategoryOption _customSpendCategory = _SpendCategoryOption(
+  title: 'Custom',
+  subtitle: 'Any other spend',
+  icon: Icons.edit_rounded,
+  budgetCategory: BudgetCategory.miscellaneous,
+  defaultAmount: 0,
+  color: Color(0xFF8B5CF6),
+  isCustom: true,
+);
