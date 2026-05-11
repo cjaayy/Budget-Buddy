@@ -258,6 +258,7 @@ class _LimitEditorCard extends StatefulWidget {
 
 class _LimitEditorCardState extends State<_LimitEditorCard> {
   bool _isEditing = false;
+  String? _editingSnapshot;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +271,8 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF16A34A);
     final bool hasBudget = summary != null;
+    final bool hasChanges =
+        _isEditing && _editingSnapshot != widget.controller.text;
 
     return SectionCard(
       child: Column(
@@ -345,29 +348,72 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
             children: <Widget>[
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = true;
-                    });
-                    widget.onEdit();
-                  },
+                  onPressed: _beginEditing,
                   icon: const Icon(Icons.edit_rounded),
                   label: Text(hasBudget ? 'Edit' : 'Set a budget'),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _confirmSave(),
-                  icon: const Icon(Icons.save_rounded),
-                  label: const Text('Save'),
-                ),
-              ),
             ],
           ),
+          if (_isEditing) ...<Widget>[
+            const SizedBox(height: 10),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _cancelEdit,
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: hasChanges ? _confirmSave : null,
+                    icon: const Icon(Icons.save_rounded),
+                    label: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...<Widget>[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Save'),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  void _beginEditing() {
+    if (!_isEditing) {
+      _editingSnapshot = widget.controller.text;
+    }
+
+    setState(() {
+      _isEditing = true;
+    });
+
+    widget.onEdit();
+  }
+
+  void _cancelEdit() {
+    if (_editingSnapshot != null) {
+      widget.controller.text = _editingSnapshot!;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isEditing = false;
+    });
   }
 
   Future<void> _confirmSave() async {
@@ -398,6 +444,7 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
     if (mounted) {
       setState(() {
         _isEditing = false;
+        _editingSnapshot = widget.controller.text;
       });
     }
 
