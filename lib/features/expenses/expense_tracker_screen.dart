@@ -94,6 +94,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ref,
                   day,
                   dailyExpenses,
+                  showBackButton: true,
                 ),
               )
             else
@@ -192,7 +193,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: false,
+      enableDrag: false,
+      isDismissible: false,
       builder: (BuildContext sheetContext) {
         return SafeArea(
           child: ConstrainedBox(
@@ -205,12 +208,27 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(
-                    DateFormat('MMMM yyyy').format(month),
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  Row(
+                    children: <Widget>[
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Back'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          DateFormat('MMMM yyyy').format(month),
+                          style: Theme.of(sheetContext)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -297,7 +315,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final ExpenseEntry? editExpense = await showModalBottomSheet<ExpenseEntry>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: !showBackButton,
+      enableDrag: !showBackButton,
+      isDismissible: !showBackButton,
       builder: (BuildContext context) {
         return SafeArea(
           child: ConstrainedBox(
@@ -421,7 +441,15 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: OutlinedButton.icon(
-                                          onPressed: () {
+                                          onPressed: () async {
+                                            final bool shouldDelete =
+                                                await _confirmDeleteExpense(
+                                              context,
+                                            );
+                                            if (!context.mounted ||
+                                                !shouldDelete) {
+                                              return;
+                                            }
                                             ref
                                                 .read(
                                                   budgetBuddyControllerProvider
@@ -483,6 +511,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      showDragHandle: false,
+      enableDrag: false,
+      isDismissible: false,
       builder: (BuildContext context) {
         return Padding(
           padding: EdgeInsets.only(
@@ -507,12 +538,27 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               return ListView(
                 shrinkWrap: true,
                 children: <Widget>[
-                  Text(
-                    existing == null ? 'Add expense' : 'Edit expense',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  Row(
+                    children: <Widget>[
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Back'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          existing == null ? 'Add expense' : 'Edit expense',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -615,6 +661,29 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         );
       },
     );
+  }
+
+  Future<bool> _confirmDeleteExpense(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete expense?'),
+          content: const Text('This expense will be removed permanently.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed ?? false;
   }
 
   double _categoryLimit(BudgetCategory category, BudgetSettings settings) {
