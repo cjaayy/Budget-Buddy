@@ -271,7 +271,9 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF16A34A);
     final bool hasBudget = summary?.isActive ?? false;
-    final bool hasValue = widget.controller.text.trim().isNotEmpty;
+    final bool hasChanges = _isEditing &&
+        widget.controller.text.trim().isNotEmpty &&
+        widget.controller.text != (_editingSnapshot ?? '');
 
     return SectionCard(
       child: Column(
@@ -374,7 +376,7 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: hasValue ? _confirmSave : null,
+                    onPressed: hasChanges ? _confirmSave : null,
                     icon: const Icon(Icons.save_rounded),
                     label: const Text('Save'),
                   ),
