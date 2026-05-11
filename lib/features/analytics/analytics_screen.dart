@@ -22,10 +22,12 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   bool _comparePreviousPeriod = false;
   BudgetCategory? _selectedCategory;
+  _ReportsTab _reportsTab = _ReportsTab.daily;
 
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
+    final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     final DashboardPeriod period = state.dashboardPeriod;
     final _PeriodAnalysis analysis = _buildAnalysis(state, period);
     final _PeriodAnalysis previousAnalysis =
@@ -64,6 +66,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               subtitle: 'Track spending, savings, and trends by period.',
             ),
             const SizedBox(height: 12),
+            _periodScorecard(summary),
+            const SizedBox(height: 16),
             SectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,6 +471,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            _reportsSection(state),
+            const SizedBox(height: 16),
             if (isFirstOfMonth)
               SectionCard(
                 child: _monthlyRecapCard(
@@ -478,6 +484,24 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         ),
       ),
     );
+  }
+
+  String _formatMonthYear(DateTime dateTime) {
+    final String month = switch (dateTime.month) {
+      1 => 'January',
+      2 => 'February',
+      3 => 'March',
+      4 => 'April',
+      5 => 'May',
+      6 => 'June',
+      7 => 'July',
+      8 => 'August',
+      9 => 'September',
+      10 => 'October',
+      11 => 'November',
+      _ => 'December',
+    };
+    return '$month ${dateTime.year}';
   }
 
   void _editSavingsTarget(BuildContext context, BudgetBuddyState state) {
@@ -1079,6 +1103,498 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           .toDouble(),
       longestStreak: longestStreak,
       biggestCategory: biggestCategory,
+    );
+  }
+
+  Widget _periodScorecard(BudgetSummary summary) {
+    final _PeriodStatusCard dayCard = _statusCardFor(
+      'This day',
+      summary.periodSummaries[BudgetPeriod.daily],
+    );
+    final _PeriodStatusCard weekCard = _statusCardFor(
+      'This week',
+      summary.periodSummaries[BudgetPeriod.weekly],
+    );
+    final _PeriodStatusCard monthCard = _statusCardFor(
+      'This month',
+      summary.periodSummaries[BudgetPeriod.monthly],
+    );
+
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Period scorecard',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool compact = constraints.maxWidth < 520;
+              if (compact) {
+                return Column(
+                  children: <Widget>[
+                    _PeriodStatusTile(card: dayCard),
+                    const SizedBox(height: 8),
+                    _PeriodStatusTile(card: weekCard),
+                    const SizedBox(height: 8),
+                    _PeriodStatusTile(card: monthCard),
+                  ],
+                );
+              }
+
+              return Row(
+                children: <Widget>[
+                  Expanded(child: _PeriodStatusTile(card: dayCard)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _PeriodStatusTile(card: weekCard)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _PeriodStatusTile(card: monthCard)),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportsSection(BudgetBuddyState state) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Reports',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Daily, weekly, and monthly saved vs overspent history.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: _ReportsTab.values
+                .map(
+                  (_ReportsTab tab) => Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: tab == _ReportsTab.values.last ? 0 : 8,
+                      ),
+                      child: ChoiceChip(
+                        selected: _reportsTab == tab,
+                        label: Text(tab.label),
+                        onSelected: (_) {
+                          setState(() => _reportsTab = tab);
+                        },
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          if (_reportsTab == _ReportsTab.daily) ..._buildDailyReportRows(state),
+          if (_reportsTab == _ReportsTab.weekly)
+            ..._buildWeeklyReportRows(state),
+          if (_reportsTab == _ReportsTab.monthly)
+            ..._buildMonthlyReportRows(state),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildDailyReportRows(BudgetBuddyState state) {
+    final DateTime today = _startOfDay(DateTime.now());
+    final double dailyLimit = state.settings.totalDailyBudget;
+    final List<Widget> rows = <Widget>[];
+
+    for (int i = 6; i >= 0; i--) {
+      final DateTime day = today.subtract(Duration(days: i));
+      final List<ExpenseEntry> dayExpenses = state.expenses
+          .where((ExpenseEntry expense) => _sameDay(expense.dateTime, day))
+          .toList();
+      final double spent = dayExpenses.fold(
+        0,
+        (double sum, ExpenseEntry expense) => sum + expense.amount,
+      );
+
+      final _ReportStatus status = _statusFrom(spent, dailyLimit);
+      final double ratio =
+          dailyLimit <= 0 ? 0 : (spent / dailyLimit).clamp(0, 1);
+
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      _trendLabel(day),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Text(
+                    formatPeso(spent),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 8),
+                  _reportBadge(status),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: ratio,
+                  minHeight: 9,
+                  backgroundColor: status.color.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation<Color>(status.color),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(status.detail),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return rows;
+  }
+
+  List<Widget> _buildWeeklyReportRows(BudgetBuddyState state) {
+    final DateTime today = _startOfDay(DateTime.now());
+    final DateTime currentWeekStart =
+        today.subtract(Duration(days: today.weekday - DateTime.monday));
+    final double weeklyLimit = state.settings.weeklyBudget ?? 0;
+    final List<Widget> rows = <Widget>[];
+
+    for (int weekOffset = 0; weekOffset < 4; weekOffset++) {
+      final DateTime weekStart =
+          currentWeekStart.subtract(Duration(days: weekOffset * 7));
+      final DateTime weekEnd = weekStart.add(const Duration(days: 6));
+
+      final List<ExpenseEntry> weekExpenses =
+          state.expenses.where((ExpenseEntry expense) {
+        final DateTime day = _startOfDay(expense.dateTime);
+        return !day.isBefore(weekStart) && !day.isAfter(weekEnd);
+      }).toList();
+
+      final double spent = weekExpenses.fold(
+        0,
+        (double sum, ExpenseEntry expense) => sum + expense.amount,
+      );
+
+      final _ReportStatus status = _statusFrom(spent, weeklyLimit);
+
+      rows.add(
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Text(
+            '${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            'Spent ${formatPeso(spent)} of ${weeklyLimit > 0 ? formatPeso(weeklyLimit) : 'No weekly limit'}',
+          ),
+          trailing: _reportBadge(status),
+          children: List<Widget>.generate(7, (int dayIndex) {
+            final DateTime day = weekStart.add(Duration(days: dayIndex));
+            final double daySpent = weekExpenses
+                .where(
+                    (ExpenseEntry expense) => _sameDay(expense.dateTime, day))
+                .fold(0,
+                    (double sum, ExpenseEntry expense) => sum + expense.amount);
+            return ListTile(
+              dense: true,
+              title: Text(_trendLabel(day)),
+              trailing: Text(formatPeso(daySpent)),
+            );
+          }),
+        ),
+      );
+    }
+
+    return rows;
+  }
+
+  List<Widget> _buildMonthlyReportRows(BudgetBuddyState state) {
+    final DateTime now = DateTime.now();
+    final double monthlyLimit = state.settings.monthlyBudget ?? 0;
+    final List<Widget> rows = <Widget>[];
+
+    for (int monthOffset = 0; monthOffset < 4; monthOffset++) {
+      final DateTime monthStart =
+          DateTime(now.year, now.month - monthOffset, 1);
+      final DateTime nextMonth =
+          DateTime(monthStart.year, monthStart.month + 1, 1);
+      final DateTime monthEnd = nextMonth.subtract(const Duration(days: 1));
+
+      final List<ExpenseEntry> monthExpenses =
+          state.expenses.where((ExpenseEntry expense) {
+        final DateTime day = _startOfDay(expense.dateTime);
+        return !day.isBefore(monthStart) && day.isBefore(nextMonth);
+      }).toList();
+
+      final double spent = monthExpenses.fold(
+        0,
+        (double sum, ExpenseEntry expense) => sum + expense.amount,
+      );
+      final _ReportStatus status = _statusFrom(spent, monthlyLimit);
+
+      final Map<BudgetCategory, double> categoryTotals =
+          <BudgetCategory, double>{
+        for (final BudgetCategory category in BudgetCategory.values)
+          category: 0,
+      };
+      for (final ExpenseEntry expense in monthExpenses) {
+        categoryTotals[expense.category] =
+            (categoryTotals[expense.category] ?? 0) + expense.amount;
+      }
+      final String biggestCategory = categoryTotals.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key
+          .label;
+
+      final int savingsStreak =
+          _monthSavingsStreak(state, monthStart, monthEnd);
+
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: status.color.withValues(alpha: 0.08),
+              border: Border.all(color: status.color.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        _formatMonthYear(monthStart),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    _reportBadge(status),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Spent ${formatPeso(spent)} of ${monthlyLimit > 0 ? formatPeso(monthlyLimit) : 'No monthly limit'}',
+                ),
+                Text(status.detail),
+                Text('Biggest category: $biggestCategory'),
+                Text(
+                    'Savings streak: $savingsStreak day${savingsStreak == 1 ? '' : 's'}'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return rows;
+  }
+
+  int _monthSavingsStreak(
+    BudgetBuddyState state,
+    DateTime monthStart,
+    DateTime monthEnd,
+  ) {
+    if (state.settings.totalDailyBudget <= 0) {
+      return 0;
+    }
+
+    final Map<DateTime, double> dayTotals = <DateTime, double>{};
+    for (final ExpenseEntry expense in state.expenses) {
+      final DateTime day = _startOfDay(expense.dateTime);
+      if (day.isBefore(monthStart) || day.isAfter(monthEnd)) {
+        continue;
+      }
+      dayTotals[day] = (dayTotals[day] ?? 0) + expense.amount;
+    }
+
+    int streak = 0;
+    for (DateTime day = monthStart;
+        !day.isAfter(monthEnd);
+        day = day.add(const Duration(days: 1))) {
+      final double spent = dayTotals[day] ?? 0;
+      if (spent <= state.settings.totalDailyBudget) {
+        streak += 1;
+      }
+    }
+    return streak;
+  }
+
+  _ReportStatus _statusFrom(double spent, double limit) {
+    if (limit <= 0) {
+      return const _ReportStatus(
+        label: 'On track',
+        detail: 'No limit set for this period.',
+        color: Color(0xFF64748B),
+      );
+    }
+
+    if (spent > limit) {
+      final double over = spent - limit;
+      return _ReportStatus(
+        label: 'Over',
+        detail: 'Over ${formatPeso(over)}',
+        color: const Color(0xFFDC2626),
+      );
+    }
+
+    if (spent >= limit * 0.8) {
+      return const _ReportStatus(
+        label: 'On track',
+        detail: 'Near limit',
+        color: Color(0xFFF59E0B),
+      );
+    }
+
+    return _ReportStatus(
+      label: 'Saved',
+      detail: 'Saved ${formatPeso(limit - spent)}',
+      color: const Color(0xFF16A34A),
+    );
+  }
+
+  Widget _reportBadge(_ReportStatus status) {
+    return SoftPill(text: status.label, color: status.color);
+  }
+
+  _PeriodStatusCard _statusCardFor(String label, BudgetPeriodSummary? summary) {
+    if (summary == null || !summary.isActive) {
+      return _PeriodStatusCard(
+        label: label,
+        title: 'On track',
+        amountText: 'No limit',
+        color: const Color(0xFF64748B),
+      );
+    }
+
+    if (summary.isOverspent) {
+      return _PeriodStatusCard(
+        label: label,
+        title: 'Over',
+        amountText: formatPeso(summary.overspentAmount),
+        color: const Color(0xFFDC2626),
+      );
+    }
+
+    if (summary.isWarning) {
+      return _PeriodStatusCard(
+        label: label,
+        title: 'On track',
+        amountText: formatPeso(summary.remaining),
+        color: const Color(0xFFF59E0B),
+      );
+    }
+
+    return _PeriodStatusCard(
+      label: label,
+      title: 'Saved',
+      amountText: formatPeso(summary.saved),
+      color: const Color(0xFF16A34A),
+    );
+  }
+}
+
+enum _ReportsTab { daily, weekly, monthly }
+
+extension _ReportsTabX on _ReportsTab {
+  String get label => switch (this) {
+        _ReportsTab.daily => 'Daily',
+        _ReportsTab.weekly => 'Weekly',
+        _ReportsTab.monthly => 'Monthly',
+      };
+}
+
+class _ReportStatus {
+  const _ReportStatus({
+    required this.label,
+    required this.detail,
+    required this.color,
+  });
+
+  final String label;
+  final String detail;
+  final Color color;
+}
+
+class _PeriodStatusCard {
+  const _PeriodStatusCard({
+    required this.label,
+    required this.title,
+    required this.amountText,
+    required this.color,
+  });
+
+  final String label;
+  final String title;
+  final String amountText;
+  final Color color;
+}
+
+class _PeriodStatusTile extends StatelessWidget {
+  const _PeriodStatusTile({required this.card});
+
+  final _PeriodStatusCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: card.color.withValues(alpha: 0.10),
+        border: Border.all(color: card.color.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            card.label,
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            card.title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: card.color,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            card.amountText,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: card.color,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }
