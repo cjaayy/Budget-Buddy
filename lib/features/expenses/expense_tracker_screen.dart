@@ -24,14 +24,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final List<ExpenseEntry> expenses = _filteredExpenses(state);
-    final List<ExpenseEntry> monthlyExpenses =
+    final List<DateTime> availableMonths = _availableMonths(expenses);
+    final List<ExpenseEntry> dailyExpenses =
         _expensesForMonth(expenses, _selectedMonth);
-    final List<DateTime> availableDays = _availableDays(expenses);
-    final List<DateTime> monthDays = _availableDays(monthlyExpenses);
-    final double monthlyTotal = monthlyExpenses.fold<double>(
-      0,
-      (double total, ExpenseEntry expense) => total + expense.amount,
-    );
+    final List<DateTime> availableDays = _availableDays(dailyExpenses);
 
     return Scaffold(
       appBar: AppBar(
@@ -90,22 +86,26 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             const SizedBox(height: 12),
             if (_activeSection == ExpenseSection.daily)
               _DailySection(
+                monthLabel: _monthLabel(_selectedMonth),
                 availableDays: availableDays,
-                expenses: expenses,
+                expenses: dailyExpenses,
                 onTapDay: (DateTime day) => _showDayExpensesSheet(
                   context,
                   ref,
                   day,
-                  expenses,
+                  dailyExpenses,
                 ),
               )
             else
               _MonthlySection(
-                monthLabel: DateFormat('MMMM yyyy').format(_selectedMonth),
-                monthDays: monthDays,
-                monthlyExpenses: monthlyExpenses,
-                monthlyTotal: monthlyTotal,
-                onTapDay: _jumpToDailyDay,
+                availableMonths: availableMonths,
+                expenses: expenses,
+                onTapMonth: (DateTime month) {
+                  setState(() {
+                    _selectedMonth = DateTime(month.year, month.month);
+                  });
+                  _showMonthDatesSheet(context, ref, month, expenses);
+                },
               ),
           ],
         ),
@@ -139,6 +139,16 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return sortedDays;
   }
 
+  List<DateTime> _availableMonths(List<ExpenseEntry> expenses) {
+    final Set<DateTime> months = <DateTime>{};
+    for (final ExpenseEntry expense in expenses) {
+      months.add(DateTime(expense.dateTime.year, expense.dateTime.month));
+    }
+    final List<DateTime> sortedMonths = months.toList()
+      ..sort((DateTime left, DateTime right) => right.compareTo(left));
+    return sortedMonths;
+  }
+
   List<ExpenseEntry> _expensesForDay(
     List<ExpenseEntry> expenses,
     DateTime day,
@@ -170,12 +180,119 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return sorted;
   }
 
+  Future<void> _showMonthDatesSheet(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime month,
+    List<ExpenseEntry> expenses,
+  ) async {
+    final List<ExpenseEntry> monthExpenses = _expensesForMonth(expenses, month);
+    final List<DateTime> monthDays = _availableDays(monthExpenses);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    DateFormat('MMMM yyyy').format(month),
+                    style: Theme.of(sheetContext)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
+                    style:
+                        Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (monthDays.isEmpty)
+                    const Text('No expenses for this month.')
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: monthDays.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (BuildContext context, int index) {
+                          final DateTime day = monthDays[index];
+                          final List<ExpenseEntry> dayExpenses = monthExpenses
+                              .where((ExpenseEntry expense) =>
+                                  DateUtils.isSameDay(expense.dateTime, day))
+                              .toList();
+                          final double dayTotal = dayExpenses.fold<double>(
+                            0,
+                            (double total, ExpenseEntry expense) =>
+                                total + expense.amount,
+                          );
+
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            tileColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            leading: const Icon(Icons.calendar_today_outlined),
+                            title: Text(
+                              _formatDayLabel(day),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                            ),
+                            trailing: Text(formatPeso(dayTotal)),
+                            onTap: () async {
+                              await _showDayExpensesSheet(
+                                context,
+                                ref,
+                                day,
+                                monthExpenses,
+                                showBackButton: true,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _showDayExpensesSheet(
     BuildContext context,
     WidgetRef ref,
     DateTime day,
-    List<ExpenseEntry> expenses,
-  ) async {
+    List<ExpenseEntry> expenses, {
+    bool showBackButton = false,
+  }) async {
     final List<ExpenseEntry> dayExpenses = _expensesForDay(expenses, day);
     final ExpenseEntry? editExpense = await showModalBottomSheet<ExpenseEntry>(
       context: context,
@@ -193,12 +310,28 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(
-                    DateFormat('EEEE, MMM d, yyyy').format(day),
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  Row(
+                    children: <Widget>[
+                      if (showBackButton)
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          label: const Text('Back'),
+                        ),
+                      Expanded(
+                        child: Text(
+                          DateFormat('EEEE, MMM d, yyyy').format(day),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          textAlign:
+                              showBackButton ? TextAlign.right : TextAlign.left,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -330,13 +463,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         existing: editExpense,
       );
     }
-  }
-
-  void _jumpToDailyDay(DateTime day) {
-    setState(() {
-      _selectedMonth = DateTime(day.year, day.month);
-      _activeSection = ExpenseSection.daily;
-    });
   }
 
   Future<void> _showExpenseDialog(
@@ -516,13 +642,19 @@ String _formatDayLabel(DateTime dateTime) {
   return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
 }
 
+String _monthLabel(DateTime month) {
+  return DateFormat('MMMM yyyy').format(month);
+}
+
 class _DailySection extends StatelessWidget {
   const _DailySection({
+    required this.monthLabel,
     required this.availableDays,
     required this.expenses,
     required this.onTapDay,
   });
 
+  final String monthLabel;
   final List<DateTime> availableDays;
   final List<ExpenseEntry> expenses;
   final ValueChanged<DateTime> onTapDay;
@@ -539,6 +671,13 @@ class _DailySection extends StatelessWidget {
                 .textTheme
                 .titleMedium
                 ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            monthLabel,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
           const SizedBox(height: 8),
           if (availableDays.isEmpty)
@@ -590,18 +729,14 @@ class _DailySection extends StatelessWidget {
 
 class _MonthlySection extends StatelessWidget {
   const _MonthlySection({
-    required this.monthLabel,
-    required this.monthDays,
-    required this.monthlyExpenses,
-    required this.monthlyTotal,
-    required this.onTapDay,
+    required this.availableMonths,
+    required this.expenses,
+    required this.onTapMonth,
   });
 
-  final String monthLabel;
-  final List<DateTime> monthDays;
-  final List<ExpenseEntry> monthlyExpenses;
-  final double monthlyTotal;
-  final ValueChanged<DateTime> onTapDay;
+  final List<DateTime> availableMonths;
+  final List<ExpenseEntry> expenses;
+  final ValueChanged<DateTime> onTapMonth;
 
   @override
   Widget build(BuildContext context) {
@@ -618,36 +753,28 @@ class _MonthlySection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Month of $monthLabel',
+            'Tap a month to open its daily dates',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
           const SizedBox(height: 8),
-          Text(
-            '${monthlyExpenses.length} expense${monthlyExpenses.length == 1 ? '' : 's'} in $monthLabel',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text('Total for the month: ${formatPeso(monthlyTotal)}'),
-          const SizedBox(height: 12),
-          if (monthDays.isEmpty)
+          if (availableMonths.isEmpty)
             Text(
-              'No expenses for this month yet.',
+              'No expenses yet.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             )
           else
-            ...monthDays.map(
-              (DateTime day) {
-                final List<ExpenseEntry> dayExpenses = monthlyExpenses
+            ...availableMonths.map(
+              (DateTime month) {
+                final List<ExpenseEntry> monthExpenses = expenses
                     .where((ExpenseEntry expense) =>
-                        DateUtils.isSameDay(expense.dateTime, day))
+                        expense.dateTime.year == month.year &&
+                        expense.dateTime.month == month.month)
                     .toList();
-                final double total = dayExpenses.fold<double>(
+                final double total = monthExpenses.fold<double>(
                   0,
                   (double value, ExpenseEntry expense) =>
                       value + expense.amount,
@@ -657,22 +784,23 @@ class _MonthlySection extends StatelessWidget {
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 2,
+                      vertical: 6,
                     ),
                     tileColor:
                         Theme.of(context).colorScheme.surfaceContainerHighest,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
+                    leading: const Icon(Icons.date_range_outlined),
                     title: Text(
-                      DateFormat('EEEE, MMM d').format(day),
+                      DateFormat('MMMM yyyy').format(month),
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates',
                     ),
                     trailing: Text(formatPeso(total)),
-                    onTap: () => onTapDay(day),
+                    onTap: () => onTapMonth(month),
                   ),
                 );
               },
