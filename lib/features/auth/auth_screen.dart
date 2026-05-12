@@ -11,8 +11,21 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  final TextEditingController _nameController =
-      TextEditingController(text: 'Juan Dela Cruz');
+  final TextEditingController _nameController = TextEditingController();
+  bool _isEditingName = false;
+
+  String _buildInitials(String displayName) {
+    final String trimmed = displayName.trim();
+    if (trimmed.isEmpty) {
+      return 'BB';
+    }
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .take(2)
+        .map((String part) => part.isNotEmpty ? part[0] : '')
+        .join()
+        .toUpperCase();
+  }
 
   @override
   void dispose() {
@@ -22,6 +35,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(budgetBuddyControllerProvider);
+    final String savedDisplayName = state.profile.displayName;
+    final String placeholderName =
+        savedDisplayName.trim().isEmpty || savedDisplayName == 'Budget Buddy'
+            ? 'Enter display name'
+            : savedDisplayName;
+
+    final String normalizedSavedName =
+        savedDisplayName == 'Budget Buddy' ? '' : savedDisplayName.trim();
+    final String currentInputName = _nameController.text.trim();
+    final bool canSaveName = _isEditingName &&
+        currentInputName.isNotEmpty &&
+        currentInputName != normalizedSavedName;
+    if (!state.loggedIn &&
+        _nameController.text.trim().isEmpty &&
+        normalizedSavedName.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _nameController.value = TextEditingValue(
+          text: normalizedSavedName,
+          selection:
+              TextSelection.collapsed(offset: normalizedSavedName.length),
+        );
+      });
+    }
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -40,7 +81,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         color: Theme.of(context)
                             .colorScheme
                             .primary
-                            .withOpacity(0.12),
+                            .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Icon(Icons.savings_rounded,
@@ -64,9 +105,72 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 20),
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                    labelText: 'Display Name',
-                    prefixIcon: Icon(Icons.person_rounded)),
+                readOnly: !_isEditingName,
+                onChanged: (_) {
+                  if (_isEditingName) {
+                    setState(() {});
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: 'Display Name',
+                  hintText: placeholderName,
+                  prefixIcon: const Icon(Icons.person_rounded),
+                  suffixIcon: !_isEditingName
+                      ? TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _isEditingName = true;
+                            });
+                          },
+                          child: const Text('Edit'),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: <Widget>[
+                  if (_isEditingName) ...<Widget>[
+                    FilledButton(
+                      onPressed: canSaveName
+                          ? () {
+                              final String updatedName =
+                                  _nameController.text.trim();
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .updateProfile(
+                                    state.profile.copyWith(
+                                      displayName: updatedName,
+                                      avatarSeed: _buildInitials(updatedName),
+                                    ),
+                                  );
+                              setState(() {
+                                _isEditingName = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Display name saved')),
+                              );
+                            }
+                          : null,
+                      child: const Text('Save'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        _nameController.value = TextEditingValue(
+                          text: normalizedSavedName,
+                          selection: TextSelection.collapsed(
+                              offset: normalizedSavedName.length),
+                        );
+                        setState(() {
+                          _isEditingName = false;
+                        });
+                      },
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 20),
               LayoutBuilder(
@@ -86,6 +190,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           const SizedBox(height: 8),
                           const Text(
                               'Use the app locally without registering.'),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Tap Edit to change name, then Save.',
+                          ),
                           const SizedBox(height: 16),
                           FilledButton(
                             onPressed: () {
