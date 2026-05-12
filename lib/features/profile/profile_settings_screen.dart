@@ -10,7 +10,7 @@ import '../../core/state/app_controller.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/budget_service.dart';
 import '../../core/widgets/budget_cards.dart';
-// import '../../core/widgets/section_title.dart';
+import '../../core/widgets/section_title.dart';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -36,43 +36,49 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     final BudgetSummary summary = BudgetService().computeSummary(state);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: <Widget>[
-          SectionCard(
-            child: Column(
-              children: <Widget>[
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.person_outline_rounded),
-                  title: const Text('Profile'),
-                  subtitle: const Text('Edit your name'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => _openProfileMenu(context, state),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.tune_rounded),
-                  title: const Text('Preferences'),
-                  subtitle: const Text('Notifications and summary options'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => _showPreferencesSheet(context, state),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.storage_rounded),
-                  title: const Text('Data'),
-                  subtitle: const Text('Export, backup, reset, and logout'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => _showDataSheet(context, state, summary),
-                ),
-              ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: <Widget>[
+            const SectionTitle(
+              title: 'Settings',
+              subtitle: 'Profile, preferences, and data controls.',
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            SectionCard(
+              child: Column(
+                children: <Widget>[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.person_outline_rounded),
+                    title: const Text('Profile'),
+                    subtitle: const Text('Edit your name'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _openProfileMenu(context, state),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.tune_rounded),
+                    title: const Text('Preferences'),
+                    subtitle: const Text('Notifications and summary options'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showPreferencesSheet(context, state),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.storage_rounded),
+                    title: const Text('Data'),
+                    subtitle: const Text('Export, backup, reset, and logout'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showDataSheet(context, state, summary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
