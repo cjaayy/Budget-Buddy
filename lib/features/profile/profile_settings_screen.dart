@@ -123,9 +123,9 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SwitchListTile(
+                      ListTile(
                         contentPadding: EdgeInsets.zero,
-                        secondary: IconButton(
+                        leading: IconButton(
                           onPressed: () async {
                             final NotificationService notifier =
                                 modalRef.read(notificationServiceProvider);
@@ -135,27 +135,31 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   'Demo: You spent ₱620 today — ₱120 over your daily limit.',
                             );
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Demo notification sent')),
+                              _showDemoSentModal(
+                                context,
+                                title: 'Demo sent',
+                                message:
+                                    'Overspend alert demo was sent to your phone.',
                               );
                             }
                           },
                           icon: const Icon(Icons.play_arrow_rounded),
                           tooltip: 'Demo overspend alert',
                         ),
-                        value: settings.budgetWarningNotificationsEnabled,
-                        onChanged: (bool value) => modalRef
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .updateProfilePreferences(
-                                budgetWarningNotificationsEnabled: value),
                         title: const Text('Overspend alerts'),
                         subtitle: const Text(
                             'Notify when spending is getting close to or exceeds the budget.'),
+                        trailing: Switch(
+                          value: settings.budgetWarningNotificationsEnabled,
+                          onChanged: (bool value) => modalRef
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .updateProfilePreferences(
+                                  budgetWarningNotificationsEnabled: value),
+                        ),
                       ),
-                      SwitchListTile(
+                      ListTile(
                         contentPadding: EdgeInsets.zero,
-                        secondary: IconButton(
+                        leading: IconButton(
                           onPressed: () async {
                             final NotificationService notifier =
                                 modalRef.read(notificationServiceProvider);
@@ -166,27 +170,31 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   : 'Demo: Today ₱450.',
                             );
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Demo summary sent')),
+                              _showDemoSentModal(
+                                context,
+                                title: 'Demo sent',
+                                message:
+                                    'End-of-day summary demo was sent to your phone.',
                               );
                             }
                           },
                           icon: const Icon(Icons.play_arrow_rounded),
                           tooltip: 'Demo summary',
                         ),
-                        value: settings.summaryNotificationsEnabled,
-                        onChanged: (bool value) => modalRef
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .updateProfilePreferences(
-                                summaryNotificationsEnabled: value),
                         title: const Text('End-of-day summary'),
                         subtitle: const Text(
                             'Receive a summary when the day ends (includes yesterday\'s spent).'),
+                        trailing: Switch(
+                          value: settings.summaryNotificationsEnabled,
+                          onChanged: (bool value) => modalRef
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .updateProfilePreferences(
+                                  summaryNotificationsEnabled: value),
+                        ),
                       ),
-                      SwitchListTile(
+                      ListTile(
                         contentPadding: EdgeInsets.zero,
-                        secondary: IconButton(
+                        leading: IconButton(
                           onPressed: () async {
                             final NotificationService notifier =
                                 modalRef.read(notificationServiceProvider);
@@ -196,23 +204,27 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   'Demo: Your daily budget has been reset to ₱500.',
                             );
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Demo reset sent')),
+                              _showDemoSentModal(
+                                context,
+                                title: 'Demo sent',
+                                message:
+                                    'Daily reset demo was sent to your phone.',
                               );
                             }
                           },
                           icon: const Icon(Icons.play_arrow_rounded),
                           tooltip: 'Demo daily reset',
                         ),
-                        value: settings.notifyOnDailyReset,
-                        onChanged: (bool value) => modalRef
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .updateProfilePreferences(
-                                notifyOnDailyReset: value),
                         title: const Text('Notify when daily budget resets'),
                         subtitle: const Text(
                             'Receive a notification when the daily budget resets.'),
+                        trailing: Switch(
+                          value: settings.notifyOnDailyReset,
+                          onChanged: (bool value) => modalRef
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .updateProfilePreferences(
+                                  notifyOnDailyReset: value),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       const SizedBox.shrink(),
@@ -221,6 +233,61 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   );
                 },
               ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDemoSentModal(
+    BuildContext parentContext, {
+    required String title,
+    required String message,
+  }) {
+    showModalBottomSheet<void>(
+      context: parentContext,
+      showDragHandle: false,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Expanded(
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
         );

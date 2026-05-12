@@ -66,11 +66,11 @@ void main() {
 
     // Verify toggles exist
     final Finder overspendTile =
-        find.widgetWithText(SwitchListTile, 'Overspend alerts');
+        find.widgetWithText(ListTile, 'Overspend alerts');
     final Finder summaryTile =
-        find.widgetWithText(SwitchListTile, 'End-of-day summary');
+        find.widgetWithText(ListTile, 'End-of-day summary');
     final Finder notifyResetTile =
-        find.widgetWithText(SwitchListTile, 'Notify when daily budget resets');
+        find.widgetWithText(ListTile, 'Notify when daily budget resets');
 
     expect(overspendTile, findsOneWidget);
     expect(summaryTile, findsOneWidget);
@@ -83,7 +83,7 @@ void main() {
     Switch sw = tester.widget<Switch>(overspendSwitch);
     final bool initialOverspend = sw.value;
 
-    await tester.tap(overspendTile);
+    await tester.tap(overspendSwitch);
     await tester.pumpAndSettle();
     sw = tester.widget<Switch>(overspendSwitch);
     expect(sw.value, equals(!initialOverspend));
@@ -94,7 +94,7 @@ void main() {
     expect(summarySwitch, findsOneWidget);
     sw = tester.widget<Switch>(summarySwitch);
     final bool initialSummary = sw.value;
-    await tester.tap(summaryTile);
+    await tester.tap(summarySwitch);
     await tester.pumpAndSettle();
     sw = tester.widget<Switch>(summarySwitch);
     expect(sw.value, equals(!initialSummary));
@@ -105,7 +105,7 @@ void main() {
     expect(notifySwitch, findsOneWidget);
     sw = tester.widget<Switch>(notifySwitch);
     final bool initialNotify = sw.value;
-    await tester.tap(notifyResetTile);
+    await tester.tap(notifySwitch);
     await tester.pumpAndSettle();
     sw = tester.widget<Switch>(notifySwitch);
     expect(sw.value, equals(!initialNotify));

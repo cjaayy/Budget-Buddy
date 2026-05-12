@@ -5,16 +5,21 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@android:drawable/ic_dialog_info');
-    const InitializationSettings initializationSettings = InitializationSettings(android: androidSettings);
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@android:drawable/ic_dialog_info');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: androidSettings);
     await _plugin.initialize(initializationSettings);
   }
 
-  Future<void> showBudgetReminder({required String title, required String body}) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+  Future<void> showBudgetReminder(
+      {required String title, required String body}) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       'budgetbuddy_reminders',
       'Budget reminders',
       channelDescription: 'Daily reminders and smart budget alerts',
@@ -30,13 +35,15 @@ class NotificationService {
     );
   }
 
-  Future<void> showEndOfDaySummary({required String title, required String body}) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'budgetbuddy_summary',
+  Future<void> showEndOfDaySummary(
+      {required String title, required String body}) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      'budgetbuddy_summary_popup',
       'End of day summaries',
       channelDescription: 'Daily savings and spending summary notifications',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,
+      priority: Priority.high,
     );
 
     await _plugin.show(
