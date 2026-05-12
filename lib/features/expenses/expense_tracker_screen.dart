@@ -25,9 +25,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final List<ExpenseEntry> expenses = _filteredExpenses(state);
     final List<DateTime> availableMonths = _availableMonths(expenses);
-    final List<ExpenseEntry> dailyExpenses =
-        _expensesForMonth(expenses, _selectedMonth);
-    final List<DateTime> availableDays = _availableDays(dailyExpenses);
+    final DateTime today = DateTime.now();
+    final List<ExpenseEntry> todayExpenses = _sortExpenses(
+      _expensesForDay(expenses, today),
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -93,14 +94,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     const SizedBox(height: 12),
                     if (_activeSection == ExpenseSection.daily)
                       _DailySection(
-                        monthLabel: _monthLabel(_selectedMonth),
-                        availableDays: availableDays,
-                        expenses: dailyExpenses,
+                        dayLabel: _formatDayLabel(today),
+                        expenses: todayExpenses,
                         onTapDay: (DateTime day) => _showDayExpensesSheet(
                           context,
                           ref,
                           day,
-                          dailyExpenses,
+                          expenses,
                           showBackButton: true,
                         ),
                       )
@@ -728,19 +728,22 @@ String _monthLabel(DateTime month) {
 
 class _DailySection extends StatelessWidget {
   const _DailySection({
-    required this.monthLabel,
-    required this.availableDays,
+    required this.dayLabel,
     required this.expenses,
     required this.onTapDay,
   });
 
-  final String monthLabel;
-  final List<DateTime> availableDays;
+  final String dayLabel;
   final List<ExpenseEntry> expenses;
   final ValueChanged<DateTime> onTapDay;
 
   @override
   Widget build(BuildContext context) {
+    final double total = expenses.fold<double>(
+      0,
+      (double value, ExpenseEntry expense) => value + expense.amount,
+    );
+
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -754,49 +757,80 @@ class _DailySection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            monthLabel,
+            dayLabel,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
           const SizedBox(height: 8),
-          if (availableDays.isEmpty)
+          Text(
+            '${expenses.length} expense${expenses.length == 1 ? '' : 's'} • ${formatPeso(total)} today',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 12),
+          if (expenses.isEmpty)
             Text(
-              'No expenses yet.',
+              'No expenses yet for today.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             )
           else
-            ...availableDays.map(
-              (DateTime day) {
-                final List<ExpenseEntry> dayExpenses = expenses
-                    .where((ExpenseEntry expense) =>
-                        DateUtils.isSameDay(expense.dateTime, day))
-                    .toList();
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    tileColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    shape: RoundedRectangleBorder(
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: expenses.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (BuildContext context, int index) {
+                final ExpenseEntry expense = expenses[index];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => onTapDay(DateTime.now()),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    leading: const Icon(Icons.calendar_today_outlined),
-                    title: Text(
-                      _formatDayLabel(day),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: <Widget>[
+                        CircleAvatar(
+                          backgroundColor:
+                              expense.category.color.withValues(alpha: 0.14),
+                          child: Text(expense.category.label.substring(0, 1)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                expense.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                expense.note.isNotEmpty
+                                    ? '${expense.category.label} • ${expense.note}'
+                                    : expense.category.label,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          formatPeso(expense.amount),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ],
                     ),
-                    subtitle: Text(
-                      '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'} • Tap for details',
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => onTapDay(day),
                   ),
                 );
               },
