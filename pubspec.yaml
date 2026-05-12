@@ -32,10 +32,12 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: 0.14.4
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/savings_100dp_75FB4C.png"
+  adaptive_icon_background: "#0F766E"
+  adaptive_icon_foreground: "assets/savings_100dp_75FB4C.png"
 
 flutter:
   uses-material-design: true
