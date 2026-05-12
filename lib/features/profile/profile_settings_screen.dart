@@ -28,6 +28,22 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     super.dispose();
   }
 
+  Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
+      BudgetSummary summary) async {
+    final file = await ref.read(reportServiceProvider).exportDailyReport(
+          state: state,
+          summary: summary,
+        );
+    await Share.shareXFiles(<XFile>[XFile(file.path)],
+        text: 'BudgetBuddy daily report');
+  }
+
+  Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
+    final file = await ref.read(reportServiceProvider).exportCsv(state: state);
+    await Share.shareXFiles(<XFile>[XFile(file.path)],
+        text: 'BudgetBuddy CSV export');
+  }
+
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
@@ -81,26 +97,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     );
   }
 
-  Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
-      BudgetSummary summary) async {
-    final file = await ref.read(reportServiceProvider).exportDailyReport(
-          state: state,
-          summary: summary,
-        );
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy daily report');
-  }
-
-  Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
-    final file = await ref.read(reportServiceProvider).exportCsv(state: state);
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy CSV export');
-  }
-
   void _showPreferencesSheet(
-      BuildContext parentContext, BudgetBuddyState state) {
-    final BudgetSettings settings = state.settings;
-
+    BuildContext parentContext,
+    BudgetBuddyState state,
+  ) {
     showModalBottomSheet<void>(
       context: parentContext,
       showDragHandle: false,
@@ -115,142 +115,87 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               20 + MediaQuery.of(context).viewInsets.bottom,
             ),
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
+              child: Consumer(
+                builder: (BuildContext _, WidgetRef modalRef, Widget? __) {
+                  final BudgetSettings settings =
+                      modalRef.watch(budgetBuddyControllerProvider).settings;
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
+                      Row(
+                        children: <Widget>[
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.arrow_back_rounded),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Preferences',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
                       ),
-                      Expanded(
-                        child: Text(
-                          'Preferences',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: settings.budgetWarningNotificationsEnabled,
+                        onChanged: (bool value) => modalRef
+                            .read(budgetBuddyControllerProvider.notifier)
+                            .updateProfilePreferences(
+                                budgetWarningNotificationsEnabled: value),
+                        title: const Text('Overspend alerts'),
+                        subtitle: const Text(
+                            'Notify when spending is getting close to or exceeds the budget.'),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: settings.summaryNotificationsEnabled,
+                        onChanged: (bool value) => modalRef
+                            .read(budgetBuddyControllerProvider.notifier)
+                            .updateProfilePreferences(
+                                summaryNotificationsEnabled: value),
+                        title: const Text('End-of-day summary'),
+                        subtitle:
+                            const Text('Receive a summary when the day ends.'),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: settings.includeYesterdaySpentInSummary,
+                        onChanged: (bool value) => modalRef
+                            .read(budgetBuddyControllerProvider.notifier)
+                            .updateProfilePreferences(
+                                includeYesterdaySpentInSummary: value),
+                        title: const Text("Include yesterday's spending"),
+                        subtitle: const Text(
+                            'Show yesterday\'s total spent inside the summary.'),
+                      ),
+                      const SizedBox(height: 8),
+                      _TimeSettingTile(
+                        label: 'Day starts at',
+                        value: _formatMinuteOfDay(settings.dayStartMinuteOfDay),
+                        onTap: () => _pickMinuteOfDay(
+                          context,
+                          title: 'Select day-start time',
+                          initialMinuteOfDay: settings.dayStartMinuteOfDay,
+                          onSelected: (int minuteOfDay) {
+                            modalRef
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .updateProfilePreferences(
+                                    dayStartMinuteOfDay: minuteOfDay);
+                          },
                         ),
                       ),
-                      const SizedBox(width: 48),
+                      const SizedBox(height: 12),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.notificationsEnabled,
-                    onChanged: (bool value) => ref
-                        .read(budgetBuddyControllerProvider.notifier)
-                        .updateProfilePreferences(notificationsEnabled: value),
-                    title: const Text('Daily notifications'),
-                    subtitle: const Text(
-                        'Budget warnings, end-of-day summaries, and streak reminders.'),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.budgetWarningNotificationsEnabled,
-                    onChanged: (bool value) => ref
-                        .read(budgetBuddyControllerProvider.notifier)
-                        .updateProfilePreferences(
-                            budgetWarningNotificationsEnabled: value),
-                    title: const Text('Budget warning alerts'),
-                    subtitle: const Text(
-                        'Notify when spending is getting close to the limit.'),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.summaryNotificationsEnabled,
-                    onChanged: (bool value) => ref
-                        .read(budgetBuddyControllerProvider.notifier)
-                        .updateProfilePreferences(
-                            summaryNotificationsEnabled: value),
-                    title: const Text('End-of-day summary'),
-                    subtitle:
-                        const Text('Send a summary when the day wraps up.'),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.streakNotificationsEnabled,
-                    onChanged: (bool value) => ref
-                        .read(budgetBuddyControllerProvider.notifier)
-                        .updateProfilePreferences(
-                            streakNotificationsEnabled: value),
-                    title: const Text('Streak reminders'),
-                    subtitle: const Text('Keep the savings streak visible.'),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<NotificationFrequency>(
-                    initialValue: settings.notificationFrequency,
-                    items: NotificationFrequency.values
-                        .map(
-                          (NotificationFrequency frequency) =>
-                              DropdownMenuItem<NotificationFrequency>(
-                            value: frequency,
-                            child: Text(frequency.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (NotificationFrequency? value) {
-                      if (value == null) {
-                        return;
-                      }
-                      ref
-                          .read(budgetBuddyControllerProvider.notifier)
-                          .updateProfilePreferences(
-                              notificationFrequency: value);
-                    },
-                    decoration:
-                        const InputDecoration(labelText: 'Reminder frequency'),
-                  ),
-                  const SizedBox(height: 12),
-                  _TimeSettingTile(
-                    label: 'Reminder time',
-                    value: _formatMinuteOfDay(
-                        settings.notificationReminderMinuteOfDay),
-                    onTap: () => _pickMinuteOfDay(
-                      context,
-                      title: 'Select reminder time',
-                      initialMinuteOfDay:
-                          settings.notificationReminderMinuteOfDay,
-                      onSelected: (int minuteOfDay) {
-                        ref
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .updateProfilePreferences(
-                              notificationReminderMinuteOfDay: minuteOfDay,
-                            );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _TimeSettingTile(
-                    label: 'Day starts at',
-                    value: _formatMinuteOfDay(settings.dayStartMinuteOfDay),
-                    onTap: () => _pickMinuteOfDay(
-                      context,
-                      title: 'Select day-start time',
-                      initialMinuteOfDay: settings.dayStartMinuteOfDay,
-                      onSelected: (int minuteOfDay) {
-                        ref
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .updateProfilePreferences(
-                                dayStartMinuteOfDay: minuteOfDay);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.tonalIcon(
-                      onPressed: () => ref
-                          .read(budgetBuddyControllerProvider.notifier)
-                          .sendSummaryNotification(),
-                      icon: const Icon(Icons.notifications_active_rounded),
-                      label: const Text('Send summary now'),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
@@ -259,8 +204,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     );
   }
 
-  void _showDataSheet(BuildContext parentContext, BudgetBuddyState state,
-      BudgetSummary summary) {
+  void _showDataSheet(
+    BuildContext parentContext,
+    BudgetBuddyState state,
+    BudgetSummary summary,
+  ) {
     showModalBottomSheet<void>(
       context: parentContext,
       showDragHandle: false,

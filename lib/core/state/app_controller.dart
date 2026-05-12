@@ -374,6 +374,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     int? notificationReminderMinuteOfDay,
     NotificationFrequency? notificationFrequency,
     int? dayStartMinuteOfDay,
+    bool? includeYesterdaySpentInSummary,
   }) {
     state = state.copyWith(
       settings: state.settings.copyWith(
@@ -383,6 +384,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         streakNotificationsEnabled: streakNotificationsEnabled,
         notificationReminderMinuteOfDay: notificationReminderMinuteOfDay,
         notificationFrequency: notificationFrequency,
+        includeYesterdaySpentInSummary: includeYesterdaySpentInSummary,
         dayStartMinuteOfDay: dayStartMinuteOfDay,
       ),
       notificationsEnabled: notificationsEnabled ?? state.notificationsEnabled,
