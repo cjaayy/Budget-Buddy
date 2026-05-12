@@ -31,7 +31,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               const SectionTitle(
                 title: 'Spend',
                 subtitle:
-                    'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
+                    'Plan And Log Spending In One Place. Every Entry Is Deducted From Active Day And Month Limits.',
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -45,7 +45,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Quick spend categories',
+                            'Quick Spend Categories',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -53,7 +53,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Tap a category to log amount and note.',
+                            'Tap A Category To Log Amount And Note.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
@@ -370,7 +370,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         summary.periodSummaries[BudgetPeriod.daily];
     final String suffix = daySummary == null || !daySummary.isActive
         ? ''
-        : ' Day left: ${formatPeso(daySummary.remaining)}';
+        : ' Day Left: ${formatPeso(daySummary.remaining)}';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$title logged.$suffix')),
@@ -431,10 +431,10 @@ class _RemainingPills extends StatelessWidget {
                 : const Color(0xFF0F766E);
 
     final String text = !active
-        ? '$label not set'
+        ? '$label Not Set'
         : period.isOverspent
-            ? '$label ${formatPeso(period.overspentAmount)} over'
-            : '$label ${formatPeso(period.remaining)} left';
+            ? '$label ${formatPeso(period.overspentAmount)} Over'
+            : '$label ${formatPeso(period.remaining)} Left';
 
     return SoftPill(text: text, color: color);
   }
@@ -519,8 +519,8 @@ class _SpendCategoryOption {
 
 const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
   _SpendCategoryOption(
-    title: 'Food & drinks',
-    subtitle: 'Meals, snacks, coffee',
+    title: 'Food & Drinks',
+    subtitle: 'Meals, Snacks, Coffee',
     icon: Icons.restaurant_rounded,
     budgetCategory: BudgetCategory.food,
     defaultAmount: 120,
@@ -528,7 +528,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
   ),
   _SpendCategoryOption(
     title: 'Transport',
-    subtitle: 'Jeep, tricycle, Grab',
+    subtitle: 'Jeep, Tricycle, Grab',
     icon: Icons.directions_bus_rounded,
     budgetCategory: BudgetCategory.transportation,
     defaultAmount: 70,
@@ -536,15 +536,15 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
   ),
   _SpendCategoryOption(
     title: 'Shopping',
-    subtitle: 'Clothes, personal',
+    subtitle: 'Clothes, Personal',
     icon: Icons.shopping_bag_rounded,
     budgetCategory: BudgetCategory.shopping,
     defaultAmount: 220,
     color: Color(0xFF7C3AED),
   ),
   _SpendCategoryOption(
-    title: 'Leisure & gala',
-    subtitle: 'Outings, activities',
+    title: 'Leisure & Gala',
+    subtitle: 'Outings, Activities',
     icon: Icons.celebration_rounded,
     budgetCategory: BudgetCategory.entertainment,
     defaultAmount: 280,
@@ -552,15 +552,15 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
   ),
   _SpendCategoryOption(
     title: 'Health',
-    subtitle: 'Meds, checkup',
+    subtitle: 'Meds, Checkup',
     icon: Icons.health_and_safety_rounded,
     budgetCategory: BudgetCategory.miscellaneous,
     defaultAmount: 180,
     color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
-    title: 'Bills & utilities',
-    subtitle: 'Load, electric, wifi',
+    title: 'Bills & Utilities',
+    subtitle: 'Load, Electric, Wifi',
     icon: Icons.receipt_long_rounded,
     budgetCategory: BudgetCategory.miscellaneous,
     defaultAmount: 350,
@@ -570,7 +570,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
 
 const _SpendCategoryOption _customSpendCategory = _SpendCategoryOption(
   title: 'Custom',
-  subtitle: 'Any other spend',
+  subtitle: 'Any Other Spend',
   icon: Icons.edit_rounded,
   budgetCategory: BudgetCategory.miscellaneous,
   defaultAmount: 0,
