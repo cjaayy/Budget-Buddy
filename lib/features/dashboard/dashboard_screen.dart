@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -116,14 +117,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         BudgetMetricCard(
                           label: _selectedPeriod == DashboardPeriod.daily
-                              ? 'Today spent'
-                              : 'Month spent',
+                              ? 'Daily spent'
+                              : 'Monthly spent',
                           value: formatPeso(spentAdjusted),
                           subtitle: 'Out of ${formatPeso(totalBudget)}',
                           icon: Icons.payments_rounded,
                           color: const Color(0xFF2563EB),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    child: _BudgetPieOverviewCard(
+                      spent: spentAdjusted,
+                      remaining: remainingAdjusted,
+                      total: totalBudget,
                     ),
                   ),
                 ),
@@ -372,136 +383,173 @@ class _RemainingBudgetRingCard extends StatelessWidget {
   final double total;
   final double spent;
 
-  Color _ringColor(double consumedRatio) {
-    if (consumedRatio < 0.5) {
-      return const Color(0xFF16A34A);
-    }
-    if (consumedRatio < 0.8) {
-      return const Color(0xFFF59E0B);
-    }
-    return const Color(0xFFDC2626);
+  @override
+  Widget build(BuildContext context) {
+    return BudgetMetricCard(
+      label: 'Remaining budget',
+      value: formatPeso(remaining),
+      subtitle: '${formatPeso(spent)} of ${formatPeso(total)}',
+      icon: Icons.trending_down_rounded,
+      color: const Color(0xFF059669),
+    );
   }
+}
+
+class _BudgetPieOverviewCard extends StatelessWidget {
+  const _BudgetPieOverviewCard({
+    required this.spent,
+    required this.remaining,
+    required this.total,
+  });
+
+  final double spent;
+  final double remaining;
+  final double total;
 
   @override
   Widget build(BuildContext context) {
-    final double consumedRatio =
-        total <= 0 ? 0 : (spent / total).clamp(0.0, 1.0).toDouble();
-    final Color ringColor = _ringColor(consumedRatio);
+    final double safeSpent = spent < 0 ? 0 : spent;
+    final double safeRemaining = remaining < 0 ? 0 : remaining;
+    final bool hasAnyValue = safeSpent > 0 || safeRemaining > 0;
+    final double chartSpent = hasAnyValue ? safeSpent : 1;
+    final double chartRemaining = hasAnyValue ? safeRemaining : 0;
+    final double spentRatio =
+        total <= 0 ? 0 : (safeSpent / total).clamp(0.0, 1.0).toDouble();
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: <Color>[
-            const Color(0xFF059669).withValues(alpha: 0.92),
-            const Color(0xFF059669).withValues(alpha: 0.72)
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-              color: const Color(0xFF059669).withValues(alpha: 0.22),
-              blurRadius: 24,
-              offset: const Offset(0, 12)),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Spending split',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Current ${total > 0 ? '${(spentRatio * 100).round()}% used' : 'period has no budget set'}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 156,
+            child: Row(
               children: <Widget>[
-                Container(
-                  width: 30,
-                  height: 30,
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      shape: BoxShape.circle),
-                  child: const Icon(Icons.trending_down_rounded,
-                      size: 18, color: Colors.white),
-                ),
                 SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Stack(
-                    alignment: Alignment.center,
+                  width: 150,
+                  child: PieChart(
+                    PieChartData(
+                      centerSpaceRadius: 34,
+                      sectionsSpace: 3,
+                      startDegreeOffset: -90,
+                      sections: <PieChartSectionData>[
+                        PieChartSectionData(
+                          value: chartSpent,
+                          color: const Color(0xFFEF4444),
+                          radius: 30,
+                          title: hasAnyValue
+                              ? '${(spentRatio * 100).round()}%'
+                              : '',
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                        PieChartSectionData(
+                          value: chartRemaining,
+                          color: const Color(0xFF10B981),
+                          radius: 30,
+                          title: hasAnyValue
+                              ? '${(100 - (spentRatio * 100)).round()}%'
+                              : '',
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      CircularProgressIndicator(
-                        value: consumedRatio,
-                        strokeWidth: 4,
-                        backgroundColor: ringColor.withValues(alpha: 0.16),
-                        valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                      _PieLegendItem(
+                        color: const Color(0xFFEF4444),
+                        label: 'Spent',
+                        value: formatPeso(safeSpent),
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            '${(consumedRatio * 100).round()}%',
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 10,
-                              color: Colors.white,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            'used',
-                            maxLines: 1,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  height: 1.0,
-                                  fontSize: 7,
-                                ),
-                          ),
-                        ],
+                      const SizedBox(height: 10),
+                      _PieLegendItem(
+                        color: const Color(0xFF10B981),
+                        label: 'Remaining',
+                        value: formatPeso(safeRemaining),
+                      ),
+                      const SizedBox(height: 10),
+                      _PieLegendItem(
+                        color: Theme.of(context).colorScheme.primary,
+                        label: 'Budget',
+                        value: formatPeso(total),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 5),
-            Text(
-              'Remaining Budget',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.85), fontSize: 10),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              formatPeso(remaining),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${formatPeso(spent)} of ${formatPeso(total)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: 10,
-                  ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _PieLegendItem extends StatelessWidget {
+  const _PieLegendItem({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  final Color color;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          value,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
     );
   }
 }
