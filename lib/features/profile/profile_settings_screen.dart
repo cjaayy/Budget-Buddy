@@ -7,7 +7,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
-import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
@@ -318,15 +317,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            BudgetMetricCard(
-              label: 'Savings today',
-              value: formatPeso(summary.savings),
-              subtitle:
-                  'Weekly and monthly reports are derived from daily logs.',
-              icon: Icons.insights_rounded,
-              color: const Color(0xFF0F766E),
             ),
           ],
         ),
