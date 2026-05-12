@@ -32,7 +32,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final BudgetSettings settings = state.settings;
 
     return Scaffold(
       body: SafeArea(
@@ -49,39 +48,105 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               title: 'Menu',
               child: Column(
                 children: <Widget>[
-                  Semantics(
-                    button: true,
-                    label: 'Open profile menu',
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.person_rounded),
-                      title: const Text('Profile'),
-                      subtitle: Text(state.profile.displayName),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _openProfileMenu(context, state),
-                    ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.person_rounded),
+                    title: const Text('Profile'),
+                    subtitle: Text(state.profile.displayName),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _openProfileMenu(context, state),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.tune_rounded),
+                    title: const Text('Preferences'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showPreferencesSheet(context, state),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.storage_rounded),
+                    title: const Text('Data'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showDataSheet(context, state, summary),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            _SectionShell(
-              title: 'Preferences',
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
+      BudgetSummary summary) async {
+    final file = await ref.read(reportServiceProvider).exportDailyReport(
+          state: state,
+          summary: summary,
+        );
+    await Share.shareXFiles(<XFile>[XFile(file.path)],
+        text: 'BudgetBuddy daily report');
+  }
+
+  Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
+    final file = await ref.read(reportServiceProvider).exportCsv(state: state);
+    await Share.shareXFiles(<XFile>[XFile(file.path)],
+        text: 'BudgetBuddy CSV export');
+  }
+
+  void _showPreferencesSheet(
+      BuildContext parentContext, BudgetBuddyState state) {
+    final BudgetSettings settings = state.settings;
+
+    showModalBottomSheet<void>(
+      context: parentContext,
+      showDragHandle: false,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Semantics(
-                    label: 'Notifications enabled',
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: settings.notificationsEnabled,
-                      onChanged: (bool value) => ref
-                          .read(budgetBuddyControllerProvider.notifier)
-                          .updateProfilePreferences(
-                              notificationsEnabled: value),
-                      title: const Text('Daily notifications'),
-                      subtitle: const Text(
-                          'Budget warnings, end-of-day summaries, and streak reminders.'),
-                    ),
+                  Row(
+                    children: <Widget>[
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Preferences',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: settings.notificationsEnabled,
+                    onChanged: (bool value) => ref
+                        .read(budgetBuddyControllerProvider.notifier)
+                        .updateProfilePreferences(notificationsEnabled: value),
+                    title: const Text('Daily notifications'),
+                    subtitle: const Text(
+                        'Budget warnings, end-of-day summaries, and streak reminders.'),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -188,11 +253,51 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            _SectionShell(
-              title: 'Data',
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDataSheet(BuildContext parentContext, BudgetBuddyState state,
+      BudgetSummary summary) {
+    showModalBottomSheet<void>(
+      context: parentContext,
+      showDragHandle: false,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Data',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: <Widget>[
                       Expanded(
@@ -279,62 +384,57 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _SectionShell(
-              title: 'Danger zone',
-              accentColor: const Color(0xFFDC2626),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'These actions are destructive and should only be used when you want to clear your local data.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 16),
+                  SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Danger zone',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFFDC2626)),
                         ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Semantics(
-                      button: true,
-                      label: 'Reset entire app',
-                      child: FilledButton.icon(
-                        onPressed: () => _confirmResetApp(context),
-                        icon: const Icon(Icons.delete_sweep_rounded),
-                        label: const Text('Reset entire app to 0'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
-                          foregroundColor: Colors.white,
+                        const SizedBox(height: 12),
+                        Text(
+                          'These actions are destructive and should only be used when you want to clear your local data.',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: Semantics(
+                            button: true,
+                            label: 'Reset entire app',
+                            child: FilledButton.icon(
+                              onPressed: () => _confirmResetApp(context),
+                              icon: const Icon(Icons.delete_sweep_rounded),
+                              label: const Text('Reset entire app to 0'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFDC2626),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
-      BudgetSummary summary) async {
-    final file = await ref.read(reportServiceProvider).exportDailyReport(
-          state: state,
-          summary: summary,
+          ),
         );
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy daily report');
-  }
-
-  Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
-    final file = await ref.read(reportServiceProvider).exportCsv(state: state);
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy CSV export');
+      },
+    );
   }
 
   Future<void> _backupSnapshot(
@@ -547,7 +647,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
     showModalBottomSheet<void>(
       context: parentContext,
-      showDragHandle: true,
+      showDragHandle: false,
       isScrollControlled: true,
       builder: (BuildContext context) {
         return SafeArea(
@@ -569,12 +669,24 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(
-                        'Profile',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                      Row(
+                        children: <Widget>[
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.arrow_back_rounded),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Profile',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -721,12 +833,10 @@ class _SectionShell extends StatelessWidget {
   const _SectionShell({
     required this.title,
     required this.child,
-    this.accentColor,
   });
 
   final String title;
   final Widget child;
-  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -736,10 +846,10 @@ class _SectionShell extends StatelessWidget {
         children: <Widget>[
           Text(
             title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: accentColor,
-                ),
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
           child,
