@@ -19,7 +19,6 @@ class ProfileSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
-  static const List<int> _streakMilestones = <int>[3, 7, 14, 30];
   final TextEditingController _backupRestoreController =
       TextEditingController();
 
@@ -57,9 +56,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.person_rounded),
                       title: const Text('Profile'),
-                      subtitle: Text(
-                        '${state.profile.displayName} • ${state.profile.city}',
-                      ),
+                      subtitle: Text(state.profile.displayName),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => _openProfileMenu(context, state),
                     ),
@@ -543,80 +540,180 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     return time.format(context);
   }
 
-  void _openProfileMenu(BuildContext context, BudgetBuddyState state) {
-    final List<int> earnedMilestones = _streakMilestones
-        .where((int milestone) => state.profile.savingsStreak >= milestone)
-        .toList();
+  void _openProfileMenu(BuildContext parentContext, BudgetBuddyState state) {
+    final String originalName = state.profile.displayName;
+    String updatedName = originalName;
+    bool isEditing = false;
 
     showModalBottomSheet<void>(
-      context: context,
+      context: parentContext,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (BuildContext context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Semantics(
-                  label: 'Profile avatar for ${state.profile.displayName}',
-                  image: true,
-                  child: CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.12),
-                    child: Text(
-                      state.profile.avatarSeed,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  state.profile.displayName,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(state.profile.city),
-                const SizedBox(height: 12),
-                _ReadonlyRow(
-                  label: 'Savings streak',
-                  value: '${state.profile.savingsStreak} days',
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: <Widget>[
-                    _MilestoneChip(
-                      label: '${state.profile.savingsStreak} day streak',
-                      color: const Color(0xFF0F766E),
-                      icon: Icons.local_fire_department_rounded,
-                    ),
-                    ...earnedMilestones.map(
-                      (int milestone) => _MilestoneChip(
-                        label: '$milestone day badge',
-                        color: const Color(0xFFF97316),
-                        icon: Icons.emoji_events_rounded,
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setModalState) {
+                  final String normalizedName = updatedName.trim();
+                  final bool hasChanges = normalizedName != originalName;
+                  final bool canSave =
+                      isEditing && normalizedName.isNotEmpty && hasChanges;
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        'Profile',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        initialValue: originalName,
+                        enabled: isEditing,
+                        textInputAction: TextInputAction.done,
+                        onChanged: (String value) {
+                          setModalState(() => updatedName = value);
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Name',
+                          hintText: 'Enter your name',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                setModalState(() {
+                                  if (isEditing) {
+                                    updatedName = originalName;
+                                    isEditing = false;
+                                    return;
+                                  }
+                                  isEditing = true;
+                                });
+                              },
+                              child: Text(isEditing ? 'Cancel' : 'Edit'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: canSave
+                                  ? () async {
+                                      final bool? confirmSave =
+                                          await showDialog<bool>(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: const Text('Confirm save'),
+                                            content: const Text(
+                                              'Do you want to save this name change?',
+                                            ),
+                                            actions: <Widget>[
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(false),
+                                                child: const Text('No'),
+                                              ),
+                                              FilledButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(true),
+                                                child: const Text('Yes'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+
+                                      if (confirmSave != true) {
+                                        return;
+                                      }
+
+                                      ref
+                                          .read(budgetBuddyControllerProvider
+                                              .notifier)
+                                          .updateProfile(
+                                            state.profile.copyWith(
+                                              displayName: normalizedName,
+                                              avatarSeed: _buildInitials(
+                                                  normalizedName),
+                                            ),
+                                          );
+
+                                      if (!context.mounted ||
+                                          !parentContext.mounted) {
+                                        return;
+                                      }
+
+                                      Navigator.of(context).pop();
+
+                                      await showDialog<void>(
+                                        context: parentContext,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: const Text('Saved'),
+                                            content: const Text(
+                                              'Profile name saved successfully.',
+                                            ),
+                                            actions: <Widget>[
+                                              FilledButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context).pop(),
+                                                child: const Text('OK'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    }
+                                  : null,
+                              child: const Text('Save'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Only your name is shown in profile.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  String _buildInitials(String displayName) {
+    final List<String> parts = displayName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((String part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) {
+      return 'BB';
+    }
+
+    return parts.take(2).map((String part) => part[0]).join().toUpperCase();
   }
 }
 
@@ -647,79 +744,6 @@ class _SectionShell extends StatelessWidget {
           const SizedBox(height: 12),
           child,
         ],
-      ),
-    );
-  }
-}
-
-class _ReadonlyRow extends StatelessWidget {
-  const _ReadonlyRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ],
-    );
-  }
-}
-
-class _MilestoneChip extends StatelessWidget {
-  const _MilestoneChip({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: label,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0.92, end: 1),
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutBack,
-        builder: (BuildContext context, double scale, Widget? child) {
-          return Transform.scale(scale: scale, child: child);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: color.withValues(alpha: 0.18)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(color: color, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
