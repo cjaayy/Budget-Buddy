@@ -35,9 +35,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
     final BudgetSettings settings = state.settings;
-    final List<int> earnedMilestones = _streakMilestones
-        .where((int milestone) => state.profile.savingsStreak >= milestone)
-        .toList();
 
     return Scaffold(
       body: SafeArea(
@@ -45,89 +42,27 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           padding: const EdgeInsets.all(20),
           children: <Widget>[
             const SectionTitle(
-              title: 'Profile & settings',
+              title: 'Settings',
               subtitle:
-                  'Manage your profile, preferences, saved data, and app reset options.',
-            ),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                children: <Widget>[
-                  Semantics(
-                    label: 'Profile avatar for ${state.profile.displayName}',
-                    image: true,
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.12),
-                      child: Text(
-                        state.profile.avatarSeed,
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    state.profile.displayName,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(state.profile.city),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: <Widget>[
-                      _MilestoneChip(
-                        label: '${state.profile.savingsStreak} day streak',
-                        color: const Color(0xFF0F766E),
-                        icon: Icons.local_fire_department_rounded,
-                      ),
-                      ...earnedMilestones.map(
-                        (int milestone) => _MilestoneChip(
-                          label: '$milestone day badge',
-                          color: const Color(0xFFF97316),
-                          icon: Icons.emoji_events_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  'Manage your account menu, preferences, saved data, and app reset options.',
             ),
             const SizedBox(height: 16),
             _SectionShell(
-              title: 'My profile',
+              title: 'Menu',
               child: Column(
                 children: <Widget>[
                   Semantics(
-                    label: 'Display name',
-                    textField: true,
-                    child: _ReadonlyRow(
-                        label: 'Display name',
-                        value: state.profile.displayName),
-                  ),
-                  const SizedBox(height: 8),
-                  Semantics(
-                    label: 'City',
-                    textField: true,
-                    child:
-                        _ReadonlyRow(label: 'City', value: state.profile.city),
-                  ),
-                  const SizedBox(height: 8),
-                  Semantics(
-                    label: 'Savings streak',
-                    child: _ReadonlyRow(
-                      label: 'Savings streak',
-                      value: '${state.profile.savingsStreak} days',
+                    button: true,
+                    label: 'Open profile menu',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.person_rounded),
+                      title: const Text('Profile'),
+                      subtitle: Text(
+                        '${state.profile.displayName} • ${state.profile.city}',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _openProfileMenu(context, state),
                     ),
                   ),
                 ],
@@ -616,6 +551,82 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       minute: minuteOfDay % 60,
     );
     return time.format(context);
+  }
+
+  void _openProfileMenu(BuildContext context, BudgetBuddyState state) {
+    final List<int> earnedMilestones = _streakMilestones
+        .where((int milestone) => state.profile.savingsStreak >= milestone)
+        .toList();
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Semantics(
+                  label: 'Profile avatar for ${state.profile.displayName}',
+                  image: true,
+                  child: CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.12),
+                    child: Text(
+                      state.profile.avatarSeed,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  state.profile.displayName,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(state.profile.city),
+                const SizedBox(height: 12),
+                _ReadonlyRow(
+                  label: 'Savings streak',
+                  value: '${state.profile.savingsStreak} days',
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: <Widget>[
+                    _MilestoneChip(
+                      label: '${state.profile.savingsStreak} day streak',
+                      color: const Color(0xFF0F766E),
+                      icon: Icons.local_fire_department_rounded,
+                    ),
+                    ...earnedMilestones.map(
+                      (int milestone) => _MilestoneChip(
+                        label: '$milestone day badge',
+                        color: const Color(0xFFF97316),
+                        icon: Icons.emoji_events_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
