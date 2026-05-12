@@ -1,9 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/budget_models.dart';
+import 'dart:convert';
 
 class LocalBudgetRepository {
   static const String _boxName = 'budgetbuddy_cache';
@@ -12,6 +12,7 @@ class LocalBudgetRepository {
   static const String _notificationsKey = 'notifications_enabled';
   static const String _loggedInKey = 'logged_in';
   static const String _onboardingKey = 'onboarding_complete';
+  static const String _registeredProfileKey = 'registered_profile';
 
   Box<String>? _box;
   SharedPreferences? _prefs;
@@ -31,10 +32,13 @@ class LocalBudgetRepository {
         ? BudgetBuddyState.initial()
         : BudgetBuddyState.decode(rawState);
 
-    final String themeName = _prefs?.getString(_themeKey) ?? state.themeMode.name;
-    final bool notificationsEnabled = _prefs?.getBool(_notificationsKey) ?? state.notificationsEnabled;
+    final String themeName =
+        _prefs?.getString(_themeKey) ?? state.themeMode.name;
+    final bool notificationsEnabled =
+        _prefs?.getBool(_notificationsKey) ?? state.notificationsEnabled;
     final bool loggedIn = _prefs?.getBool(_loggedInKey) ?? state.loggedIn;
-    final bool onboardingComplete = _prefs?.getBool(_onboardingKey) ?? state.onboardingComplete;
+    final bool onboardingComplete =
+        _prefs?.getBool(_onboardingKey) ?? state.onboardingComplete;
 
     state = state.copyWith(
       themeMode: ThemeMode.values.firstWhere(
@@ -63,5 +67,23 @@ class LocalBudgetRepository {
     await _ensureReady();
     await _box!.clear();
     await _prefs!.clear();
+  }
+
+  Future<void> saveRegisteredProfile(UserProfile profile) async {
+    await _ensureReady();
+    await _prefs!
+        .setString(_registeredProfileKey, jsonEncode(profile.toJson()));
+  }
+
+  Future<UserProfile?> loadRegisteredProfile() async {
+    await _ensureReady();
+    final String? raw = _prefs!.getString(_registeredProfileKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
+      return UserProfile.fromJson(json);
+    } catch (_) {
+      return null;
+    }
   }
 }

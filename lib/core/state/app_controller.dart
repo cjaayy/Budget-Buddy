@@ -427,6 +427,22 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _persist();
   }
 
+  Future<void> registerAccount(String displayName) async {
+    login(displayName);
+    await _repository.saveRegisteredProfile(state.profile);
+    await _repository.saveState(state);
+  }
+
+  Future<void> loginRegisteredAccount() async {
+    final UserProfile? saved = await _repository.loadRegisteredProfile();
+    if (saved == null) {
+      return;
+    }
+    final BudgetBuddyState loaded = await _repository.loadState();
+    state = loaded.copyWith(profile: saved, loggedIn: true);
+    _persist();
+  }
+
   void logout() {
     state = state.copyWith(loggedIn: false);
     _persist();
