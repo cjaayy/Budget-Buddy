@@ -231,7 +231,8 @@ class _PeriodPills extends StatelessWidget {
             (DashboardPeriod period) => Expanded(
               child: Padding(
                 padding: EdgeInsets.only(
-                  right: period == DashboardPeriod.monthly ? 0 : 8,
+                  left: period == DashboardPeriod.monthly ? 6 : 0,
+                  right: period == DashboardPeriod.daily ? 6 : 0,
                 ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(999),
