@@ -31,7 +31,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               const SectionTitle(
                 title: 'Spend',
                 subtitle:
-                    'Plan And Log Spending In One Place. Every Entry Is Deducted From Active Day And Month Limits.',
+                    'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -53,7 +53,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Tap A Category To Log Amount And Note.',
+                            'Tap a category to log amount and note.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),

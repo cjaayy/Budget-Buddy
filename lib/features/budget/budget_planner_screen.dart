@@ -69,7 +69,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               const SectionTitle(
                 title: 'Budget',
                 subtitle:
-                    'Set Daily and Monthly Limits. Any Expense Counts Toward Every Active Period.',
+                    'Set daily and monthly limits. Any expense counts toward every active period.',
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -139,7 +139,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'The App Deducts Every New Expense From Whichever Periods Are Active.',
+                            'The app deducts every new expense from whichever periods are active.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
