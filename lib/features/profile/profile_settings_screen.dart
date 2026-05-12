@@ -40,27 +40,36 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          _SectionShell(
-            title: 'Profile',
-            child: FilledButton(
-              onPressed: () => _openProfileMenu(context, state),
-              child: const Text('Edit profile'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _SectionShell(
-            title: 'Preferences',
-            child: FilledButton(
-              onPressed: () => _showPreferencesSheet(context, state),
-              child: const Text('Notification preferences'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _SectionShell(
-            title: 'Data',
-            child: FilledButton(
-              onPressed: () => _showDataSheet(context, state, summary),
-              child: const Text('Manage data'),
+          SectionCard(
+            child: Column(
+              children: <Widget>[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.person_outline_rounded),
+                  title: const Text('Profile'),
+                  subtitle: const Text('Edit your name'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _openProfileMenu(context, state),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.tune_rounded),
+                  title: const Text('Preferences'),
+                  subtitle: const Text('Notifications and summary options'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showPreferencesSheet(context, state),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.storage_rounded),
+                  title: const Text('Data'),
+                  subtitle: const Text('Export, backup, reset, and logout'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _showDataSheet(context, state, summary),
+                ),
+              ],
             ),
           ),
         ],
@@ -768,35 +777,5 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
 
     return parts.take(2).map((String part) => part[0]).join().toUpperCase();
-  }
-}
-
-class _SectionShell extends StatelessWidget {
-  const _SectionShell({
-    required this.title,
-    required this.child,
-  });
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            title,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
   }
 }

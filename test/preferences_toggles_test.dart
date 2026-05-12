@@ -61,7 +61,7 @@ void main() {
 
     // Open Preferences sheet
     expect(find.text('Preferences'), findsOneWidget);
-    await tester.tap(find.text('Notification preferences'));
+    await tester.tap(find.text('Preferences'));
     await tester.pumpAndSettle();
 
     // Verify toggles exist
