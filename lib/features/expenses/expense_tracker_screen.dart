@@ -18,7 +18,6 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   ExpenseSection _activeSection = ExpenseSection.daily;
-  DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
   Widget build(BuildContext context) {
@@ -109,9 +108,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         availableMonths: availableMonths,
                         expenses: expenses,
                         onTapMonth: (DateTime month) {
-                          setState(() {
-                            _selectedMonth = DateTime(month.year, month.month);
-                          });
                           _showMonthDatesSheet(context, ref, month, expenses);
                         },
                       ),
@@ -720,10 +716,6 @@ String _formatDayLabel(DateTime dateTime) {
     return 'Today, ${DateFormat('MMMM d, yyyy').format(dateTime)}';
   }
   return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
-}
-
-String _monthLabel(DateTime month) {
-  return DateFormat('MMMM yyyy').format(month);
 }
 
 class _DailySection extends StatelessWidget {

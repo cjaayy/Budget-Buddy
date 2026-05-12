@@ -62,6 +62,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             trailing: const Icon(Icons.chevron_right_rounded),
                             onTap: () => _openProfileMenu(context, state),
                           ),
+                          const SizedBox(height: 12),
                           const Divider(height: 1),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
@@ -82,6 +83,20 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             trailing: const Icon(Icons.chevron_right_rounded),
                             onTap: () =>
                                 _showDataSheet(context, state, summary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      child: Column(
+                        children: <Widget>[
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.logout_rounded),
+                            title: const Text('Logout'),
+                            subtitle: const Text('Sign out of your account'),
+                            onTap: () => _confirmLogout(context),
                           ),
                         ],
                       ),
@@ -655,21 +670,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                               Expanded(
                                 child: Semantics(
                                   button: true,
-                                  label: 'Logout of account',
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => ref
-                                        .read(budgetBuddyControllerProvider
-                                            .notifier)
-                                        .logout(),
-                                    icon: const Icon(Icons.logout_rounded),
-                                    label: const Text('Logout'),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Semantics(
-                                  button: true,
                                   label: 'Reset Day',
                                   child: FilledButton.tonalIcon(
                                     onPressed: () => _confirmResetDay(context),
@@ -923,6 +923,40 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     messenger.showSnackBar(
       const SnackBar(content: Text('Export CSV not implemented in tests.')),
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout?'),
+          content:
+              const Text('Are you sure you want to sign out of your account?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirm != true) {
+      return;
+    }
+
+    ref.read(budgetBuddyControllerProvider.notifier).logout();
+    if (!mounted) {
+      return;
+    }
+    messenger.showSnackBar(const SnackBar(content: Text('Logged out.')));
   }
 
   void _openProfileMenu(BuildContext parentContext, BudgetBuddyState state) {
