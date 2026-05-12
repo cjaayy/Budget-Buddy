@@ -177,6 +177,79 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             'Receive a notification when the daily budget resets.'),
                       ),
                       const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            final BudgetSettings s = modalRef
+                                .read(budgetBuddyControllerProvider)
+                                .settings;
+                            final List<Widget> demos = <Widget>[];
+                            if (s.budgetWarningNotificationsEnabled) {
+                              demos.add(
+                                const ListTile(
+                                  leading: Icon(Icons.warning_amber_rounded),
+                                  title: Text('Overspend alert'),
+                                  subtitle: Text(
+                                      'Example: You exceeded your daily budget by ₱120.'),
+                                ),
+                              );
+                            }
+                            if (s.summaryNotificationsEnabled) {
+                              demos.add(
+                                ListTile(
+                                  leading: const Icon(Icons.article_rounded),
+                                  title: const Text('End-of-day summary'),
+                                  subtitle: Text(s
+                                          .includeYesterdaySpentInSummary
+                                      ? 'Example summary: Today: ₱450 spent. Yesterday: ₱520 spent.'
+                                      : 'Example summary: Today: ₱450 spent.'),
+                                ),
+                              );
+                            }
+                            if (s.notifyOnDailyReset) {
+                              demos.add(
+                                const ListTile(
+                                  leading: Icon(Icons.refresh_rounded),
+                                  title: Text('Daily reset notification'),
+                                  subtitle: Text(
+                                      'Example: Your daily budget was reset to ₱500.'),
+                                ),
+                              );
+                            }
+                            if (demos.isEmpty) {
+                              demos.add(const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Text(
+                                    'No notification toggles are enabled.'),
+                              ));
+                            }
+
+                            showDialog<void>(
+                              context: context,
+                              builder: (BuildContext ctx) {
+                                return AlertDialog(
+                                  title: const Text('Demo notifications'),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: demos,
+                                    ),
+                                  ),
+                                  actions: <Widget>[
+                                    FilledButton(
+                                      onPressed: () => Navigator.of(ctx).pop(),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Demo toggles'),
+                        ),
+                      ),
                       const SizedBox(height: 12),
                     ],
                   );
