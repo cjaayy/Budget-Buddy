@@ -40,7 +40,7 @@ class TestController extends StateNotifier<BudgetBuddyState>
 
   // The rest of BudgetBuddyController interface methods are not needed here.
   @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -51,10 +51,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          budgetBuddyControllerProvider.overrideWithProvider(
-            StateNotifierProvider<BudgetBuddyController, BudgetBuddyState>(
-                (ref) => testController as BudgetBuddyController),
-          ),
+          budgetBuddyControllerProvider.overrideWith((ref) => testController),
         ],
         child: const MaterialApp(
           home: ProfileSettingsScreen(),
@@ -64,7 +61,7 @@ void main() {
 
     // Open Preferences sheet
     expect(find.text('Preferences'), findsOneWidget);
-    await tester.tap(find.text('Preferences'));
+    await tester.tap(find.text('Notification preferences'));
     await tester.pumpAndSettle();
 
     // Verify toggles exist

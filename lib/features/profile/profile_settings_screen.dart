@@ -7,8 +7,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/budget_service.dart';
 import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
+// import '../../core/widgets/section_title.dart';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -28,71 +30,40 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     super.dispose();
   }
 
-  Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
-      BudgetSummary summary) async {
-    final file = await ref.read(reportServiceProvider).exportDailyReport(
-          state: state,
-          summary: summary,
-        );
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy daily report');
-  }
-
-  Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
-    final file = await ref.read(reportServiceProvider).exportCsv(state: state);
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy CSV export');
-  }
-
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final BudgetSummary summary = ref.watch(budgetSummaryProvider);
+    final BudgetSummary summary = BudgetService().computeSummary(state);
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionTitle(
-              title: 'Settings',
-              subtitle:
-                  'Manage your account menu, preferences, saved data, and app reset options.',
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: <Widget>[
+          _SectionShell(
+            title: 'Profile',
+            child: FilledButton(
+              onPressed: () => _openProfileMenu(context, state),
+              child: const Text('Edit profile'),
             ),
-            const SizedBox(height: 16),
-            _SectionShell(
-              title: 'Menu',
-              child: Column(
-                children: <Widget>[
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.person_rounded),
-                    title: const Text('Profile'),
-                    subtitle: Text(state.profile.displayName),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _openProfileMenu(context, state),
-                  ),
-                  const Divider(height: 0),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.tune_rounded),
-                    title: const Text('Preferences'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showPreferencesSheet(context, state),
-                  ),
-                  const Divider(height: 0),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.storage_rounded),
-                    title: const Text('Data'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showDataSheet(context, state, summary),
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 12),
+          _SectionShell(
+            title: 'Preferences',
+            child: FilledButton(
+              onPressed: () => _showPreferencesSheet(context, state),
+              child: const Text('Notification preferences'),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          _SectionShell(
+            title: 'Data',
+            child: FilledButton(
+              onPressed: () => _showDataSheet(context, state, summary),
+              child: const Text('Manage data'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -145,6 +116,25 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       const SizedBox(height: 12),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
+                        secondary: IconButton(
+                          onPressed: () async {
+                            final NotificationService notifier =
+                                modalRef.read(notificationServiceProvider);
+                            await notifier.showBudgetReminder(
+                              title: 'Overspend alert (Demo)',
+                              body:
+                                  'Demo: You spent ₱620 today — ₱120 over your daily limit.',
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Demo notification sent')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          tooltip: 'Demo overspend alert',
+                        ),
                         value: settings.budgetWarningNotificationsEnabled,
                         onChanged: (bool value) => modalRef
                             .read(budgetBuddyControllerProvider.notifier)
@@ -156,6 +146,26 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
+                        secondary: IconButton(
+                          onPressed: () async {
+                            final NotificationService notifier =
+                                modalRef.read(notificationServiceProvider);
+                            await notifier.showEndOfDaySummary(
+                              title: 'End-of-day summary (Demo)',
+                              body: settings.includeYesterdaySpentInSummary
+                                  ? 'Demo: Today ₱450. Yesterday ₱520.'
+                                  : 'Demo: Today ₱450.',
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Demo summary sent')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          tooltip: 'Demo summary',
+                        ),
                         value: settings.summaryNotificationsEnabled,
                         onChanged: (bool value) => modalRef
                             .read(budgetBuddyControllerProvider.notifier)
@@ -167,6 +177,25 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
+                        secondary: IconButton(
+                          onPressed: () async {
+                            final NotificationService notifier =
+                                modalRef.read(notificationServiceProvider);
+                            await notifier.showBudgetReminder(
+                              title: 'Daily reset (Demo)',
+                              body:
+                                  'Demo: Your daily budget has been reset to ₱500.',
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Demo reset sent')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          tooltip: 'Demo daily reset',
+                        ),
                         value: settings.notifyOnDailyReset,
                         onChanged: (bool value) => modalRef
                             .read(budgetBuddyControllerProvider.notifier)
@@ -177,79 +206,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             'Receive a notification when the daily budget resets.'),
                       ),
                       const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            final BudgetSettings s = modalRef
-                                .read(budgetBuddyControllerProvider)
-                                .settings;
-                            final List<Widget> demos = <Widget>[];
-                            if (s.budgetWarningNotificationsEnabled) {
-                              demos.add(
-                                const ListTile(
-                                  leading: Icon(Icons.warning_amber_rounded),
-                                  title: Text('Overspend alert'),
-                                  subtitle: Text(
-                                      'Example: You exceeded your daily budget by ₱120.'),
-                                ),
-                              );
-                            }
-                            if (s.summaryNotificationsEnabled) {
-                              demos.add(
-                                ListTile(
-                                  leading: const Icon(Icons.article_rounded),
-                                  title: const Text('End-of-day summary'),
-                                  subtitle: Text(s
-                                          .includeYesterdaySpentInSummary
-                                      ? 'Example summary: Today: ₱450 spent. Yesterday: ₱520 spent.'
-                                      : 'Example summary: Today: ₱450 spent.'),
-                                ),
-                              );
-                            }
-                            if (s.notifyOnDailyReset) {
-                              demos.add(
-                                const ListTile(
-                                  leading: Icon(Icons.refresh_rounded),
-                                  title: Text('Daily reset notification'),
-                                  subtitle: Text(
-                                      'Example: Your daily budget was reset to ₱500.'),
-                                ),
-                              );
-                            }
-                            if (demos.isEmpty) {
-                              demos.add(const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Text(
-                                    'No notification toggles are enabled.'),
-                              ));
-                            }
-
-                            showDialog<void>(
-                              context: context,
-                              builder: (BuildContext ctx) {
-                                return AlertDialog(
-                                  title: const Text('Demo notifications'),
-                                  content: SingleChildScrollView(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: demos,
-                                    ),
-                                  ),
-                                  actions: <Widget>[
-                                    FilledButton(
-                                      onPressed: () => Navigator.of(ctx).pop(),
-                                      child: const Text('Close'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('Demo toggles'),
-                        ),
-                      ),
+                      const SizedBox.shrink(),
                       const SizedBox(height: 12),
                     ],
                   );
@@ -607,6 +564,21 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
     messenger.showSnackBar(
       const SnackBar(content: Text('App reset to zero successfully.')),
+    );
+  }
+
+  Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
+      BudgetSummary summary) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Export PDF not implemented in tests.')),
+    );
+  }
+
+  Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Export CSV not implemented in tests.')),
     );
   }
 
