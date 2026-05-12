@@ -391,10 +391,10 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   String _stripSpendTag(String note) {
     if (!_isSpendTagged(note)) {
-      return note.trim().isEmpty ? 'No note' : note.trim();
+      return note.trim();
     }
     final String stripped = note.replaceFirst(_spendTag, '').trim();
-    return stripped.isEmpty ? 'No note' : stripped;
+    return stripped;
   }
 }
 
