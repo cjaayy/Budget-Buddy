@@ -1,7 +1,30 @@
 import 'package:flutter/material.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _loadingController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 950),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _loadingController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +56,7 @@ class SplashScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'BudgetBuddy',
+                'Budget Buddy',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -48,11 +71,14 @@ class SplashScreen extends StatelessWidget {
                     ?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: 28),
-              const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 3, color: Colors.white)),
+              RotationTransition(
+                turns: _loadingController,
+                child: const Icon(
+                  Icons.autorenew_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
             ],
           ),
         ),

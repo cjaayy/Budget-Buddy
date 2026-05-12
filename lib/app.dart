@@ -18,7 +18,7 @@ class BudgetBuddyApp extends ConsumerWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'BudgetBuddy',
+      title: 'Budget Buddy',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: state.themeMode,
