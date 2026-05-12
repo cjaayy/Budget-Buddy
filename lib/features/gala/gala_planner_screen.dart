@@ -101,7 +101,7 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                                             builder: (_) =>
                                                 const BudgetPlannerScreen()));
                                   },
-                                  child: const Text('Set budget'),
+                                  child: const Text('Set Budget'),
                                 ),
                             ],
                           ),
@@ -145,7 +145,7 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                     ),
                     const SizedBox(height: 16),
                     const SectionTitle(
-                      title: 'Activity suggestions',
+                      title: 'Activity Suggestions',
                       subtitle: 'Budget-friendly alternatives for the day',
                     ),
                     ...activities.map((ActivitySuggestion activity) {
@@ -193,8 +193,8 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                                       const SizedBox(height: 6),
                                       SoftPill(
                                         text: canAfford
-                                            ? 'Can afford'
-                                            : 'Over budget',
+                                            ? 'Can Afford'
+                                            : 'Over Budget',
                                         color: canAfford
                                             ? const Color(0xFF16A34A)
                                             : const Color(0xFFDC2626),
@@ -228,7 +228,7 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                                         ? Icons.check
                                         : Icons.add_rounded),
                                     label:
-                                        Text(selected ? 'Added' : 'Add plan'),
+                                        Text(selected ? 'Added' : 'Add Plan'),
                                   ),
                                   const SizedBox(width: 8),
                                   OutlinedButton(
@@ -307,7 +307,7 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                           context: context,
                           builder: (BuildContext ctx) {
                             return AlertDialog(
-                              title: const Text('Commit plans'),
+                              title: const Text('Commit Plans'),
                               content: Text(
                                   'Log ${toCommit.length} activities as expenses now?'),
                               actions: <Widget>[

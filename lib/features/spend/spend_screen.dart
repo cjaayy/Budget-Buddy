@@ -200,7 +200,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                       note: noteController.text.trim(),
                     );
                   },
-                  child: const Text('Log spend'),
+                  child: const Text('Log Spend'),
                 ),
               ),
             ],
@@ -252,7 +252,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    existing == null ? 'Add spend' : 'Edit spend',
+                    existing == null ? 'Add Spend' : 'Edit Spend',
                     style: Theme.of(context)
                         .textTheme
                         .titleLarge
@@ -335,7 +335,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                 );
                             Navigator.of(context).pop();
                           },
-                          child: Text(existing == null ? 'Log spend' : 'Save'),
+                          child: Text(existing == null ? 'Log Spend' : 'Save'),
                         ),
                       ),
                     ],

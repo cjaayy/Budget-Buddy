@@ -143,7 +143,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     }
                   },
                   child: Text(
-                      _index < _steps.length - 1 ? 'Continue' : 'Get started'),
+                      _index < _steps.length - 1 ? 'Continue' : 'Get Started'),
                 ),
               ),
             ],

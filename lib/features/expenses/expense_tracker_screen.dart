@@ -561,7 +561,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          existing == null ? 'Add expense' : 'Edit expense',
+                          existing == null ? 'Add Expense' : 'Edit Expense',
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
@@ -661,7 +661,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         Navigator.of(context).pop();
                       },
                       child: Text(
-                        existing == null ? 'Save expense' : 'Update expense',
+                        existing == null ? 'Save Expense' : 'Update Expense',
                       ),
                     ),
                   ),

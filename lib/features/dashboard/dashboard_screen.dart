@@ -117,8 +117,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         BudgetMetricCard(
                           label: _selectedPeriod == DashboardPeriod.daily
-                              ? 'Daily spent'
-                              : 'Monthly spent',
+                              ? 'Daily Spent'
+                              : 'Monthly Spent',
                           value: formatPeso(spentAdjusted),
                           subtitle: 'Out of ${formatPeso(totalBudget)}',
                           icon: Icons.payments_rounded,
@@ -386,7 +386,7 @@ class _RemainingBudgetRingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BudgetMetricCard(
-      label: 'Remaining budget',
+      label: 'Remaining Budget',
       value: formatPeso(remaining),
       subtitle: '${formatPeso(spent)} of ${formatPeso(total)}',
       icon: Icons.trending_down_rounded,
@@ -421,7 +421,7 @@ class _BudgetPieOverviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Spending split',
+            'Spending Split',
             style: Theme.of(context)
                 .textTheme
                 .titleMedium

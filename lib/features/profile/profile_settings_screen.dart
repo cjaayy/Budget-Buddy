@@ -172,7 +172,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     if (context.mounted) {
                                       _showDemoSentModal(
                                         context,
-                                        title: 'Demo sent',
+                                        title: 'Demo Sent',
                                         message:
                                             'Overspend alert demo was sent to your phone.',
                                       );
@@ -181,7 +181,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   icon: const Icon(Icons.play_arrow_rounded),
                                   tooltip: 'Demo overspend alert',
                                 ),
-                                title: const Text('Overspend alerts'),
+                                title: const Text('Overspend Alerts'),
                                 subtitle: const Text(
                                     'Notify when spending is getting close to or exceeds the budget.'),
                                 trailing: Switch(
@@ -191,7 +191,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     final bool confirmed =
                                         await _showToggleConfirmationModal(
                                       context,
-                                      settingLabel: 'Overspend alerts',
+                                      settingLabel: 'Overspend Alerts',
                                       nextValue: value,
                                     );
                                     if (!context.mounted || !confirmed) {
@@ -206,7 +206,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     if (context.mounted) {
                                       _showToggleSuccessModal(
                                         context,
-                                        settingLabel: 'Overspend alerts',
+                                        settingLabel: 'Overspend Alerts',
                                         nextValue: value,
                                       );
                                     }
@@ -230,14 +230,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     if (context.mounted) {
                                       _showDemoSentModal(
                                         context,
-                                        title: 'Demo sent',
+                                        title: 'Demo Sent',
                                         message:
                                             'End-of-day summary demo was sent to your phone.',
                                       );
                                     }
                                   },
                                   icon: const Icon(Icons.play_arrow_rounded),
-                                  tooltip: 'Demo summary',
+                                  tooltip: 'Demo Summary',
                                 ),
                                 title: const Text('End-of-day summary'),
                                 subtitle: const Text(
@@ -284,7 +284,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     if (context.mounted) {
                                       _showDemoSentModal(
                                         context,
-                                        title: 'Demo sent',
+                                        title: 'Demo Sent',
                                         message:
                                             'Daily reset demo was sent to your phone.',
                                       );
@@ -427,7 +427,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        'Confirm change',
+                        'Confirm Change',
                         textAlign: TextAlign.center,
                         style: Theme.of(context)
                             .textTheme
@@ -670,11 +670,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                               Expanded(
                                 child: Semantics(
                                   button: true,
-                                  label: 'Reset day',
+                                  label: 'Reset Day',
                                   child: FilledButton.tonalIcon(
                                     onPressed: () => _confirmResetDay(context),
                                     icon: const Icon(Icons.refresh_rounded),
-                                    label: const Text('Reset day'),
+                                    label: const Text('Reset Day'),
                                   ),
                                 ),
                               ),
@@ -686,7 +686,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  'Danger zone',
+                                  'Danger Zone',
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleLarge
@@ -830,7 +830,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Reset day'),
+              child: const Text('Reset Day'),
             ),
           ],
         );
@@ -1032,7 +1032,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                                     (BuildContext context) {
                                                   return AlertDialog(
                                                     title: const Text(
-                                                        'Confirm save'),
+                                                        'Confirm Save'),
                                                     content: const Text(
                                                       'Do you want to save this name change?',
                                                     ),

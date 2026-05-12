@@ -94,7 +94,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _editSavingsTarget(context, state),
                       icon: const Icon(Icons.edit_rounded),
-                      label: const Text('Set target'),
+                      label: const Text('Set Target'),
                     ),
                   ),
                 ],
@@ -149,7 +149,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration:
-                        const InputDecoration(labelText: 'Target amount'),
+                        const InputDecoration(labelText: 'Target Amount'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
@@ -186,7 +186,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                             );
                         Navigator.of(context).pop();
                       },
-                      child: const Text('Save target'),
+                      child: const Text('Save Target'),
                     ),
                   ),
                 ],
@@ -474,7 +474,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   _ReportStatus _statusFrom(double spent, double limit) {
     if (limit <= 0) {
       return const _ReportStatus(
-        label: 'On track',
+        label: 'On Track',
         detail: 'No limit set for this period.',
         color: Color(0xFF64748B),
       );
@@ -491,8 +491,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
     if (spent >= limit * 0.8) {
       return const _ReportStatus(
-        label: 'On track',
-        detail: 'Near limit',
+        label: 'On Track',
+        detail: 'Near Limit',
         color: Color(0xFFF59E0B),
       );
     }

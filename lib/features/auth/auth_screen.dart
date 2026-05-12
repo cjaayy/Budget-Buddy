@@ -52,7 +52,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       TextField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                            labelText: 'Display name',
+                            labelText: 'Display Name',
                             prefixIcon: Icon(Icons.person_rounded)),
                       ),
                       const SizedBox(height: 16),
@@ -99,16 +99,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 24),
               const _FeaturePreview(
                   icon: Icons.lock_open_rounded,
-                  title: 'Offline first',
+                  title: 'Offline First',
                   subtitle: 'Data stays on the device with local storage.'),
               const _FeaturePreview(
                   icon: Icons.auto_graph_rounded,
-                  title: 'Smart insights',
+                  title: 'Smart Insights',
                   subtitle:
                       'Budget, meal, and gala recommendations update instantly.'),
               const _FeaturePreview(
                   icon: Icons.notifications_active_rounded,
-                  title: 'Daily reminders',
+                  title: 'Daily Reminders',
                   subtitle: 'Keep your spending on track with notifications.'),
             ],
           ),

@@ -69,7 +69,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               const SectionTitle(
                 title: 'Budget',
                 subtitle:
-                    'Set daily and monthly limits. Any expense counts toward every active period.',
+                    'Set Daily and Monthly Limits. Any Expense Counts Toward Every Active Period.',
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -77,7 +77,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                   padding: EdgeInsets.zero,
                   children: <Widget>[
                     BudgetMetricCard(
-                      label: 'Limits set',
+                      label: 'Limits Set',
                       value: '$activeLimitCount / 2',
                       subtitle: activeLimitCount == 0
                           ? 'Enable one or more limits to start tracking'
@@ -91,8 +91,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     ),
                     const SizedBox(height: 16),
                     _LimitEditorCard(
-                      title: 'Max per day',
-                      helper: 'Resets every midnight',
+                      title: 'Max Per Day',
+                      helper: 'Resets Every Midnight',
                       controller: _dailyController,
                       focusNode: _dailyFocusNodeOrCreate,
                       icon: Icons.calendar_today_rounded,
@@ -109,8 +109,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     ),
                     const SizedBox(height: 12),
                     _LimitEditorCard(
-                      title: 'Max per month',
-                      helper: 'Resets on the 1st of the month',
+                      title: 'Max Per Month',
+                      helper: 'Resets On The 1st Of The Month',
                       controller: _monthlyController,
                       focusNode: _monthlyFocusNodeOrCreate,
                       icon: Icons.calendar_month_rounded,
@@ -131,7 +131,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Live period status',
+                            'Live Period Status',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -139,7 +139,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'The app deducts every new expense from whichever periods are active.',
+                            'The App Deducts Every New Expense From Whichever Periods Are Active.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
@@ -230,8 +230,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           icon: const Icon(Icons.check_circle_rounded),
-          title: const Text('Limit saved'),
-          content: Text('${period.label} limit saved successfully.'),
+          title: const Text('Limit Saved'),
+          content: Text('${period.label} Limit Saved Successfully.'),
           actions: <Widget>[
             FilledButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -365,7 +365,7 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                   child: OutlinedButton.icon(
                     onPressed: _beginEditing,
                     icon: const Icon(Icons.edit_rounded),
-                    label: Text(hasBudget ? 'Edit' : 'Set it'),
+                    label: Text(hasBudget ? 'Edit' : 'Set It'),
                   ),
                 ),
               ],
@@ -427,7 +427,7 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Save changes?'),
-          content: const Text('Do you want to save this budget limit now?'),
+          content: const Text('Do You Want To Save This Budget Limit Now?'),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),

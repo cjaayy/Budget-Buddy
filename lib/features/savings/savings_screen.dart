@@ -49,8 +49,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         Expanded(
                           child: BudgetMetricCard(
                             label: _activeSection == SavingsSection.daily
-                                ? 'Daily savings'
-                                : 'Monthly savings',
+                                ? 'Daily Savings'
+                                : 'Monthly Savings',
                             value: formatPeso(netSavings),
                             subtitle: _activeSection == SavingsSection.daily
                                 ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
@@ -62,7 +62,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: BudgetMetricCard(
-                            label: 'Positive days',
+                            label: 'Positive Days',
                             value: positiveDayCount.toString(),
                             subtitle: 'Days that stayed under budget',
                             icon: Icons.trending_up_rounded,
@@ -307,7 +307,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Category breakdown',
+                    'Category Breakdown',
                     style: Theme.of(sheetContext)
                         .textTheme
                         .titleMedium

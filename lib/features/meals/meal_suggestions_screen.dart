@@ -53,7 +53,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showMealDialog(context),
         icon: const Icon(Icons.add),
-        label: const Text('Custom meal'),
+        label: const Text('Custom Meal'),
       ),
       body: SafeArea(
         child: Padding(
@@ -62,7 +62,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               SectionTitle(
-                title: 'Meal planner',
+                title: 'Meal Planner',
                 subtitle:
                     'Smart suggestions based on your remaining budget ${formatPeso(summary.remainingBalance)}.',
               ),
@@ -74,7 +74,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                     TextField(
                       controller: _searchController,
                       decoration: const InputDecoration(
-                        labelText: 'Search meals',
+                        labelText: 'Search Meals',
                         prefixIcon: Icon(Icons.search_rounded),
                       ),
                       onChanged: (_) => setState(() {}),
@@ -101,7 +101,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                       children: <Widget>[
                         ChoiceChip(
                           selected: _mealType == null,
-                          label: const Text('All meals'),
+                          label: const Text('All Meals'),
                           onSelected: (_) => setState(() => _mealType = null),
                         ),
                         ...MealType.values.map(
@@ -203,7 +203,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                         ),
                                       if (overBudget)
                                         const SoftPill(
-                                          text: 'Over budget',
+                                          text: 'Over Budget',
                                           color: Color(0xFFDC2626),
                                           icon: Icons.warning_rounded,
                                         ),
@@ -232,7 +232,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                         },
                                         icon:
                                             const Icon(Icons.add_chart_rounded),
-                                        label: const Text('Log meal'),
+                                        label: const Text('Log Meal'),
                                       ),
                                     ],
                                   ),
@@ -295,7 +295,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Meal name'),
+                    decoration: const InputDecoration(labelText: 'Meal Name'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -303,7 +303,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration:
-                        const InputDecoration(labelText: 'Estimated price'),
+                        const InputDecoration(labelText: 'Estimated Price'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -325,7 +325,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                         setModalState(() => mealType = value);
                       }
                     },
-                    decoration: const InputDecoration(labelText: 'Meal type'),
+                    decoration: const InputDecoration(labelText: 'Meal Type'),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<MealCategory>(
@@ -356,7 +356,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                       .microsecondsSinceEpoch
                                       .toString(),
                               name: nameController.text.trim().isEmpty
-                                  ? 'Custom meal'
+                                  ? 'Custom Meal'
                                   : nameController.text.trim(),
                               estimatedPrice:
                                   double.tryParse(priceController.text) ?? 0,
@@ -376,7 +376,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                             Navigator.of(context).pop();
                           },
                           child: Text(
-                            existing != null ? 'Save changes' : 'Save meal',
+                            existing != null ? 'Save Changes' : 'Save Meal',
                           ),
                         ),
                       ),
