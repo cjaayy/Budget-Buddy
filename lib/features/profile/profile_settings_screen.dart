@@ -151,10 +151,28 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             'Notify when spending is getting close to or exceeds the budget.'),
                         trailing: Switch(
                           value: settings.budgetWarningNotificationsEnabled,
-                          onChanged: (bool value) => modalRef
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .updateProfilePreferences(
-                                  budgetWarningNotificationsEnabled: value),
+                          onChanged: (bool value) async {
+                            final bool confirmed =
+                                await _showToggleConfirmationModal(
+                              context,
+                              settingLabel: 'Overspend alerts',
+                              nextValue: value,
+                            );
+                            if (!context.mounted || !confirmed) {
+                              return;
+                            }
+                            modalRef
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .updateProfilePreferences(
+                                    budgetWarningNotificationsEnabled: value);
+                            if (context.mounted) {
+                              _showToggleSuccessModal(
+                                context,
+                                settingLabel: 'Overspend alerts',
+                                nextValue: value,
+                              );
+                            }
+                          },
                         ),
                       ),
                       ListTile(
@@ -186,10 +204,28 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             'Receive a summary when the day ends (includes yesterday\'s spent).'),
                         trailing: Switch(
                           value: settings.summaryNotificationsEnabled,
-                          onChanged: (bool value) => modalRef
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .updateProfilePreferences(
-                                  summaryNotificationsEnabled: value),
+                          onChanged: (bool value) async {
+                            final bool confirmed =
+                                await _showToggleConfirmationModal(
+                              context,
+                              settingLabel: 'End-of-day summary',
+                              nextValue: value,
+                            );
+                            if (!context.mounted || !confirmed) {
+                              return;
+                            }
+                            modalRef
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .updateProfilePreferences(
+                                    summaryNotificationsEnabled: value);
+                            if (context.mounted) {
+                              _showToggleSuccessModal(
+                                context,
+                                settingLabel: 'End-of-day summary',
+                                nextValue: value,
+                              );
+                            }
+                          },
                         ),
                       ),
                       ListTile(
@@ -220,10 +256,28 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             'Receive a notification when the daily budget resets.'),
                         trailing: Switch(
                           value: settings.notifyOnDailyReset,
-                          onChanged: (bool value) => modalRef
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .updateProfilePreferences(
-                                  notifyOnDailyReset: value),
+                          onChanged: (bool value) async {
+                            final bool confirmed =
+                                await _showToggleConfirmationModal(
+                              context,
+                              settingLabel: 'Daily reset notifications',
+                              nextValue: value,
+                            );
+                            if (!context.mounted || !confirmed) {
+                              return;
+                            }
+                            modalRef
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .updateProfilePreferences(
+                                    notifyOnDailyReset: value);
+                            if (context.mounted) {
+                              _showToggleSuccessModal(
+                                context,
+                                settingLabel: 'Daily reset notifications',
+                                nextValue: value,
+                              );
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -287,6 +341,142 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _showToggleConfirmationModal(
+    BuildContext parentContext, {
+    required String settingLabel,
+    required bool nextValue,
+  }) async {
+    final bool? confirmed = await showModalBottomSheet<bool>(
+      context: parentContext,
+      showDragHandle: false,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Confirm change',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Turn ${nextValue ? 'on' : 'off'} "$settingLabel"?',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Confirm'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    return confirmed ?? false;
+  }
+
+  void _showToggleSuccessModal(
+    BuildContext parentContext, {
+    required String settingLabel,
+    required bool nextValue,
+  }) {
+    showModalBottomSheet<void>(
+      context: parentContext,
+      showDragHandle: false,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Success',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '"$settingLabel" is now ${nextValue ? 'on' : 'off'}.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
+                  ),
+                ),
               ],
             ),
           ),

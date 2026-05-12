@@ -85,6 +85,12 @@ void main() {
 
     await tester.tap(overspendSwitch);
     await tester.pumpAndSettle();
+    expect(find.text('Confirm change'), findsOneWidget);
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(find.text('Success'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
     sw = tester.widget<Switch>(overspendSwitch);
     expect(sw.value, equals(!initialOverspend));
 
@@ -96,6 +102,12 @@ void main() {
     final bool initialSummary = sw.value;
     await tester.tap(summarySwitch);
     await tester.pumpAndSettle();
+    expect(find.text('Confirm change'), findsOneWidget);
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(find.text('Success'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
     sw = tester.widget<Switch>(summarySwitch);
     expect(sw.value, equals(!initialSummary));
 
@@ -106,6 +118,12 @@ void main() {
     sw = tester.widget<Switch>(notifySwitch);
     final bool initialNotify = sw.value;
     await tester.tap(notifySwitch);
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm change'), findsOneWidget);
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(find.text('Success'), findsOneWidget);
+    await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
     sw = tester.widget<Switch>(notifySwitch);
     expect(sw.value, equals(!initialNotify));
