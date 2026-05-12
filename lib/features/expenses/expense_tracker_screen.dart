@@ -31,81 +31,95 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
+        child: Padding(
           padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionTitle(
-              title: 'Expenses',
-              subtitle: 'View and manage your logged expenses.',
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => setState(() {
-                      _activeSection = ExpenseSection.daily;
-                    }),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _activeSection == ExpenseSection.daily
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                      foregroundColor: _activeSection == ExpenseSection.daily
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                    child: const Text('Daily'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => setState(() {
-                      _activeSection = ExpenseSection.monthly;
-                    }),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _activeSection == ExpenseSection.monthly
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                      foregroundColor: _activeSection == ExpenseSection.monthly
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                    child: const Text('Monthly'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_activeSection == ExpenseSection.daily)
-              _DailySection(
-                monthLabel: _monthLabel(_selectedMonth),
-                availableDays: availableDays,
-                expenses: dailyExpenses,
-                onTapDay: (DateTime day) => _showDayExpensesSheet(
-                  context,
-                  ref,
-                  day,
-                  dailyExpenses,
-                  showBackButton: true,
-                ),
-              )
-            else
-              _MonthlySection(
-                availableMonths: availableMonths,
-                expenses: expenses,
-                onTapMonth: (DateTime month) {
-                  setState(() {
-                    _selectedMonth = DateTime(month.year, month.month);
-                  });
-                  _showMonthDatesSheet(context, ref, month, expenses);
-                },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionTitle(
+                title: 'Expenses',
+                subtitle: 'View and manage your logged expenses.',
               ),
-          ],
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => setState(() {
+                              _activeSection = ExpenseSection.daily;
+                            }),
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  _activeSection == ExpenseSection.daily
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                              foregroundColor:
+                                  _activeSection == ExpenseSection.daily
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            child: const Text('Daily'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => setState(() {
+                              _activeSection = ExpenseSection.monthly;
+                            }),
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  _activeSection == ExpenseSection.monthly
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                              foregroundColor:
+                                  _activeSection == ExpenseSection.monthly
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            child: const Text('Monthly'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (_activeSection == ExpenseSection.daily)
+                      _DailySection(
+                        monthLabel: _monthLabel(_selectedMonth),
+                        availableDays: availableDays,
+                        expenses: dailyExpenses,
+                        onTapDay: (DateTime day) => _showDayExpensesSheet(
+                          context,
+                          ref,
+                          day,
+                          dailyExpenses,
+                          showBackButton: true,
+                        ),
+                      )
+                    else
+                      _MonthlySection(
+                        availableMonths: availableMonths,
+                        expenses: expenses,
+                        onTapMonth: (DateTime month) {
+                          setState(() {
+                            _selectedMonth = DateTime(month.year, month.month);
+                          });
+                          _showMonthDatesSheet(context, ref, month, expenses);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

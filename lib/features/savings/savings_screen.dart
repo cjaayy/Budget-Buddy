@@ -29,155 +29,175 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
+        child: Padding(
           padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionTitle(
-              title: 'Savings',
-              subtitle:
-                  'Track how much you saved each day based on your active budget.',
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: BudgetMetricCard(
-                    label: _activeSection == SavingsSection.daily
-                        ? 'Daily savings'
-                        : 'Monthly savings',
-                    value: formatPeso(netSavings),
-                    subtitle: _activeSection == SavingsSection.daily
-                        ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
-                        : 'Across ${availableMonths.length} month${availableMonths.length == 1 ? '' : 's'}',
-                    icon: Icons.savings_rounded,
-                    color: const Color(0xFFF97316),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: BudgetMetricCard(
-                    label: 'Positive days',
-                    value: positiveDayCount.toString(),
-                    subtitle: 'Days that stayed under budget',
-                    icon: Icons.trending_up_rounded,
-                    color: const Color(0xFF0F766E),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => setState(() {
-                      _activeSection = SavingsSection.daily;
-                    }),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _activeSection == SavingsSection.daily
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                      foregroundColor: _activeSection == SavingsSection.daily
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                    child: const Text('Daily'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => setState(() {
-                      _activeSection = SavingsSection.monthly;
-                    }),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _activeSection == SavingsSection.monthly
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                      foregroundColor: _activeSection == SavingsSection.monthly
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                    child: const Text('Monthly'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    _activeSection == SavingsSection.daily
-                        ? 'DAILY'
-                        : 'MONTHLY',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _activeSection == SavingsSection.daily
-                        ? 'Tap a date to view the savings breakdown for that day.'
-                        : 'Tap a month to view the savings breakdown for that month.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  if (records.isEmpty)
-                    Text(
-                      'No savings records yet.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    )
-                  else if (_activeSection == SavingsSection.daily)
-                    ...records.map(
-                      (DailyRecord record) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _SavingsDateTile(
-                            record: record,
-                            onTap: () => _showSavingsDaySheet(context, record),
-                          ),
-                        );
-                      },
-                    )
-                  else
-                    ...availableMonths.map(
-                      (DateTime month) {
-                        final List<DailyRecord> monthRecords =
-                            _recordsForMonth(records, month);
-                        final double monthSavings = monthRecords.fold<double>(
-                          0,
-                          (double total, DailyRecord record) =>
-                              total + record.savings,
-                        );
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _SavingsMonthTile(
-                            month: month,
-                            savings: monthSavings,
-                            recordCount: monthRecords.length,
-                            onTap: () => _showSavingsMonthSheet(
-                              context,
-                              month,
-                              monthRecords,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionTitle(
+                title: 'Savings',
+                subtitle:
+                    'Track how much you saved each day based on your active budget.',
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: BudgetMetricCard(
+                            label: _activeSection == SavingsSection.daily
+                                ? 'Daily savings'
+                                : 'Monthly savings',
+                            value: formatPeso(netSavings),
+                            subtitle: _activeSection == SavingsSection.daily
+                                ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
+                                : 'Across ${availableMonths.length} month${availableMonths.length == 1 ? '' : 's'}',
+                            icon: Icons.savings_rounded,
+                            color: const Color(0xFFF97316),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: BudgetMetricCard(
+                            label: 'Positive days',
+                            value: positiveDayCount.toString(),
+                            subtitle: 'Days that stayed under budget',
+                            icon: Icons.trending_up_rounded,
+                            color: const Color(0xFF0F766E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => setState(() {
+                              _activeSection = SavingsSection.daily;
+                            }),
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  _activeSection == SavingsSection.daily
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                              foregroundColor:
+                                  _activeSection == SavingsSection.daily
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            child: const Text('Daily'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => setState(() {
+                              _activeSection = SavingsSection.monthly;
+                            }),
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  _activeSection == SavingsSection.monthly
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                              foregroundColor:
+                                  _activeSection == SavingsSection.monthly
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            child: const Text('Monthly'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _activeSection == SavingsSection.daily
+                                ? 'DAILY'
+                                : 'MONTHLY',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _activeSection == SavingsSection.daily
+                                ? 'Tap a date to view the savings breakdown for that day.'
+                                : 'Tap a month to view the savings breakdown for that month.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          if (records.isEmpty)
+                            Text(
+                              'No savings records yet.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            )
+                          else if (_activeSection == SavingsSection.daily)
+                            ...records.map(
+                              (DailyRecord record) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _SavingsDateTile(
+                                    record: record,
+                                    onTap: () =>
+                                        _showSavingsDaySheet(context, record),
+                                  ),
+                                );
+                              },
+                            )
+                          else
+                            ...availableMonths.map(
+                              (DateTime month) {
+                                final List<DailyRecord> monthRecords =
+                                    _recordsForMonth(records, month);
+                                final double monthSavings =
+                                    monthRecords.fold<double>(
+                                  0,
+                                  (double total, DailyRecord record) =>
+                                      total + record.savings,
+                                );
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _SavingsMonthTile(
+                                    month: month,
+                                    savings: monthSavings,
+                                    recordCount: monthRecords.length,
+                                    onTap: () => _showSavingsMonthSheet(
+                                      context,
+                                      month,
+                                      monthRecords,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

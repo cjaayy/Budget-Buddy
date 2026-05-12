@@ -23,68 +23,79 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
+        child: Padding(
           padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionTitle(
-              title: 'Spend',
-              subtitle:
-                  'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
-            ),
-            const SizedBox(height: 12),
-            _RemainingPills(summary: summary),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Quick spend categories',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap a category to log amount and note.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 1.65,
-                    ),
-                    itemCount: _spendCategories.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final _SpendCategoryOption option =
-                          _spendCategories[index];
-                      return _CategoryGridTile(
-                        option: option,
-                        onTap: () => _showQuickCategorySheet(context, option),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: SizedBox(
-                      width: 120,
-                      child: _CategoryGridTile(
-                        option: _customSpendCategory,
-                        onTap: () => _showCustomSpendSheet(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionTitle(
+                title: 'Spend',
+                subtitle:
+                    'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    _RemainingPills(summary: summary),
+                    const SizedBox(height: 16),
+                    SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Quick spend categories',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tap a category to log amount and note.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 1.65,
+                            ),
+                            itemCount: _spendCategories.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final _SpendCategoryOption option =
+                                  _spendCategories[index];
+                              return _CategoryGridTile(
+                                option: option,
+                                onTap: () =>
+                                    _showQuickCategorySheet(context, option),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: SizedBox(
+                              width: 120,
+                              child: _CategoryGridTile(
+                                option: _customSpendCategory,
+                                onTap: () => _showCustomSpendSheet(context),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -61,102 +61,115 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
+        child: Padding(
           padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionTitle(
-              title: 'Budget planner',
-              subtitle:
-                  'Set daily and monthly limits. Any expense counts toward every active period.',
-            ),
-            const SizedBox(height: 16),
-            BudgetMetricCard(
-              label: 'Limits set',
-              value: '$activeLimitCount / 2',
-              subtitle: activeLimitCount == 0
-                  ? 'Enable one or more limits to start tracking'
-                  : activeLimitCount == 2
-                      ? 'All periods active'
-                      : '${2 - activeLimitCount} optional period${2 - activeLimitCount == 1 ? '' : 's'} still open',
-              icon: Icons.layers_rounded,
-              color: activeLimitCount == 0
-                  ? const Color(0xFF64748B)
-                  : const Color(0xFF0F766E),
-            ),
-            const SizedBox(height: 16),
-            _LimitEditorCard(
-              title: 'Max per day',
-              helper: 'Resets every midnight',
-              controller: _dailyController,
-              focusNode: _dailyFocusNodeOrCreate,
-              icon: Icons.calendar_today_rounded,
-              periodSummary: periodSummaries[BudgetPeriod.daily],
-              onEdit: () => _startEditingLimit(
-                _dailyFocusNodeOrCreate,
-                _dailyController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionTitle(
+                title: 'Budget planner',
+                subtitle:
+                    'Set daily and monthly limits. Any expense counts toward every active period.',
               ),
-              onSave: () => _saveLimit(
-                state,
-                period: BudgetPeriod.daily,
-                controller: _dailyController,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _LimitEditorCard(
-              title: 'Max per month',
-              helper: 'Resets on the 1st of the month',
-              controller: _monthlyController,
-              focusNode: _monthlyFocusNodeOrCreate,
-              icon: Icons.calendar_month_rounded,
-              periodSummary: periodSummaries[BudgetPeriod.monthly],
-              onEdit: () => _startEditingLimit(
-                _monthlyFocusNodeOrCreate,
-                _monthlyController,
-              ),
-              onSave: () => _saveLimit(
-                state,
-                period: BudgetPeriod.monthly,
-                controller: _monthlyController,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Live period status',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'The app deducts every new expense from whichever periods are active.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  ...<BudgetPeriod>[BudgetPeriod.daily, BudgetPeriod.monthly]
-                      .map((BudgetPeriod period) {
-                    final BudgetPeriodSummary? periodSummary =
-                        periodSummaries[period];
-                    if (periodSummary == null || !periodSummary.isActive) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _InactivePeriodRow(period: period),
-                      );
-                    }
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    BudgetMetricCard(
+                      label: 'Limits set',
+                      value: '$activeLimitCount / 2',
+                      subtitle: activeLimitCount == 0
+                          ? 'Enable one or more limits to start tracking'
+                          : activeLimitCount == 2
+                              ? 'All periods active'
+                              : '${2 - activeLimitCount} optional period${2 - activeLimitCount == 1 ? '' : 's'} still open',
+                      icon: Icons.layers_rounded,
+                      color: activeLimitCount == 0
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF0F766E),
+                    ),
+                    const SizedBox(height: 16),
+                    _LimitEditorCard(
+                      title: 'Max per day',
+                      helper: 'Resets every midnight',
+                      controller: _dailyController,
+                      focusNode: _dailyFocusNodeOrCreate,
+                      icon: Icons.calendar_today_rounded,
+                      periodSummary: periodSummaries[BudgetPeriod.daily],
+                      onEdit: () => _startEditingLimit(
+                        _dailyFocusNodeOrCreate,
+                        _dailyController,
+                      ),
+                      onSave: () => _saveLimit(
+                        state,
+                        period: BudgetPeriod.daily,
+                        controller: _dailyController,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _LimitEditorCard(
+                      title: 'Max per month',
+                      helper: 'Resets on the 1st of the month',
+                      controller: _monthlyController,
+                      focusNode: _monthlyFocusNodeOrCreate,
+                      icon: Icons.calendar_month_rounded,
+                      periodSummary: periodSummaries[BudgetPeriod.monthly],
+                      onEdit: () => _startEditingLimit(
+                        _monthlyFocusNodeOrCreate,
+                        _monthlyController,
+                      ),
+                      onSave: () => _saveLimit(
+                        state,
+                        period: BudgetPeriod.monthly,
+                        controller: _monthlyController,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Live period status',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'The app deducts every new expense from whichever periods are active.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          ...<BudgetPeriod>[
+                            BudgetPeriod.daily,
+                            BudgetPeriod.monthly
+                          ].map((BudgetPeriod period) {
+                            final BudgetPeriodSummary? periodSummary =
+                                periodSummaries[period];
+                            if (periodSummary == null ||
+                                !periodSummary.isActive) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _InactivePeriodRow(period: period),
+                              );
+                            }
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ActivePeriodRow(summary: periodSummary),
-                    );
-                  }),
-                ],
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _ActivePeriodRow(summary: periodSummary),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

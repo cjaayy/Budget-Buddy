@@ -37,47 +37,60 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
+        child: Padding(
           padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionTitle(
-              title: 'Settings',
-              subtitle: 'Profile, preferences, and data controls.',
-            ),
-            const SizedBox(height: 12),
-            SectionCard(
-              child: Column(
-                children: <Widget>[
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.person_outline_rounded),
-                    title: const Text('Profile'),
-                    subtitle: const Text('Edit your name'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _openProfileMenu(context, state),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.tune_rounded),
-                    title: const Text('Preferences'),
-                    subtitle: const Text('Notifications and summary options'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showPreferencesSheet(context, state),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.storage_rounded),
-                    title: const Text('Data'),
-                    subtitle: const Text('Export, backup, reset, and logout'),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showDataSheet(context, state, summary),
-                  ),
-                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionTitle(
+                title: 'Settings',
+                subtitle: 'Profile, preferences, and data controls.',
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    SectionCard(
+                      child: Column(
+                        children: <Widget>[
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.person_outline_rounded),
+                            title: const Text('Profile'),
+                            subtitle: const Text('Edit your name'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () => _openProfileMenu(context, state),
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.tune_rounded),
+                            title: const Text('Preferences'),
+                            subtitle:
+                                const Text('Notifications and summary options'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () => _showPreferencesSheet(context, state),
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.storage_rounded),
+                            title: const Text('Data'),
+                            subtitle:
+                                const Text('Export, backup, reset, and logout'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () =>
+                                _showDataSheet(context, state, summary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -100,14 +113,16 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               20,
               20 + MediaQuery.of(context).viewInsets.bottom,
             ),
-            child: SingleChildScrollView(
-              child: Consumer(
-                builder: (BuildContext _, WidgetRef modalRef, Widget? __) {
-                  final BudgetSettings settings =
-                      modalRef.watch(budgetBuddyControllerProvider).settings;
+            child: Consumer(
+              builder: (BuildContext _, WidgetRef modalRef, Widget? __) {
+                final BudgetSettings settings =
+                    modalRef.watch(budgetBuddyControllerProvider).settings;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.9,
+                  ),
+                  child: Column(
                     children: <Widget>[
                       Row(
                         children: <Widget>[
@@ -128,171 +143,199 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                           const SizedBox(width: 48),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: IconButton(
-                          onPressed: () async {
-                            final NotificationService notifier =
-                                modalRef.read(notificationServiceProvider);
-                            await notifier.showBudgetReminder(
-                              title: 'Overspend alert (Demo)',
-                              body:
-                                  'Demo: You spent ₱620 today — ₱120 over your daily limit.',
-                            );
-                            if (context.mounted) {
-                              _showDemoSentModal(
-                                context,
-                                title: 'Demo sent',
-                                message:
-                                    'Overspend alert demo was sent to your phone.',
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          tooltip: 'Demo overspend alert',
-                        ),
-                        title: const Text('Overspend alerts'),
-                        subtitle: const Text(
-                            'Notify when spending is getting close to or exceeds the budget.'),
-                        trailing: Switch(
-                          value: settings.budgetWarningNotificationsEnabled,
-                          onChanged: (bool value) async {
-                            final bool confirmed =
-                                await _showToggleConfirmationModal(
-                              context,
-                              settingLabel: 'Overspend alerts',
-                              nextValue: value,
-                            );
-                            if (!context.mounted || !confirmed) {
-                              return;
-                            }
-                            modalRef
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .updateProfilePreferences(
-                                    budgetWarningNotificationsEnabled: value);
-                            if (context.mounted) {
-                              _showToggleSuccessModal(
-                                context,
-                                settingLabel: 'Overspend alerts',
-                                nextValue: value,
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: IconButton(
-                          onPressed: () async {
-                            final NotificationService notifier =
-                                modalRef.read(notificationServiceProvider);
-                            await notifier.showEndOfDaySummary(
-                              title: 'End-of-day summary (Demo)',
-                              body: settings.includeYesterdaySpentInSummary
-                                  ? 'Demo: Today ₱450. Yesterday ₱520.'
-                                  : 'Demo: Today ₱450.',
-                            );
-                            if (context.mounted) {
-                              _showDemoSentModal(
-                                context,
-                                title: 'Demo sent',
-                                message:
-                                    'End-of-day summary demo was sent to your phone.',
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          tooltip: 'Demo summary',
-                        ),
-                        title: const Text('End-of-day summary'),
-                        subtitle: const Text(
-                            'Receive a summary when the day ends (includes yesterday\'s spent).'),
-                        trailing: Switch(
-                          value: settings.summaryNotificationsEnabled,
-                          onChanged: (bool value) async {
-                            final bool confirmed =
-                                await _showToggleConfirmationModal(
-                              context,
-                              settingLabel: 'End-of-day summary',
-                              nextValue: value,
-                            );
-                            if (!context.mounted || !confirmed) {
-                              return;
-                            }
-                            modalRef
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .updateProfilePreferences(
-                                    summaryNotificationsEnabled: value);
-                            if (context.mounted) {
-                              _showToggleSuccessModal(
-                                context,
-                                settingLabel: 'End-of-day summary',
-                                nextValue: value,
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: IconButton(
-                          onPressed: () async {
-                            final NotificationService notifier =
-                                modalRef.read(notificationServiceProvider);
-                            await notifier.showBudgetReminder(
-                              title: 'Daily reset (Demo)',
-                              body:
-                                  'Demo: Your daily budget has been reset to ₱500.',
-                            );
-                            if (context.mounted) {
-                              _showDemoSentModal(
-                                context,
-                                title: 'Demo sent',
-                                message:
-                                    'Daily reset demo was sent to your phone.',
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          tooltip: 'Demo daily reset',
-                        ),
-                        title: const Text('Notify when daily budget resets'),
-                        subtitle: const Text(
-                            'Receive a notification when the daily budget resets.'),
-                        trailing: Switch(
-                          value: settings.notifyOnDailyReset,
-                          onChanged: (bool value) async {
-                            final bool confirmed =
-                                await _showToggleConfirmationModal(
-                              context,
-                              settingLabel: 'Daily reset notifications',
-                              nextValue: value,
-                            );
-                            if (!context.mounted || !confirmed) {
-                              return;
-                            }
-                            modalRef
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .updateProfilePreferences(
-                                    notifyOnDailyReset: value);
-                            if (context.mounted) {
-                              _showToggleSuccessModal(
-                                context,
-                                settingLabel: 'Daily reset notifications',
-                                nextValue: value,
-                              );
-                            }
-                          },
-                        ),
+                      Text(
+                        'Notifications and summary options',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                       const SizedBox(height: 12),
-                      const SizedBox.shrink(),
-                      const SizedBox(height: 12),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: IconButton(
+                                  onPressed: () async {
+                                    final NotificationService notifier =
+                                        modalRef
+                                            .read(notificationServiceProvider);
+                                    await notifier.showBudgetReminder(
+                                      title: 'Overspend alert (Demo)',
+                                      body:
+                                          'Demo: You spent ₱620 today — ₱120 over your daily limit.',
+                                    );
+                                    if (context.mounted) {
+                                      _showDemoSentModal(
+                                        context,
+                                        title: 'Demo sent',
+                                        message:
+                                            'Overspend alert demo was sent to your phone.',
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.play_arrow_rounded),
+                                  tooltip: 'Demo overspend alert',
+                                ),
+                                title: const Text('Overspend alerts'),
+                                subtitle: const Text(
+                                    'Notify when spending is getting close to or exceeds the budget.'),
+                                trailing: Switch(
+                                  value: settings
+                                      .budgetWarningNotificationsEnabled,
+                                  onChanged: (bool value) async {
+                                    final bool confirmed =
+                                        await _showToggleConfirmationModal(
+                                      context,
+                                      settingLabel: 'Overspend alerts',
+                                      nextValue: value,
+                                    );
+                                    if (!context.mounted || !confirmed) {
+                                      return;
+                                    }
+                                    modalRef
+                                        .read(budgetBuddyControllerProvider
+                                            .notifier)
+                                        .updateProfilePreferences(
+                                            budgetWarningNotificationsEnabled:
+                                                value);
+                                    if (context.mounted) {
+                                      _showToggleSuccessModal(
+                                        context,
+                                        settingLabel: 'Overspend alerts',
+                                        nextValue: value,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: IconButton(
+                                  onPressed: () async {
+                                    final NotificationService notifier =
+                                        modalRef
+                                            .read(notificationServiceProvider);
+                                    await notifier.showEndOfDaySummary(
+                                      title: 'End-of-day summary (Demo)',
+                                      body: settings
+                                              .includeYesterdaySpentInSummary
+                                          ? 'Demo: Today ₱450. Yesterday ₱520.'
+                                          : 'Demo: Today ₱450.',
+                                    );
+                                    if (context.mounted) {
+                                      _showDemoSentModal(
+                                        context,
+                                        title: 'Demo sent',
+                                        message:
+                                            'End-of-day summary demo was sent to your phone.',
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.play_arrow_rounded),
+                                  tooltip: 'Demo summary',
+                                ),
+                                title: const Text('End-of-day summary'),
+                                subtitle: const Text(
+                                    'Receive a summary when the day ends (includes yesterday\'s spent).'),
+                                trailing: Switch(
+                                  value: settings.summaryNotificationsEnabled,
+                                  onChanged: (bool value) async {
+                                    final bool confirmed =
+                                        await _showToggleConfirmationModal(
+                                      context,
+                                      settingLabel: 'End-of-day summary',
+                                      nextValue: value,
+                                    );
+                                    if (!context.mounted || !confirmed) {
+                                      return;
+                                    }
+                                    modalRef
+                                        .read(budgetBuddyControllerProvider
+                                            .notifier)
+                                        .updateProfilePreferences(
+                                            summaryNotificationsEnabled: value);
+                                    if (context.mounted) {
+                                      _showToggleSuccessModal(
+                                        context,
+                                        settingLabel: 'End-of-day summary',
+                                        nextValue: value,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: IconButton(
+                                  onPressed: () async {
+                                    final NotificationService notifier =
+                                        modalRef
+                                            .read(notificationServiceProvider);
+                                    await notifier.showBudgetReminder(
+                                      title: 'Daily reset (Demo)',
+                                      body:
+                                          'Demo: Your daily budget has been reset to ₱500.',
+                                    );
+                                    if (context.mounted) {
+                                      _showDemoSentModal(
+                                        context,
+                                        title: 'Demo sent',
+                                        message:
+                                            'Daily reset demo was sent to your phone.',
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.play_arrow_rounded),
+                                  tooltip: 'Demo daily reset',
+                                ),
+                                title: const Text(
+                                    'Notify when daily budget resets'),
+                                subtitle: const Text(
+                                    'Receive a notification when the daily budget resets.'),
+                                trailing: Switch(
+                                  value: settings.notifyOnDailyReset,
+                                  onChanged: (bool value) async {
+                                    final bool confirmed =
+                                        await _showToggleConfirmationModal(
+                                      context,
+                                      settingLabel: 'Daily reset notifications',
+                                      nextValue: value,
+                                    );
+                                    if (!context.mounted || !confirmed) {
+                                      return;
+                                    }
+                                    modalRef
+                                        .read(budgetBuddyControllerProvider
+                                            .notifier)
+                                        .updateProfilePreferences(
+                                            notifyOnDailyReset: value);
+                                    if (context.mounted) {
+                                      _showToggleSuccessModal(
+                                        context,
+                                        settingLabel:
+                                            'Daily reset notifications',
+                                        nextValue: value,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const SizedBox.shrink(),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -509,9 +552,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               20,
               20 + MediaQuery.of(context).viewInsets.bottom,
             ),
-            child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Row(
                     children: <Widget>[
@@ -532,135 +577,161 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       const SizedBox(width: 48),
                     ],
                   ),
+                  Text(
+                    'Export, backup, reset, and logout',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          label: 'Export PDF report',
-                          child: FilledButton.icon(
-                            onPressed: () =>
-                                _exportPdf(context, state, summary),
-                            icon: const Icon(Icons.picture_as_pdf_rounded),
-                            label: const Text('Export PDF'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          label: 'Export CSV report',
-                          child: FilledButton.icon(
-                            onPressed: () => _exportCsv(context, state),
-                            icon: const Icon(Icons.table_view_rounded),
-                            label: const Text('Export CSV'),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          label: 'Back up data snapshot',
-                          child: OutlinedButton.icon(
-                            onPressed: () => _backupSnapshot(context, state),
-                            icon: const Icon(Icons.cloud_upload_rounded),
-                            label: const Text('Back up JSON'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          label: 'Restore data snapshot',
-                          child: OutlinedButton.icon(
-                            onPressed: () => _restoreSnapshot(context),
-                            icon: const Icon(Icons.cloud_download_rounded),
-                            label: const Text('Restore JSON'),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          label: 'Logout of account',
-                          child: OutlinedButton.icon(
-                            onPressed: () => ref
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .logout(),
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Logout'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          label: 'Reset day',
-                          child: FilledButton.tonalIcon(
-                            onPressed: () => _confirmResetDay(context),
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Reset day'),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SectionCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Danger zone',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFDC2626)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'These actions are destructive and should only be used when you want to clear your local data.',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Export PDF report',
+                                  child: FilledButton.icon(
+                                    onPressed: () =>
+                                        _exportPdf(context, state, summary),
+                                    icon: const Icon(
+                                        Icons.picture_as_pdf_rounded),
+                                    label: const Text('Export PDF'),
                                   ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: Semantics(
-                            button: true,
-                            label: 'Reset entire app',
-                            child: FilledButton.icon(
-                              onPressed: () => _confirmResetApp(context),
-                              icon: const Icon(Icons.delete_sweep_rounded),
-                              label: const Text('Reset entire app to 0'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFFDC2626),
-                                foregroundColor: Colors.white,
+                                ),
                               ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Export CSV report',
+                                  child: FilledButton.icon(
+                                    onPressed: () => _exportCsv(context, state),
+                                    icon: const Icon(Icons.table_view_rounded),
+                                    label: const Text('Export CSV'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Back up data snapshot',
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _backupSnapshot(context, state),
+                                    icon:
+                                        const Icon(Icons.cloud_upload_rounded),
+                                    label: const Text('Back up JSON'),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Restore data snapshot',
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _restoreSnapshot(context),
+                                    icon: const Icon(
+                                        Icons.cloud_download_rounded),
+                                    label: const Text('Restore JSON'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Logout of account',
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => ref
+                                        .read(budgetBuddyControllerProvider
+                                            .notifier)
+                                        .logout(),
+                                    icon: const Icon(Icons.logout_rounded),
+                                    label: const Text('Logout'),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Semantics(
+                                  button: true,
+                                  label: 'Reset day',
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: () => _confirmResetDay(context),
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('Reset day'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SectionCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Danger zone',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFFDC2626)),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'These actions are destructive and should only be used when you want to clear your local data.',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Semantics(
+                                    button: true,
+                                    label: 'Reset entire app',
+                                    child: FilledButton.icon(
+                                      onPressed: () =>
+                                          _confirmResetApp(context),
+                                      icon: const Icon(
+                                          Icons.delete_sweep_rounded),
+                                      label:
+                                          const Text('Reset entire app to 0'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFDC2626),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -872,16 +943,18 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               20,
               20 + MediaQuery.of(context).viewInsets.bottom,
             ),
-            child: SingleChildScrollView(
-              child: StatefulBuilder(
-                builder: (BuildContext context, StateSetter setModalState) {
-                  final String normalizedName = updatedName.trim();
-                  final bool hasChanges = normalizedName != originalName;
-                  final bool canSave =
-                      isEditing && normalizedName.isNotEmpty && hasChanges;
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                final String normalizedName = updatedName.trim();
+                final bool hasChanges = normalizedName != originalName;
+                final bool canSave =
+                    isEditing && normalizedName.isNotEmpty && hasChanges;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.9,
+                  ),
+                  child: Column(
                     children: <Widget>[
                       Row(
                         children: <Widget>[
@@ -902,125 +975,154 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                           const SizedBox(width: 48),
                         ],
                       ),
+                      Text(
+                        'Edit your name',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        initialValue: originalName,
-                        enabled: isEditing,
-                        textInputAction: TextInputAction.done,
-                        onChanged: (String value) {
-                          setModalState(() => updatedName = value);
-                        },
-                        decoration: const InputDecoration(
-                          labelText: 'Name',
-                          hintText: 'Enter your name',
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              TextFormField(
+                                initialValue: originalName,
+                                enabled: isEditing,
+                                textInputAction: TextInputAction.done,
+                                onChanged: (String value) {
+                                  setModalState(() => updatedName = value);
+                                },
+                                decoration: const InputDecoration(
+                                  labelText: 'Name',
+                                  hintText: 'Enter your name',
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () {
+                                        setModalState(() {
+                                          if (isEditing) {
+                                            updatedName = originalName;
+                                            isEditing = false;
+                                            return;
+                                          }
+                                          isEditing = true;
+                                        });
+                                      },
+                                      child:
+                                          Text(isEditing ? 'Cancel' : 'Edit'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed: canSave
+                                          ? () async {
+                                              final bool? confirmSave =
+                                                  await showDialog<bool>(
+                                                context: context,
+                                                builder:
+                                                    (BuildContext context) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                        'Confirm save'),
+                                                    content: const Text(
+                                                      'Do you want to save this name change?',
+                                                    ),
+                                                    actions: <Widget>[
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                                    context)
+                                                                .pop(false),
+                                                        child: const Text('No'),
+                                                      ),
+                                                      FilledButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                                    context)
+                                                                .pop(true),
+                                                        child:
+                                                            const Text('Yes'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+
+                                              if (confirmSave != true) {
+                                                return;
+                                              }
+
+                                              ref
+                                                  .read(
+                                                      budgetBuddyControllerProvider
+                                                          .notifier)
+                                                  .updateProfile(
+                                                    state.profile.copyWith(
+                                                      displayName:
+                                                          normalizedName,
+                                                      avatarSeed:
+                                                          _buildInitials(
+                                                              normalizedName),
+                                                    ),
+                                                  );
+
+                                              if (!context.mounted ||
+                                                  !parentContext.mounted) {
+                                                return;
+                                              }
+
+                                              Navigator.of(context).pop();
+
+                                              await showDialog<void>(
+                                                context: parentContext,
+                                                builder:
+                                                    (BuildContext context) {
+                                                  return AlertDialog(
+                                                    title: const Text('Saved'),
+                                                    content: const Text(
+                                                      'Profile name saved successfully.',
+                                                    ),
+                                                    actions: <Widget>[
+                                                      FilledButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                                    context)
+                                                                .pop(),
+                                                        child: const Text('OK'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            }
+                                          : null,
+                                      child: const Text('Save'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Only your name is shown in profile.',
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                setModalState(() {
-                                  if (isEditing) {
-                                    updatedName = originalName;
-                                    isEditing = false;
-                                    return;
-                                  }
-                                  isEditing = true;
-                                });
-                              },
-                              child: Text(isEditing ? 'Cancel' : 'Edit'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: canSave
-                                  ? () async {
-                                      final bool? confirmSave =
-                                          await showDialog<bool>(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: const Text('Confirm save'),
-                                            content: const Text(
-                                              'Do you want to save this name change?',
-                                            ),
-                                            actions: <Widget>[
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(context)
-                                                        .pop(false),
-                                                child: const Text('No'),
-                                              ),
-                                              FilledButton(
-                                                onPressed: () =>
-                                                    Navigator.of(context)
-                                                        .pop(true),
-                                                child: const Text('Yes'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-
-                                      if (confirmSave != true) {
-                                        return;
-                                      }
-
-                                      ref
-                                          .read(budgetBuddyControllerProvider
-                                              .notifier)
-                                          .updateProfile(
-                                            state.profile.copyWith(
-                                              displayName: normalizedName,
-                                              avatarSeed: _buildInitials(
-                                                  normalizedName),
-                                            ),
-                                          );
-
-                                      if (!context.mounted ||
-                                          !parentContext.mounted) {
-                                        return;
-                                      }
-
-                                      Navigator.of(context).pop();
-
-                                      await showDialog<void>(
-                                        context: parentContext,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: const Text('Saved'),
-                                            content: const Text(
-                                              'Profile name saved successfully.',
-                                            ),
-                                            actions: <Widget>[
-                                              FilledButton(
-                                                onPressed: () =>
-                                                    Navigator.of(context).pop(),
-                                                child: const Text('OK'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    }
-                                  : null,
-                              child: const Text('Save'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Only your name is shown in profile.',
-                        textAlign: TextAlign.center,
-                      ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         );
