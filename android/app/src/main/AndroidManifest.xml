@@ -4,6 +4,8 @@
 
     <application
         android:label="Budget Buddy"
+        android:icon="@drawable/app_icon"
+        android:roundIcon="@drawable/app_icon"
         android:name="${applicationName}"
         android:theme="@style/LaunchTheme"
         android:allowBackup="true"

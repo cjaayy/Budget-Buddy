@@ -86,7 +86,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Icon(Icons.savings_rounded,
+                          child: Icon(Icons.savings,
                               size: 48,
                               color: Theme.of(context).colorScheme.primary),
                         ),
