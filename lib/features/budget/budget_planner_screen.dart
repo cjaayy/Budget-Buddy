@@ -67,7 +67,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SectionTitle(
-                title: 'Budget planner',
+                title: 'Budget',
                 subtitle:
                     'Set daily and monthly limits. Any expense counts toward every active period.',
               ),
