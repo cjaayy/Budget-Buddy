@@ -91,7 +91,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               color: Theme.of(context).colorScheme.primary),
                         ),
                         const SizedBox(height: 12),
-                        Text('BudgetBuddy',
+                        Text('Budget Buddy',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineSmall
