@@ -190,6 +190,7 @@ class BudgetSettings {
     this.budgetWarningNotificationsEnabled = true,
     this.summaryNotificationsEnabled = true,
     this.includeYesterdaySpentInSummary = true,
+    this.notifyOnDailyReset = false,
     this.streakNotificationsEnabled = true,
     this.notificationReminderMinuteOfDay = 21 * 60,
     this.notificationFrequency = NotificationFrequency.daily,
@@ -215,6 +216,7 @@ class BudgetSettings {
   final bool budgetWarningNotificationsEnabled;
   final bool summaryNotificationsEnabled;
   final bool includeYesterdaySpentInSummary;
+  final bool notifyOnDailyReset;
   final bool streakNotificationsEnabled;
   final int notificationReminderMinuteOfDay;
   final NotificationFrequency notificationFrequency;
@@ -244,6 +246,7 @@ class BudgetSettings {
       budgetWarningNotificationsEnabled: true,
       summaryNotificationsEnabled: true,
       includeYesterdaySpentInSummary: true,
+      notifyOnDailyReset: false,
       streakNotificationsEnabled: true,
       notificationReminderMinuteOfDay: 21 * 60,
       notificationFrequency: NotificationFrequency.daily,
@@ -280,6 +283,7 @@ class BudgetSettings {
     bool? budgetWarningNotificationsEnabled,
     bool? summaryNotificationsEnabled,
     bool? includeYesterdaySpentInSummary,
+    bool? notifyOnDailyReset,
     bool? streakNotificationsEnabled,
     int? notificationReminderMinuteOfDay,
     NotificationFrequency? notificationFrequency,
@@ -325,6 +329,7 @@ class BudgetSettings {
           notificationFrequency ?? this.notificationFrequency,
       includeYesterdaySpentInSummary:
           includeYesterdaySpentInSummary ?? this.includeYesterdaySpentInSummary,
+      notifyOnDailyReset: notifyOnDailyReset ?? this.notifyOnDailyReset,
       dayStartMinuteOfDay: dayStartMinuteOfDay ?? this.dayStartMinuteOfDay,
       hasConfiguredBudget: hasConfiguredBudget ?? this.hasConfiguredBudget,
       autoRenewBudget: autoRenewBudget ?? this.autoRenewBudget,
@@ -351,6 +356,7 @@ class BudgetSettings {
       'budgetWarningNotificationsEnabled': budgetWarningNotificationsEnabled,
       'summaryNotificationsEnabled': summaryNotificationsEnabled,
       'includeYesterdaySpentInSummary': includeYesterdaySpentInSummary,
+      'notifyOnDailyReset': notifyOnDailyReset,
       'streakNotificationsEnabled': streakNotificationsEnabled,
       'notificationReminderMinuteOfDay': notificationReminderMinuteOfDay,
       'notificationFrequency': notificationFrequency.name,
@@ -399,6 +405,7 @@ class BudgetSettings {
       ),
       includeYesterdaySpentInSummary:
           json['includeYesterdaySpentInSummary'] as bool? ?? true,
+      notifyOnDailyReset: json['notifyOnDailyReset'] as bool? ?? false,
       dayStartMinuteOfDay: (json['dayStartMinuteOfDay'] as num?)?.toInt() ?? 0,
       hasConfiguredBudget: json['hasConfiguredBudget'] as bool? ?? false,
       autoRenewBudget: json['autoRenewBudget'] as bool? ?? false,

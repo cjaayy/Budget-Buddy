@@ -162,36 +162,21 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             .updateProfilePreferences(
                                 summaryNotificationsEnabled: value),
                         title: const Text('End-of-day summary'),
-                        subtitle:
-                            const Text('Receive a summary when the day ends.'),
+                        subtitle: const Text(
+                            'Receive a summary when the day ends (includes yesterday\'s spent).'),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        value: settings.includeYesterdaySpentInSummary,
+                        value: settings.notifyOnDailyReset,
                         onChanged: (bool value) => modalRef
                             .read(budgetBuddyControllerProvider.notifier)
                             .updateProfilePreferences(
-                                includeYesterdaySpentInSummary: value),
-                        title: const Text("Include yesterday's spending"),
+                                notifyOnDailyReset: value),
+                        title: const Text('Notify when daily budget resets'),
                         subtitle: const Text(
-                            'Show yesterday\'s total spent inside the summary.'),
+                            'Receive a notification when the daily budget resets.'),
                       ),
-                      const SizedBox(height: 8),
-                      _TimeSettingTile(
-                        label: 'Day starts at',
-                        value: _formatMinuteOfDay(settings.dayStartMinuteOfDay),
-                        onTap: () => _pickMinuteOfDay(
-                          context,
-                          title: 'Select day-start time',
-                          initialMinuteOfDay: settings.dayStartMinuteOfDay,
-                          onSelected: (int minuteOfDay) {
-                            modalRef
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .updateProfilePreferences(
-                                    dayStartMinuteOfDay: minuteOfDay);
-                          },
-                        ),
-                      ),
+                      const SizedBox(height: 12),
                       const SizedBox(height: 12),
                     ],
                   );
@@ -552,42 +537,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     );
   }
 
-  Future<void> _pickMinuteOfDay(
-    BuildContext context, {
-    required String title,
-    required int initialMinuteOfDay,
-    required ValueChanged<int> onSelected,
-  }) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final MaterialLocalizations localizations =
-        MaterialLocalizations.of(context);
-    final TimeOfDay initialTime = TimeOfDay(
-      hour: initialMinuteOfDay ~/ 60,
-      minute: initialMinuteOfDay % 60,
-    );
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: initialTime,
-    );
-    if (picked == null) {
-      return;
-    }
-    onSelected(picked.hour * 60 + picked.minute);
-    messenger.showSnackBar(
-      SnackBar(
-          content:
-              Text('$title set to ${localizations.formatTimeOfDay(picked)}')),
-    );
-  }
-
-  String _formatMinuteOfDay(int minuteOfDay) {
-    final TimeOfDay time = TimeOfDay(
-      hour: minuteOfDay ~/ 60,
-      minute: minuteOfDay % 60,
-    );
-    return time.format(context);
-  }
-
   void _openProfileMenu(BuildContext parentContext, BudgetBuddyState state) {
     final String originalName = state.profile.displayName;
     String updatedName = originalName;
@@ -802,34 +751,6 @@ class _SectionShell extends StatelessWidget {
           const SizedBox(height: 12),
           child,
         ],
-      ),
-    );
-  }
-}
-
-class _TimeSettingTile extends StatelessWidget {
-  const _TimeSettingTile({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        onTap: onTap,
-        leading: const Icon(Icons.schedule_rounded),
-        title: Text(label),
-        subtitle: Text(value),
-        trailing: const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
