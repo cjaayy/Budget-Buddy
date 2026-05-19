@@ -13,6 +13,7 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final TextEditingController _nameController = TextEditingController();
   bool _isEditingName = false;
+  bool _hasSeededSavedName = false;
 
   String _buildInitials(String displayName) {
     final String trimmed = displayName.trim();
@@ -49,6 +50,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         currentInputName.isNotEmpty &&
         currentInputName != normalizedSavedName;
     if (!state.loggedIn &&
+        !_isEditingName &&
+        !_hasSeededSavedName &&
         _nameController.text.trim().isEmpty &&
         normalizedSavedName.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,6 +63,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           selection:
               TextSelection.collapsed(offset: normalizedSavedName.length),
         );
+        _hasSeededSavedName = true;
       });
     }
 
@@ -178,6 +182,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               setState(() {
                                 _isEditingName = false;
                               });
+                              _hasSeededSavedName = true;
                             },
                             child: const Text('Cancel'),
                           ),
