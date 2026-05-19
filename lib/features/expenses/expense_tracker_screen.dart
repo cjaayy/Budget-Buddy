@@ -373,8 +373,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                           backgroundColor: expense
                                               .category.color
                                               .withValues(alpha: 0.14),
-                                          child: Text(expense.category.label
-                                              .substring(0, 1))),
+                                          child: Icon(
+                                            _expenseCategoryIcon(
+                                                expense.category),
+                                            color: expense.category.color,
+                                            size: 18,
+                                          )),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
@@ -790,6 +794,16 @@ String _formatDayLabel(DateTime dateTime) {
   return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
 }
 
+IconData _expenseCategoryIcon(BudgetCategory category) {
+  return switch (category) {
+    BudgetCategory.food => Icons.restaurant_rounded,
+    BudgetCategory.transportation => Icons.directions_bus_rounded,
+    BudgetCategory.entertainment => Icons.celebration_rounded,
+    BudgetCategory.shopping => Icons.shopping_bag_rounded,
+    BudgetCategory.miscellaneous => Icons.receipt_long_rounded,
+  };
+}
+
 class _DailySection extends StatelessWidget {
   const _DailySection({
     required this.dayLabel,
@@ -866,8 +880,11 @@ class _DailySection extends StatelessWidget {
                             CircleAvatar(
                                 backgroundColor: expense.category.color
                                     .withValues(alpha: 0.14),
-                                child: Text(
-                                    expense.category.label.substring(0, 1))),
+                                child: Icon(
+                                  _expenseCategoryIcon(expense.category),
+                                  color: expense.category.color,
+                                  size: 18,
+                                )),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
