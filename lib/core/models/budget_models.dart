@@ -40,11 +40,11 @@ extension BudgetCategoryX on BudgetCategory {
       };
 
   Color get color => switch (this) {
-        BudgetCategory.food => const Color(0xFF0F766E),
-        BudgetCategory.transportation => const Color(0xFF2563EB),
-        BudgetCategory.entertainment => const Color(0xFFF97316),
-        BudgetCategory.shopping => const Color(0xFF7C3AED),
-        BudgetCategory.miscellaneous => const Color(0xFF64748B),
+        BudgetCategory.food => const Color(0xFFDC2626),
+        BudgetCategory.transportation => const Color(0xFFDC2626),
+        BudgetCategory.entertainment => const Color(0xFFDC2626),
+        BudgetCategory.shopping => const Color(0xFFDC2626),
+        BudgetCategory.miscellaneous => const Color(0xFFDC2626),
       };
 
   static BudgetCategory fromString(String value) {

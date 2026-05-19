@@ -524,7 +524,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     icon: Icons.restaurant_rounded,
     budgetCategory: BudgetCategory.food,
     defaultAmount: 120,
-    color: Color(0xFF0F766E),
+    color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
     title: 'Transport',
@@ -532,7 +532,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     icon: Icons.directions_bus_rounded,
     budgetCategory: BudgetCategory.transportation,
     defaultAmount: 70,
-    color: Color(0xFF2563EB),
+    color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
     title: 'Shopping',
@@ -540,7 +540,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     icon: Icons.shopping_bag_rounded,
     budgetCategory: BudgetCategory.shopping,
     defaultAmount: 220,
-    color: Color(0xFF7C3AED),
+    color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
     title: 'Leisure & Gala',
@@ -548,7 +548,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     icon: Icons.celebration_rounded,
     budgetCategory: BudgetCategory.entertainment,
     defaultAmount: 280,
-    color: Color(0xFFF97316),
+    color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
     title: 'Health',
@@ -564,7 +564,7 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     icon: Icons.receipt_long_rounded,
     budgetCategory: BudgetCategory.miscellaneous,
     defaultAmount: 350,
-    color: Color(0xFF475569),
+    color: Color(0xFFDC2626),
   ),
 ];
 
@@ -574,6 +574,6 @@ const _SpendCategoryOption _customSpendCategory = _SpendCategoryOption(
   icon: Icons.edit_rounded,
   budgetCategory: BudgetCategory.miscellaneous,
   defaultAmount: 0,
-  color: Color(0xFF8B5CF6),
+  color: Color(0xFFDC2626),
   isCustom: true,
 );
