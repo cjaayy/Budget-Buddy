@@ -102,6 +102,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           expenses,
                           showBackButton: true,
                         ),
+                        onTapExpense: (ExpenseEntry e) async {
+                          await _showExpenseActions(ref, e);
+                        },
                       )
                     else
                       _MonthlySection(
@@ -449,12 +452,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                       Expanded(
                                         child: OutlinedButton.icon(
                                           onPressed: () async {
+                                            if (!mounted) return;
                                             final bool shouldDelete =
                                                 await _confirmDeleteExpense(
-                                              context,
+                                              this.context,
                                             );
-                                            if (!context.mounted ||
-                                                !shouldDelete) {
+                                            if (!mounted || !shouldDelete) {
                                               return;
                                             }
                                             ref
@@ -463,7 +466,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                                       .notifier,
                                                 )
                                                 .deleteExpense(expense.id);
-                                            Navigator.of(context).pop();
+                                            if (!mounted) return;
+                                            Navigator.of(this.context).pop();
                                           },
                                           icon: const Icon(
                                             Icons.delete_outline_rounded,
@@ -489,19 +493,61 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
 
     if (editExpense != null) {
-      if (!context.mounted) {
-        return;
-      }
-      _showExpenseDialog(
-        context,
-        ref,
-        existing: editExpense,
-      );
+      if (!mounted) return;
+      await _showExpenseDialog(ref, existing: editExpense);
+    }
+  }
+
+  Future<void> _showExpenseActions(
+    WidgetRef ref,
+    ExpenseEntry expense,
+  ) async {
+    final String? action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Edit'),
+                  onTap: () => Navigator.of(sheetContext).pop('edit'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded),
+                  title: const Text('Delete'),
+                  onTap: () => Navigator.of(sheetContext).pop('delete'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == 'edit') {
+      if (!mounted) return;
+      await _showExpenseDialog(ref, existing: expense);
+    } else if (action == 'delete') {
+      if (!mounted) return;
+      final bool shouldDelete = await _confirmDeleteExpense(context);
+      if (!mounted || !shouldDelete) return;
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .deleteExpense(expense.id);
     }
   }
 
   Future<void> _showExpenseDialog(
-    BuildContext context,
     WidgetRef ref, {
     ExpenseEntry? existing,
   }) async {
@@ -723,11 +769,13 @@ class _DailySection extends StatelessWidget {
     required this.dayLabel,
     required this.expenses,
     required this.onTapDay,
+    this.onTapExpense,
   });
 
   final String dayLabel;
   final List<ExpenseEntry> expenses;
   final ValueChanged<DateTime> onTapDay;
+  final ValueChanged<ExpenseEntry>? onTapExpense;
 
   @override
   Widget build(BuildContext context) {
@@ -779,7 +827,13 @@ class _DailySection extends StatelessWidget {
                 final ExpenseEntry expense = expenses[index];
                 return InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () => onTapDay(DateTime.now()),
+                  onTap: () {
+                    if (onTapExpense != null) {
+                      onTapExpense!(expense);
+                    } else {
+                      onTapDay(DateTime.now());
+                    }
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       color:
