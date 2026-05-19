@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
-import 'package:open_file/open_file.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -1185,15 +1184,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               },
               child: const Text('Copy path'),
             ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  await OpenFile.open(path);
-                } catch (_) {}
-                if (context.mounted) Navigator.of(context).pop();
-              },
-              child: const Text('Open'),
-            ),
+            const SizedBox.shrink(),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Close'),
