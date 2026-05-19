@@ -913,16 +913,55 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
       BudgetSummary summary) async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Export PDF not implemented in tests.')),
-    );
+    try {
+      final File file = await ref.read(reportServiceProvider).exportDailyReport(
+            state: state,
+            summary: summary,
+          );
+      await Share.shareXFiles(
+        <XFile>[XFile(file.path)],
+        text: 'BudgetBuddy PDF report',
+      );
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('PDF report exported successfully.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not export PDF report.')),
+      );
+    }
   }
 
   Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Export CSV not implemented in tests.')),
-    );
+    try {
+      final File file = await ref.read(reportServiceProvider).exportCsv(
+            state: state,
+          );
+      await Share.shareXFiles(
+        <XFile>[XFile(file.path)],
+        text: 'BudgetBuddy CSV export',
+      );
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('CSV exported successfully.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not export CSV file.')),
+      );
+    }
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
