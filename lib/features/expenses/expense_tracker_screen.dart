@@ -25,9 +25,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final List<ExpenseEntry> expenses = _filteredExpenses(state);
     final List<DateTime> availableMonths = _availableMonths(expenses);
     final DateTime today = DateTime.now();
-    final List<ExpenseEntry> todayExpenses = _sortExpenses(
-      _expensesForDay(expenses, today),
-    );
+    final List<ExpenseEntry> todayExpenses =
+        _sortExpenses(_expensesForDay(expenses, today));
 
     return Scaffold(
       body: SafeArea(
@@ -49,9 +48,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       children: <Widget>[
                         Expanded(
                           child: FilledButton(
-                            onPressed: () => setState(() {
-                              _activeSection = ExpenseSection.daily;
-                            }),
+                            onPressed: () => setState(
+                                () => _activeSection = ExpenseSection.daily),
                             style: FilledButton.styleFrom(
                               backgroundColor:
                                   _activeSection == ExpenseSection.daily
@@ -70,9 +68,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: FilledButton(
-                            onPressed: () => setState(() {
-                              _activeSection = ExpenseSection.monthly;
-                            }),
+                            onPressed: () => setState(
+                                () => _activeSection = ExpenseSection.monthly),
                             style: FilledButton.styleFrom(
                               backgroundColor:
                                   _activeSection == ExpenseSection.monthly
@@ -96,23 +93,33 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         dayLabel: _formatDayLabel(today),
                         expenses: todayExpenses,
                         onTapDay: (DateTime day) => _showDayExpensesSheet(
-                          context,
-                          ref,
-                          day,
-                          expenses,
-                          showBackButton: true,
-                        ),
-                        onTapExpense: (ExpenseEntry e) async {
-                          await _showExpenseActions(ref, e);
+                            ref, day, expenses,
+                            showBackButton: true),
+                        onTapExpense: (ExpenseEntry e) async =>
+                            await _showExpenseActions(ref, e),
+                        onEditExpense: (ExpenseEntry e) async {
+                          if (!mounted) return;
+                          await _showExpenseDialog(ref, existing: e);
+                        },
+                        onDeleteExpense: (ExpenseEntry e) async {
+                          if (!mounted) return;
+                          final BuildContext localContext = context;
+                          final bool shouldDelete =
+                              await _confirmDeleteExpense(localContext);
+                          if (!mounted || !shouldDelete) {
+                            return;
+                          }
+                          ref
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .deleteExpense(e.id);
                         },
                       )
                     else
                       _MonthlySection(
                         availableMonths: availableMonths,
                         expenses: expenses,
-                        onTapMonth: (DateTime month) {
-                          _showMonthDatesSheet(context, ref, month, expenses);
-                        },
+                        onTapMonth: (DateTime month) =>
+                            _showMonthDatesSheet(ref, month, expenses),
                       ),
                   ],
                 ),
@@ -140,10 +147,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final Set<DateTime> days = <DateTime>{};
     for (final ExpenseEntry expense in expenses) {
       days.add(DateTime(
-        expense.dateTime.year,
-        expense.dateTime.month,
-        expense.dateTime.day,
-      ));
+          expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
     }
     final List<DateTime> sortedDays = days.toList()
       ..sort((DateTime left, DateTime right) => right.compareTo(left));
@@ -161,9 +165,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   List<ExpenseEntry> _expensesForDay(
-    List<ExpenseEntry> expenses,
-    DateTime day,
-  ) {
+      List<ExpenseEntry> expenses, DateTime day) {
     return expenses
         .where((ExpenseEntry expense) =>
             DateUtils.isSameDay(expense.dateTime, day))
@@ -171,37 +173,29 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   List<ExpenseEntry> _expensesForMonth(
-    List<ExpenseEntry> expenses,
-    DateTime month,
-  ) {
+      List<ExpenseEntry> expenses, DateTime month) {
     return expenses
-        .where(
-          (ExpenseEntry expense) =>
-              expense.dateTime.year == month.year &&
-              expense.dateTime.month == month.month,
-        )
+        .where((ExpenseEntry expense) =>
+            expense.dateTime.year == month.year &&
+            expense.dateTime.month == month.month)
         .toList();
   }
 
   List<ExpenseEntry> _sortExpenses(List<ExpenseEntry> expenses) {
     final List<ExpenseEntry> sorted = List<ExpenseEntry>.from(expenses);
-    sorted.sort((ExpenseEntry left, ExpenseEntry right) {
-      return right.dateTime.compareTo(left.dateTime);
-    });
+    sorted.sort((ExpenseEntry left, ExpenseEntry right) =>
+        right.dateTime.compareTo(left.dateTime));
     return sorted;
   }
 
   Future<void> _showMonthDatesSheet(
-    BuildContext context,
-    WidgetRef ref,
-    DateTime month,
-    List<ExpenseEntry> expenses,
-  ) async {
+      WidgetRef ref, DateTime month, List<ExpenseEntry> expenses) async {
+    final BuildContext localContext = context;
     final List<ExpenseEntry> monthExpenses = _expensesForMonth(expenses, month);
     final List<DateTime> monthDays = _availableDays(monthExpenses);
 
     await showModalBottomSheet<void>(
-      context: context,
+      context: localContext,
       isScrollControlled: true,
       showDragHandle: false,
       enableDrag: false,
@@ -210,8 +204,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         return SafeArea(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
-            ),
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: Column(
@@ -221,9 +214,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   Row(
                     children: <Widget>[
                       TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                        },
+                        onPressed: () => Navigator.of(sheetContext).pop(),
                         icon: const Icon(Icons.arrow_back_rounded),
                         label: const Text('Back'),
                       ),
@@ -242,14 +233,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
-                    style:
-                        Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
+                      style: Theme.of(sheetContext)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
                               color: Theme.of(sheetContext)
                                   .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                  ),
+                                  .onSurfaceVariant)),
                   const SizedBox(height: 12),
                   if (monthDays.isEmpty)
                     const Text('No expenses for this month.')
@@ -265,42 +256,28 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   DateUtils.isSameDay(expense.dateTime, day))
                               .toList();
                           final double dayTotal = dayExpenses.fold<double>(
-                            0,
-                            (double total, ExpenseEntry expense) =>
-                                total + expense.amount,
-                          );
+                              0,
+                              (double total, ExpenseEntry expense) =>
+                                  total + expense.amount);
 
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
+                                horizontal: 12, vertical: 6),
                             tileColor: Theme.of(context)
                                 .colorScheme
                                 .surfaceContainerHighest,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                                borderRadius: BorderRadius.circular(16)),
                             leading: const Icon(Icons.calendar_today_outlined),
-                            title: Text(
-                              _formatDayLabel(day),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            title: Text(_formatDayLabel(day),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
                             subtitle: Text(
-                              '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                            ),
+                                '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}'),
                             trailing: Text(formatPeso(dayTotal)),
-                            onTap: () async {
-                              await _showDayExpensesSheet(
-                                context,
-                                ref,
-                                day,
-                                monthExpenses,
-                                showBackButton: true,
-                              );
-                            },
+                            onTap: () async => await _showDayExpensesSheet(
+                                ref, day, monthExpenses,
+                                showBackButton: true),
                           );
                         },
                       ),
@@ -315,25 +292,21 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   Future<void> _showDayExpensesSheet(
-    BuildContext context,
-    WidgetRef ref,
-    DateTime day,
-    List<ExpenseEntry> expenses, {
-    bool showBackButton = false,
-  }) async {
+      WidgetRef ref, DateTime day, List<ExpenseEntry> expenses,
+      {bool showBackButton = false}) async {
+    final BuildContext localContext = context;
     final List<ExpenseEntry> dayExpenses = _expensesForDay(expenses, day);
     final ExpenseEntry? editExpense = await showModalBottomSheet<ExpenseEntry>(
-      context: context,
+      context: localContext,
       isScrollControlled: true,
       showDragHandle: !showBackButton,
       enableDrag: !showBackButton,
       isDismissible: !showBackButton,
-      builder: (BuildContext context) {
+      builder: (BuildContext sheetContext) {
         return SafeArea(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.78,
-            ),
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: Column(
@@ -344,32 +317,31 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     children: <Widget>[
                       if (showBackButton)
                         TextButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          label: const Text('Back'),
-                        ),
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(Icons.arrow_back_rounded),
+                            label: const Text('Back')),
                       Expanded(
-                        child: Text(
-                          DateFormat('EEEE, MMM d, yyyy').format(day),
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          textAlign:
-                              showBackButton ? TextAlign.right : TextAlign.left,
-                        ),
+                        child: Text(DateFormat('EEEE, MMM d, yyyy').format(day),
+                            style: Theme.of(sheetContext)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                            textAlign: showBackButton
+                                ? TextAlign.right
+                                : TextAlign.left),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
+                      '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                      style: Theme.of(sheetContext)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
                   const SizedBox(height: 12),
                   if (dayExpenses.isEmpty)
                     const Text('No expenses for this date.')
@@ -382,11 +354,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           final ExpenseEntry expense = dayExpenses[index];
                           return Container(
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(16)),
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Column(
@@ -395,83 +366,72 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   Row(
                                     children: <Widget>[
                                       CircleAvatar(
-                                        backgroundColor: expense.category.color
-                                            .withValues(alpha: 0.14),
-                                        child: Text(
-                                          expense.category.label
-                                              .substring(0, 1),
-                                        ),
-                                      ),
+                                          backgroundColor: expense
+                                              .category.color
+                                              .withValues(alpha: 0.14),
+                                          child: Text(expense.category.label
+                                              .substring(0, 1))),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: <Widget>[
-                                            Text(
-                                              expense.title,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
+                                            Text(expense.title,
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700)),
                                             const SizedBox(height: 2),
                                             Text(
-                                              expense.note.isNotEmpty
-                                                  ? '${expense.category.label} • ${expense.note}'
-                                                  : expense.category.label,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                                expense.note.isNotEmpty
+                                                    ? '${expense.category.label} • ${expense.note}'
+                                                    : expense.category.label,
+                                                maxLines: 2,
+                                                overflow:
+                                                    TextOverflow.ellipsis),
                                           ],
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        formatPeso(expense.amount),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
+                                      Text(formatPeso(expense.amount),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700)),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
                                   Row(
                                     children: <Widget>[
                                       Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: () {
-                                            Navigator.of(context).pop(expense);
-                                          },
-                                          icon: const Icon(
-                                            Icons.edit_outlined,
-                                          ),
-                                          label: const Text('Edit'),
-                                        ),
-                                      ),
+                                          child: OutlinedButton.icon(
+                                              onPressed: () =>
+                                                  Navigator.of(sheetContext)
+                                                      .pop(expense),
+                                              icon: const Icon(
+                                                  Icons.edit_outlined),
+                                              label: const Text('Edit'))),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: OutlinedButton.icon(
                                           onPressed: () async {
-                                            if (!mounted) return;
+                                            final BuildContext localContext =
+                                                context;
                                             final bool shouldDelete =
                                                 await _confirmDeleteExpense(
-                                              this.context,
-                                            );
-                                            if (!mounted || !shouldDelete) {
+                                                    localContext);
+                                            if (!mounted ||
+                                                !sheetContext.mounted ||
+                                                !shouldDelete) {
                                               return;
                                             }
                                             ref
                                                 .read(
-                                                  budgetBuddyControllerProvider
-                                                      .notifier,
-                                                )
+                                                    budgetBuddyControllerProvider
+                                                        .notifier)
                                                 .deleteExpense(expense.id);
-                                            if (!mounted) return;
-                                            Navigator.of(this.context).pop();
+                                            Navigator.of(sheetContext).pop();
                                           },
                                           icon: const Icon(
-                                            Icons.delete_outline_rounded,
-                                          ),
+                                              Icons.delete_outline_rounded),
                                           label: const Text('Delete'),
                                         ),
                                       ),
@@ -498,12 +458,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     }
   }
 
-  Future<void> _showExpenseActions(
-    WidgetRef ref,
-    ExpenseEntry expense,
-  ) async {
+  Future<void> _showExpenseActions(WidgetRef ref, ExpenseEntry expense) async {
+    final BuildContext localContext = context;
     final String? action = await showModalBottomSheet<String>(
-      context: context,
+      context: localContext,
       isScrollControlled: true,
       builder: (BuildContext sheetContext) {
         return SafeArea(
@@ -513,20 +471,17 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Edit'),
-                  onTap: () => Navigator.of(sheetContext).pop('edit'),
-                ),
+                    leading: const Icon(Icons.edit_outlined),
+                    title: const Text('Edit'),
+                    onTap: () => Navigator.of(sheetContext).pop('edit')),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded),
-                  title: const Text('Delete'),
-                  onTap: () => Navigator.of(sheetContext).pop('delete'),
-                ),
+                    leading: const Icon(Icons.delete_outline_rounded),
+                    title: const Text('Delete'),
+                    onTap: () => Navigator.of(sheetContext).pop('delete')),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                  child: const Text('Cancel'),
-                ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: const Text('Cancel')),
               ],
             ),
           ),
@@ -538,43 +493,41 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       if (!mounted) return;
       await _showExpenseDialog(ref, existing: expense);
     } else if (action == 'delete') {
-      if (!mounted) return;
-      final bool shouldDelete = await _confirmDeleteExpense(context);
-      if (!mounted || !shouldDelete) return;
+      final BuildContext dialogContext = context;
+      if (!dialogContext.mounted) return;
+      final bool shouldDelete = await _confirmDeleteExpense(dialogContext);
+      if (!dialogContext.mounted || !shouldDelete) return;
       ref
           .read(budgetBuddyControllerProvider.notifier)
           .deleteExpense(expense.id);
     }
   }
 
-  Future<void> _showExpenseDialog(
-    WidgetRef ref, {
-    ExpenseEntry? existing,
-  }) async {
+  Future<void> _showExpenseDialog(WidgetRef ref,
+      {ExpenseEntry? existing}) async {
     final TextEditingController titleController =
         TextEditingController(text: existing?.title ?? '');
-    final TextEditingController amountController = TextEditingController(
-      text: existing?.amount.toStringAsFixed(0) ?? '',
-    );
+    final TextEditingController amountController =
+        TextEditingController(text: existing?.amount.toStringAsFixed(0) ?? '');
     final TextEditingController noteController =
         TextEditingController(text: existing?.note ?? '');
     BudgetCategory category = existing?.category ?? BudgetCategory.food;
 
-    showModalBottomSheet<void>(
-      context: context,
+    final BuildContext localContext = context;
+    await showModalBottomSheet<void>(
+      context: localContext,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: false,
       enableDrag: false,
       isDismissible: false,
-      builder: (BuildContext context) {
+      builder: (BuildContext sheetContext) {
         return Padding(
           padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20),
           child: StatefulBuilder(
             builder: (BuildContext context,
                 void Function(void Function()) setModalState) {
@@ -594,61 +547,47 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   Row(
                     children: <Widget>[
                       TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('Back'),
-                      ),
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          label: const Text('Back')),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          existing == null ? 'Add Expense' : 'Edit Expense',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
+                          child: Text(
+                              existing == null ? 'Add Expense' : 'Edit Expense',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                              textAlign: TextAlign.right)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Title'),
-                  ),
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Title')),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: amountController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) => setModalState(() {}),
-                    decoration: const InputDecoration(labelText: 'Amount'),
-                  ),
+                      controller: amountController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: const InputDecoration(labelText: 'Amount')),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: noteController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Note'),
-                  ),
+                      controller: noteController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Note')),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<BudgetCategory>(
                     initialValue: category,
                     items: BudgetCategory.values
-                        .map(
-                          (BudgetCategory item) =>
-                              DropdownMenuItem<BudgetCategory>(
-                            value: item,
-                            child: Text(item.label),
-                          ),
-                        )
+                        .map((BudgetCategory item) =>
+                            DropdownMenuItem<BudgetCategory>(
+                                value: item, child: Text(item.label)))
                         .toList(),
                     onChanged: (BudgetCategory? value) {
                       if (value != null) {
-                        setModalState(() {
-                          category = value;
-                        });
+                        setModalState(() => category = value);
                       }
                     },
                     decoration: const InputDecoration(labelText: 'Category'),
@@ -656,57 +595,53 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   if (showWarning) ...<Widget>[
                     const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEE2E2),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFCA5A5)),
-                      ),
-                      child: Text(
-                        '${category.label} is now ${formatPeso(projectedTotal - limit)} over its limit.',
-                        style: const TextStyle(
-                          color: Color(0xFF991B1B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFFCA5A5))),
+                        child: Text(
+                            '${category.label} is now ${formatPeso(projectedTotal - limit)} over its limit.',
+                            style: const TextStyle(
+                                color: Color(0xFF991B1B),
+                                fontWeight: FontWeight.w600))),
                   ],
                   const SizedBox(height: 20),
                   SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        final BudgetBuddyController controller =
-                            ref.read(budgetBuddyControllerProvider.notifier);
-                        final ExpenseEntry entry = ExpenseEntry(
-                          id: existing?.id ??
-                              DateTime.now().microsecondsSinceEpoch.toString(),
-                          title: titleController.text.trim().isEmpty
-                              ? 'Expense'
-                              : titleController.text.trim(),
-                          amount: double.tryParse(amountController.text) ?? 0,
-                          category: category,
-                          dateTime: existing?.dateTime ?? DateTime.now(),
-                          note: noteController.text.trim(),
-                        );
-                        if (existing == null) {
-                          controller.addExpense(
-                            title: entry.title,
-                            amount: entry.amount,
-                            category: entry.category,
-                            note: entry.note,
-                            dateTime: entry.dateTime,
-                          );
-                        } else {
-                          controller.updateExpense(entry);
-                        }
-                        Navigator.of(context).pop();
-                      },
-                      child: Text(
-                        existing == null ? 'Save Expense' : 'Update Expense',
-                      ),
-                    ),
-                  ),
+                      width: double.infinity,
+                      child: FilledButton(
+                          onPressed: () {
+                            final BudgetBuddyController controller = ref
+                                .read(budgetBuddyControllerProvider.notifier);
+                            final ExpenseEntry entry = ExpenseEntry(
+                                id: existing?.id ??
+                                    DateTime.now()
+                                        .microsecondsSinceEpoch
+                                        .toString(),
+                                title: titleController.text.trim().isEmpty
+                                    ? 'Expense'
+                                    : titleController.text.trim(),
+                                amount:
+                                    double.tryParse(amountController.text) ?? 0,
+                                category: category,
+                                dateTime: existing?.dateTime ?? DateTime.now(),
+                                note: noteController.text.trim());
+                            if (existing == null) {
+                              controller.addExpense(
+                                title: entry.title,
+                                amount: entry.amount,
+                                category: entry.category,
+                                note: entry.note,
+                                dateTime: entry.dateTime,
+                              );
+                            } else {
+                              controller.updateExpense(entry);
+                            }
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(existing == null
+                              ? 'Save Expense'
+                              : 'Update Expense'))),
                 ],
               );
             },
@@ -725,13 +660,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           content: const Text('This expense will be removed permanently.'),
           actions: <Widget>[
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel')),
             FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Delete'),
-            ),
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Delete')),
           ],
         );
       },
@@ -770,53 +703,46 @@ class _DailySection extends StatelessWidget {
     required this.expenses,
     required this.onTapDay,
     this.onTapExpense,
+    this.onEditExpense,
+    this.onDeleteExpense,
   });
 
   final String dayLabel;
   final List<ExpenseEntry> expenses;
   final ValueChanged<DateTime> onTapDay;
   final ValueChanged<ExpenseEntry>? onTapExpense;
+  final Future<void> Function(ExpenseEntry)? onEditExpense;
+  final Future<void> Function(ExpenseEntry)? onDeleteExpense;
 
   @override
   Widget build(BuildContext context) {
     final double total = expenses.fold<double>(
-      0,
-      (double value, ExpenseEntry expense) => value + expense.amount,
-    );
-
+        0, (double value, ExpenseEntry expense) => value + expense.amount);
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'DAILY',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
+          Text('DAILY',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(dayLabel,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
-            dayLabel,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${expenses.length} expense${expenses.length == 1 ? '' : 's'} • ${formatPeso(total)} today',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
+              '${expenses.length} expense${expenses.length == 1 ? '' : 's'} • ${formatPeso(total)} today',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 12),
           if (expenses.isEmpty)
-            Text(
-              'No expenses yet for today.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            )
+            Text('No expenses yet for today.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant))
           else
             ListView.separated(
               shrinkWrap: true,
@@ -827,53 +753,74 @@ class _DailySection extends StatelessWidget {
                 final ExpenseEntry expense = expenses[index];
                 return InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    if (onTapExpense != null) {
-                      onTapExpense!(expense);
-                    } else {
-                      onTapDay(DateTime.now());
-                    }
-                  },
+                  onTap: () => onTapExpense != null
+                      ? onTapExpense!(expense)
+                      : onTapDay(DateTime.now()),
                   child: Container(
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.all(12),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        CircleAvatar(
-                          backgroundColor:
-                              expense.category.color.withValues(alpha: 0.14),
-                          child: Text(expense.category.label.substring(0, 1)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                expense.title,
+                        Row(
+                          children: <Widget>[
+                            CircleAvatar(
+                                backgroundColor: expense.category.color
+                                    .withValues(alpha: 0.14),
+                                child: Text(
+                                    expense.category.label.substring(0, 1))),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(expense.title,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      expense.note.isNotEmpty
+                                          ? '${expense.category.label} • ${expense.note}'
+                                          : expense.category.label,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(formatPeso(expense.amount),
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                expense.note.isNotEmpty
-                                    ? '${expense.category.label} • ${expense.note}'
-                                    : expense.category.label,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+                                    fontWeight: FontWeight.w700)),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          formatPeso(expense.amount),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                                child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      if (onEditExpense != null) {
+                                        onEditExpense!(expense);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.edit_outlined),
+                                    label: const Text('Edit'))),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      if (onDeleteExpense != null) {
+                                        await onDeleteExpense!(expense);
+                                      }
+                                    },
+                                    icon: const Icon(
+                                        Icons.delete_outline_rounded),
+                                    label: const Text('Delete'))),
+                          ],
                         ),
                       ],
                     ),
@@ -888,11 +835,10 @@ class _DailySection extends StatelessWidget {
 }
 
 class _MonthlySection extends StatelessWidget {
-  const _MonthlySection({
-    required this.availableMonths,
-    required this.expenses,
-    required this.onTapMonth,
-  });
+  const _MonthlySection(
+      {required this.availableMonths,
+      required this.expenses,
+      required this.onTapMonth});
 
   final List<DateTime> availableMonths;
   final List<ExpenseEntry> expenses;
@@ -904,67 +850,52 @@ class _MonthlySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'MONTHLY',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
+          Text('MONTHLY',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Text(
-            'Tap a month to open its daily dates',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
+          Text('Tap a month to open its daily dates',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           if (availableMonths.isEmpty)
-            Text(
-              'No expenses yet.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            )
+            Text('No expenses yet.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant))
           else
-            ...availableMonths.map(
-              (DateTime month) {
-                final List<ExpenseEntry> monthExpenses = expenses
-                    .where((ExpenseEntry expense) =>
-                        expense.dateTime.year == month.year &&
-                        expense.dateTime.month == month.month)
-                    .toList();
-                final double total = monthExpenses.fold<double>(
+            ...availableMonths.map((DateTime month) {
+              final List<ExpenseEntry> monthExpenses = expenses
+                  .where((ExpenseEntry expense) =>
+                      expense.dateTime.year == month.year &&
+                      expense.dateTime.month == month.month)
+                  .toList();
+              final double total = monthExpenses.fold<double>(
                   0,
                   (double value, ExpenseEntry expense) =>
-                      value + expense.amount,
-                );
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    tileColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    leading: const Icon(Icons.date_range_outlined),
-                    title: Text(
-                      DateFormat('MMMM yyyy').format(month),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text(
-                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates',
-                    ),
-                    trailing: Text(formatPeso(total)),
-                    onTap: () => onTapMonth(month),
-                  ),
-                );
-              },
-            ),
+                      value + expense.amount);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  tileColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  leading: const Icon(Icons.date_range_outlined),
+                  title: Text(DateFormat('MMMM yyyy').format(month),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(
+                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates'),
+                  trailing: Text(formatPeso(total)),
+                  onTap: () => onTapMonth(month),
+                ),
+              );
+            }),
         ],
       ),
     );
