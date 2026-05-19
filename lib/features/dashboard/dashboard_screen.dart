@@ -122,7 +122,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           value: formatPeso(spentAdjusted),
                           subtitle: 'Out of ${formatPeso(totalBudget)}',
                           icon: Icons.payments_rounded,
-                          color: const Color(0xFF2563EB),
+                          color: const Color(0xFFDC2626),
                         ),
                       ],
                     ),
@@ -186,14 +186,6 @@ class _Header extends StatelessWidget {
     return SectionCard(
       child: Row(
         children: <Widget>[
-          CircleAvatar(
-            radius: 28,
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-            child: Text(profile.avatarSeed,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +207,6 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.bolt_rounded),
         ],
       ),
     );
