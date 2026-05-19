@@ -27,10 +27,12 @@ class ProfileSettingsScreen extends ConsumerStatefulWidget {
 class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   final TextEditingController _backupRestoreController =
       TextEditingController();
+  final FocusNode _backupRestoreFocusNode = FocusNode();
 
   @override
   void dispose() {
     _backupRestoreController.dispose();
+    _backupRestoreFocusNode.dispose();
     super.dispose();
   }
 
@@ -839,123 +841,161 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   Future<void> _restoreSnapshot(BuildContext context) async {
     _backupRestoreController.clear();
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final bool? shouldRestore = await showDialog<bool>(
+
+    final String? choice = await showModalBottomSheet<String>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Restore backup snapshot'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          try {
-                            const MethodChannel channel =
-                                MethodChannel('budgetbuddy/storage');
-                            final String? contents =
-                                await channel.invokeMethod<String?>('pickJson');
-                            if (contents != null) {
-                              _backupRestoreController.text = contents;
-                            }
-                          } catch (e) {
-                            debugPrint('Native pick error: $e');
-                            if (!mounted) return;
-                            await showDialog<void>(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title:
-                                      const Text('File picker not available'),
-                                  content: const Text(
-                                      'Could not open system file picker. Try rebuilding the app or copy-pasting JSON into the box.'),
-                                  actions: <Widget>[
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(),
-                                      child: const Text('OK'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.upload_file_rounded),
-                        label: const Text('Upload JSON file'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          // Paste from clipboard
-                          final ClipboardData? data =
-                              await Clipboard.getData('text/plain');
-                          if (data != null && data.text != null) {
-                            _backupRestoreController.text = data.text!;
-                          }
-                        },
-                        icon: const Icon(Icons.paste_rounded),
-                        label: const Text('Paste JSON'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _backupRestoreController,
-                  maxLines: 8,
-                  decoration: const InputDecoration(
-                    labelText: 'Paste JSON backup here',
-                    alignLabelWithHint: true,
-                  ),
-                ),
-              ],
-            ),
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.paste_rounded),
+                title: const Text('Paste JSON'),
+                subtitle: const Text('Paste JSON text into an editor'),
+                onTap: () => Navigator.of(context).pop('paste'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload_file_rounded),
+                title: const Text('Upload JSON file'),
+                subtitle: const Text('Choose a JSON file from device'),
+                onTap: () => Navigator.of(context).pop('upload'),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Restore'),
-            ),
-          ],
         );
       },
     );
 
-    if (!mounted || shouldRestore != true) {
+    if (choice == null) return;
+
+    if (choice == 'paste') {
+      final bool? shouldRestore = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Paste JSON backup'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: TextField(
+                controller: _backupRestoreController,
+                focusNode: _backupRestoreFocusNode,
+                maxLines: 12,
+                decoration: const InputDecoration(
+                  labelText: 'Paste JSON backup here',
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Restore'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted || shouldRestore != true) return;
+
+      try {
+        final BudgetBuddyState snapshot = BudgetBuddyState.decode(
+          _backupRestoreController.text.trim(),
+        );
+        ref
+            .read(budgetBuddyControllerProvider.notifier)
+            .restoreSnapshot(snapshot);
+        if (!mounted) return;
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Backup restored successfully.')));
+      } catch (_) {
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Could not restore that backup file.')));
+      }
       return;
     }
 
-    try {
-      final BudgetBuddyState snapshot = BudgetBuddyState.decode(
-        _backupRestoreController.text.trim(),
-      );
-      ref
-          .read(budgetBuddyControllerProvider.notifier)
-          .restoreSnapshot(snapshot);
-      if (!mounted) {
-        return;
+    if (choice == 'upload') {
+      try {
+        const MethodChannel channel = MethodChannel('budgetbuddy/storage');
+        final String? contents =
+            await channel.invokeMethod<String?>('pickJson');
+        if (contents == null) return;
+        _backupRestoreController.text = contents;
+
+        final bool? shouldRestore = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Confirm restore'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: TextField(
+                  controller: _backupRestoreController,
+                  maxLines: 12,
+                  decoration: const InputDecoration(
+                    labelText: 'Selected JSON (edit if needed)',
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Restore'),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (!mounted || shouldRestore != true) return;
+
+        try {
+          final BudgetBuddyState snapshot = BudgetBuddyState.decode(
+            _backupRestoreController.text.trim(),
+          );
+          ref
+              .read(budgetBuddyControllerProvider.notifier)
+              .restoreSnapshot(snapshot);
+          if (!mounted) return;
+          messenger.showSnackBar(
+              const SnackBar(content: Text('Backup restored successfully.')));
+        } catch (_) {
+          if (!mounted) return;
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Could not restore that backup file.')));
+        }
+      } catch (e) {
+        debugPrint('Native pick error: $e');
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('File picker not available'),
+              content: const Text(
+                  'Could not open system file picker. Try rebuilding the app or use Paste JSON.'),
+              actions: <Widget>[
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK')),
+              ],
+            );
+          },
+        );
       }
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Backup restored successfully.')),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Could not restore that backup file.')),
-      );
+      return;
     }
   }
 
