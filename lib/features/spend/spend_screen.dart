@@ -104,7 +104,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   void _showQuickCategorySheet(
       BuildContext context, _SpendCategoryOption option) {
     final TextEditingController amountController =
-        TextEditingController(text: option.defaultAmount.toStringAsFixed(0));
+        TextEditingController(text: '');
     final TextEditingController noteController = TextEditingController();
 
     showModalBottomSheet<void>(
