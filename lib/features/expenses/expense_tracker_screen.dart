@@ -113,6 +113,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                               .read(budgetBuddyControllerProvider.notifier)
                               .deleteExpense(e.id);
                         },
+                        onViewExpense: (ExpenseEntry e) async {
+                          if (!mounted) return;
+                          await _showExpenseDetails(ref, e);
+                        },
                       )
                     else
                       _MonthlySection(
@@ -402,16 +406,25 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   Row(
                                     children: <Widget>[
                                       Expanded(
-                                          child: OutlinedButton.icon(
-                                              onPressed: () =>
-                                                  Navigator.of(sheetContext)
-                                                      .pop(expense),
-                                              icon: const Icon(
-                                                  Icons.edit_outlined),
-                                              label: const Text('Edit'))),
+                                        child: OutlinedButton(
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 12),
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.of(sheetContext)
+                                                  .pop(expense),
+                                          child:
+                                              const Text('Edit', maxLines: 1),
+                                        ),
+                                      ),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: OutlinedButton.icon(
+                                        child: OutlinedButton(
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 12),
+                                          ),
                                           onPressed: () async {
                                             final BuildContext localContext =
                                                 context;
@@ -430,9 +443,24 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                                 .deleteExpense(expense.id);
                                             Navigator.of(sheetContext).pop();
                                           },
-                                          icon: const Icon(
-                                              Icons.delete_outline_rounded),
-                                          label: const Text('Delete'),
+                                          child:
+                                              const Text('Delete', maxLines: 1),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 12),
+                                          ),
+                                          onPressed: () async {
+                                            if (!mounted) return;
+                                            await _showExpenseDetails(
+                                                ref, expense);
+                                          },
+                                          child: const Text('Details',
+                                              maxLines: 1),
                                         ),
                                       ),
                                     ],
@@ -478,6 +506,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     leading: const Icon(Icons.delete_outline_rounded),
                     title: const Text('Delete'),
                     onTap: () => Navigator.of(sheetContext).pop('delete')),
+                ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('View Details'),
+                    onTap: () => Navigator.of(sheetContext).pop('view')),
                 const SizedBox(height: 8),
                 TextButton(
                     onPressed: () => Navigator.of(sheetContext).pop(),
@@ -500,6 +532,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       ref
           .read(budgetBuddyControllerProvider.notifier)
           .deleteExpense(expense.id);
+    } else if (action == 'view') {
+      if (!mounted) return;
+      await _showExpenseDetails(ref, expense);
     }
   }
 
@@ -651,6 +686,64 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
+  Future<void> _showExpenseDetails(WidgetRef ref, ExpenseEntry expense) async {
+    final BuildContext localContext = context;
+
+    await showModalBottomSheet<void>(
+      context: localContext,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: false,
+      enableDrag: false,
+      isDismissible: false,
+      builder: (BuildContext sheetContext) {
+        return SingleChildScrollView(
+          padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(expense.title,
+                  softWrap: true,
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Text(formatPeso(expense.amount),
+                  softWrap: true,
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text('Category: ${expense.category.label}', softWrap: true),
+              const SizedBox(height: 6),
+              Text(
+                  'Date: ${DateFormat('MMMM d, yyyy h:mm a').format(expense.dateTime)}',
+                  softWrap: true),
+              const SizedBox(height: 8),
+              if (expense.note.isNotEmpty)
+                Text('Note: ${expense.note}', softWrap: true),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<bool> _confirmDeleteExpense(BuildContext context) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
@@ -705,6 +798,7 @@ class _DailySection extends StatelessWidget {
     this.onTapExpense,
     this.onEditExpense,
     this.onDeleteExpense,
+    this.onViewExpense,
   });
 
   final String dayLabel;
@@ -713,6 +807,7 @@ class _DailySection extends StatelessWidget {
   final ValueChanged<ExpenseEntry>? onTapExpense;
   final Future<void> Function(ExpenseEntry)? onEditExpense;
   final Future<void> Function(ExpenseEntry)? onDeleteExpense;
+  final Future<void> Function(ExpenseEntry)? onViewExpense;
 
   @override
   Widget build(BuildContext context) {
@@ -801,25 +896,49 @@ class _DailySection extends StatelessWidget {
                         Row(
                           children: <Widget>[
                             Expanded(
-                                child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      if (onEditExpense != null) {
-                                        onEditExpense!(expense);
-                                      }
-                                    },
-                                    icon: const Icon(Icons.edit_outlined),
-                                    label: const Text('Edit'))),
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 12),
+                                ),
+                                onPressed: () {
+                                  if (onEditExpense != null) {
+                                    onEditExpense!(expense);
+                                  }
+                                },
+                                child: const Text('Edit', maxLines: 1),
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
-                                child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      if (onDeleteExpense != null) {
-                                        await onDeleteExpense!(expense);
-                                      }
-                                    },
-                                    icon: const Icon(
-                                        Icons.delete_outline_rounded),
-                                    label: const Text('Delete'))),
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 12),
+                                ),
+                                onPressed: () async {
+                                  if (onDeleteExpense != null) {
+                                    await onDeleteExpense!(expense);
+                                  }
+                                },
+                                child: const Text('Delete', maxLines: 1),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 12),
+                                ),
+                                onPressed: () async {
+                                  if (onViewExpense != null) {
+                                    await onViewExpense!(expense);
+                                  }
+                                },
+                                child: const Text('Details', maxLines: 1),
+                              ),
+                            ),
                           ],
                         ),
                       ],
