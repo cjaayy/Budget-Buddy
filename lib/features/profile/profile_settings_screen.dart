@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:open_file/open_file.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -912,56 +915,293 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
   Future<void> _exportPdf(BuildContext context, BudgetBuddyState state,
       BudgetSummary summary) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final String? choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.download_rounded),
+                title: const Text('Download'),
+                subtitle: const Text('Save report to device'),
+                onTap: () => Navigator.of(context).pop('download'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_rounded),
+                title: const Text('Share'),
+                subtitle: const Text('Share via other apps'),
+                onTap: () => Navigator.of(context).pop('share'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (choice == null) {
+      return;
+    }
+
     try {
       final File file = await ref.read(reportServiceProvider).exportDailyReport(
             state: state,
             summary: summary,
           );
-      await Share.shareXFiles(
-        <XFile>[XFile(file.path)],
-        text: 'BudgetBuddy PDF report',
-      );
-      if (!mounted) {
+
+      if (choice == 'download') {
+        try {
+          final String filename =
+              'BudgetBuddy_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+          // Use native MethodChannel to save via MediaStore
+          const MethodChannel channel = MethodChannel('budgetbuddy/storage');
+          final String? saveResult = await channel.invokeMethod<String?>(
+            'saveToDownloads',
+            <String, dynamic>{
+              'sourcePath': file.path,
+              'fileName': filename,
+              'mimeType': 'application/pdf',
+            },
+          );
+
+          if (!context.mounted) return;
+          final String displayPath =
+              saveResult ?? '/storage/emulated/0/Download/$filename';
+          await _showDownloadedModal(
+            context,
+            displayPath: displayPath,
+            label: 'PDF report',
+          );
+          return;
+        } catch (e, st) {
+          debugPrint('Save error: $e');
+          debugPrintStack(stackTrace: st);
+          if (!context.mounted) return;
+          final bool? share = await showDialog<bool>(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Save failed'),
+                content: SingleChildScrollView(
+                  child: Text(e.toString()),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Close'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Share'),
+                  ),
+                ],
+              );
+            },
+          );
+
+          if (share == true) {
+            await Share.shareXFiles(
+              <XFile>[XFile(file.path)],
+              text: 'BudgetBuddy PDF report',
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('PDF report shared successfully.')),
+            );
+          }
+          return;
+        }
+      }
+
+      if (choice == 'share') {
+        await Share.shareXFiles(
+          <XFile>[XFile(file.path)],
+          text: 'BudgetBuddy PDF report',
+        );
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF report shared successfully.')),
+        );
         return;
       }
-      messenger.showSnackBar(
-        const SnackBar(content: Text('PDF report exported successfully.')),
-      );
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      messenger.showSnackBar(
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not export PDF report.')),
       );
     }
   }
 
   Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final String? choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.download_rounded),
+                title: const Text('Download'),
+                subtitle: const Text('Save CSV to device'),
+                onTap: () => Navigator.of(context).pop('download'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_rounded),
+                title: const Text('Share'),
+                subtitle: const Text('Share via other apps'),
+                onTap: () => Navigator.of(context).pop('share'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (choice == null) return;
+
     try {
       final File file = await ref.read(reportServiceProvider).exportCsv(
             state: state,
           );
-      await Share.shareXFiles(
-        <XFile>[XFile(file.path)],
-        text: 'BudgetBuddy CSV export',
-      );
-      if (!mounted) {
+
+      if (choice == 'download') {
+        try {
+          final String filename =
+              'BudgetBuddy_Export_${DateTime.now().millisecondsSinceEpoch}.csv';
+
+          // Use native MethodChannel to save via MediaStore
+          const MethodChannel channel = MethodChannel('budgetbuddy/storage');
+          final String? saveResult = await channel.invokeMethod<String?>(
+            'saveToDownloads',
+            <String, dynamic>{
+              'sourcePath': file.path,
+              'fileName': filename,
+              'mimeType': 'text/csv',
+            },
+          );
+
+          if (!context.mounted) return;
+          final String displayPath =
+              saveResult ?? '/storage/emulated/0/Download/$filename';
+          await _showDownloadedModal(
+            context,
+            displayPath: displayPath,
+            label: 'CSV file',
+          );
+          return;
+        } catch (e, st) {
+          debugPrint('Save error: $e');
+          debugPrintStack(stackTrace: st);
+          if (!context.mounted) return;
+          final bool? share = await showDialog<bool>(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Save failed'),
+                content: SingleChildScrollView(
+                  child: Text(e.toString()),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Close'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Share'),
+                  ),
+                ],
+              );
+            },
+          );
+
+          if (share == true) {
+            await Share.shareXFiles(
+              <XFile>[XFile(file.path)],
+              text: 'BudgetBuddy CSV export',
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('CSV shared successfully.')),
+            );
+          }
+          return;
+        }
+      }
+
+      if (choice == 'share') {
+        await Share.shareXFiles(
+          <XFile>[XFile(file.path)],
+          text: 'BudgetBuddy CSV export',
+        );
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CSV shared successfully.')),
+        );
         return;
       }
-      messenger.showSnackBar(
-        const SnackBar(content: Text('CSV exported successfully.')),
-      );
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      messenger.showSnackBar(
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not export CSV file.')),
       );
     }
+  }
+
+  Future<void> _showDownloadedModal(BuildContext context,
+      {required String displayPath, required String label}) async {
+    final String path = displayPath;
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('$label saved'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text('Saved to:'),
+                const SizedBox(height: 8),
+                SelectableText(path),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: path));
+                Navigator.of(context).pop();
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Path copied to clipboard.')),
+                );
+              },
+              child: const Text('Copy path'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await OpenFile.open(path);
+                } catch (_) {}
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Open'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
