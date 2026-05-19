@@ -24,8 +24,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final List<DailyRecord> records = _sortedRecords(state.dailyRecords);
     final List<DateTime> availableMonths = _availableMonths(records);
     final double netSavings = _sectionNetSavings(records, _activeSection);
-    final int positiveDayCount =
-        records.where((DailyRecord record) => record.savings > 0).length;
 
     return Scaffold(
       body: SafeArea(
@@ -44,32 +42,17 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: BudgetMetricCard(
-                            label: _activeSection == SavingsSection.daily
-                                ? 'Daily Savings'
-                                : 'Monthly Savings',
-                            value: formatPeso(netSavings),
-                            subtitle: _activeSection == SavingsSection.daily
-                                ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
-                                : 'Across ${availableMonths.length} month${availableMonths.length == 1 ? '' : 's'}',
-                            icon: Icons.savings_rounded,
-                            color: const Color(0xFFF97316),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: BudgetMetricCard(
-                            label: 'Positive Days',
-                            value: positiveDayCount.toString(),
-                            subtitle: 'Days that stayed under budget',
-                            icon: Icons.trending_up_rounded,
-                            color: const Color(0xFF0F766E),
-                          ),
-                        ),
-                      ],
+                    BudgetMetricCard(
+                      label: _activeSection == SavingsSection.daily
+                          ? 'Daily Savings'
+                          : 'Monthly Savings',
+                      value: formatPeso(netSavings),
+                      subtitle: _activeSection == SavingsSection.daily
+                          ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
+                          : 'Across ${availableMonths.length} month${availableMonths.length == 1 ? '' : 's'}',
+                      icon: Icons.savings_rounded,
+                      color: const Color(0xFFD4AF37),
+                      centerContent: true,
                     ),
                     const SizedBox(height: 16),
                     Row(

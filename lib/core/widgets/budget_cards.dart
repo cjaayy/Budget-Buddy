@@ -9,6 +9,7 @@ class BudgetMetricCard extends StatelessWidget {
     required this.color,
     this.subtitle,
     this.onTap,
+    this.centerContent = false,
   });
 
   final String label;
@@ -17,6 +18,7 @@ class BudgetMetricCard extends StatelessWidget {
   final Color color;
   final String? subtitle;
   final VoidCallback? onTap;
+  final bool centerContent;
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +69,14 @@ class BudgetMetricCard extends StatelessWidget {
                     width: contentWidth,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: centerContent
+                          ? CrossAxisAlignment.center
+                          : CrossAxisAlignment.start,
                       children: <Widget>[
                         Row(
+                          mainAxisAlignment: centerContent
+                              ? MainAxisAlignment.center
+                              : MainAxisAlignment.start,
                           children: <Widget>[
                             Container(
                               width: iconBoxSize,
@@ -81,30 +88,33 @@ class BudgetMetricCard extends StatelessWidget {
                               child: Icon(icon,
                                   size: iconSize, color: Colors.white),
                             ),
-                            const Spacer(),
-                            if (onTap != null)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Text(
-                                    'Details',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.88),
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: compact ? 18 : 20,
-                                    color: Colors.white.withValues(alpha: 0.88),
-                                  ),
-                                ],
-                              ),
+                            if (!centerContent) ...<Widget>[
+                              const Spacer(),
+                              if (onTap != null)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Text(
+                                      'Details',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.88),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: compact ? 18 : 20,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.88),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ],
                         ),
                         SizedBox(height: topGap),
@@ -112,6 +122,9 @@ class BudgetMetricCard extends StatelessWidget {
                           label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          textAlign: centerContent
+                              ? TextAlign.center
+                              : TextAlign.start,
                           style: (compact
                                   ? Theme.of(context).textTheme.labelMedium
                                   : Theme.of(context).textTheme.labelLarge)
@@ -123,6 +136,9 @@ class BudgetMetricCard extends StatelessWidget {
                           value,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          textAlign: centerContent
+                              ? TextAlign.center
+                              : TextAlign.start,
                           style: (compact
                                   ? Theme.of(context).textTheme.titleMedium
                                   : Theme.of(context).textTheme.headlineSmall)
@@ -137,6 +153,9 @@ class BudgetMetricCard extends StatelessWidget {
                             subtitle!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            textAlign: centerContent
+                                ? TextAlign.center
+                                : TextAlign.start,
                             style: (compact
                                     ? Theme.of(context).textTheme.bodySmall
                                     : Theme.of(context).textTheme.bodySmall)
@@ -149,7 +168,9 @@ class BudgetMetricCard extends StatelessWidget {
                         if (onTap != null) ...<Widget>[
                           SizedBox(height: compact ? 8 : 12),
                           Align(
-                            alignment: Alignment.centerLeft,
+                            alignment: centerContent
+                                ? Alignment.center
+                                : Alignment.centerLeft,
                             child: TextButton.icon(
                               onPressed: onTap,
                               style: TextButton.styleFrom(
