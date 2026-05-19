@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'dart:async';
 
@@ -186,7 +188,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       body:
                                           'Demo: You spent ₱620 today — ₱120 over your daily limit.',
                                     );
-                                    if (context.mounted) {
+                                    if (mounted) {
                                       _showDemoSentModal(
                                         context,
                                         title: 'Demo Sent',
@@ -211,7 +213,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       settingLabel: 'Overspend Alerts',
                                       nextValue: value,
                                     );
-                                    if (!context.mounted || !confirmed) {
+                                    if (!mounted || !confirmed) {
                                       return;
                                     }
                                     modalRef
@@ -220,7 +222,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                         .updateProfilePreferences(
                                             budgetWarningNotificationsEnabled:
                                                 value);
-                                    if (context.mounted) {
+                                    if (mounted) {
                                       _showToggleSuccessModal(
                                         context,
                                         settingLabel: 'Overspend Alerts',
@@ -244,7 +246,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                           ? 'Demo: Today ₱450. Yesterday ₱520.'
                                           : 'Demo: Today ₱450.',
                                     );
-                                    if (context.mounted) {
+                                    if (mounted) {
                                       _showDemoSentModal(
                                         context,
                                         title: 'Demo Sent',
@@ -268,7 +270,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       settingLabel: 'End-of-day summary',
                                       nextValue: value,
                                     );
-                                    if (!context.mounted || !confirmed) {
+                                    if (!mounted || !confirmed) {
                                       return;
                                     }
                                     modalRef
@@ -276,7 +278,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                             .notifier)
                                         .updateProfilePreferences(
                                             summaryNotificationsEnabled: value);
-                                    if (context.mounted) {
+                                    if (mounted) {
                                       _showToggleSuccessModal(
                                         context,
                                         settingLabel: 'End-of-day summary',
@@ -298,7 +300,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       body:
                                           'Demo: Your daily budget has been reset to ₱500.',
                                     );
-                                    if (context.mounted) {
+                                    if (mounted) {
                                       _showDemoSentModal(
                                         context,
                                         title: 'Demo Sent',
@@ -752,8 +754,86 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       '${directory.path}${Platform.pathSeparator}BudgetBuddy_Backup.json',
     );
     await file.writeAsString(state.encode());
-    await Share.shareXFiles(<XFile>[XFile(file.path)],
-        text: 'BudgetBuddy backup snapshot');
+
+    final String jsonText = state.encode();
+
+    final String? choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.download_rounded),
+                title: const Text('Download'),
+                subtitle: const Text('Save JSON to device Downloads'),
+                onTap: () => Navigator.of(context).pop('download'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_rounded),
+                title: const Text('Share'),
+                subtitle: const Text('Share via other apps'),
+                onTap: () => Navigator.of(context).pop('share'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy_all_rounded),
+                title: const Text('Copy JSON'),
+                subtitle: const Text('Copy backup JSON to clipboard'),
+                onTap: () => Navigator.of(context).pop('copy'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (choice == null) return;
+
+    if (choice == 'download') {
+      try {
+        final String filename =
+            'BudgetBuddy_Backup_${DateTime.now().millisecondsSinceEpoch}.json';
+        const MethodChannel channel = MethodChannel('budgetbuddy/storage');
+        final String? saveResult = await channel.invokeMethod<String?>(
+          'saveToDownloads',
+          <String, dynamic>{
+            'sourcePath': file.path,
+            'fileName': filename,
+            'mimeType': 'application/json',
+          },
+        );
+
+        final String displayPath =
+            saveResult ?? '/storage/emulated/0/Download/$filename';
+        if (!mounted) return;
+        await _showDownloadedModal(context,
+            displayPath: displayPath, label: 'Backup JSON');
+        return;
+      } catch (e) {
+        debugPrint('Backup save error: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save backup to Downloads.')),
+        );
+      }
+    }
+
+    if (choice == 'share') {
+      await Share.shareXFiles(<XFile>[XFile(file.path)],
+          text: 'BudgetBuddy backup snapshot');
+      return;
+    }
+
+    if (choice == 'copy') {
+      await Clipboard.setData(ClipboardData(text: jsonText));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup JSON copied to clipboard.')),
+      );
+      return;
+    }
   }
 
   Future<void> _restoreSnapshot(BuildContext context) async {
@@ -766,13 +846,76 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           title: const Text('Restore backup snapshot'),
           content: SizedBox(
             width: double.maxFinite,
-            child: TextField(
-              controller: _backupRestoreController,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Paste JSON backup here',
-                alignLabelWithHint: true,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          try {
+                            const MethodChannel channel =
+                                MethodChannel('budgetbuddy/storage');
+                            final String? contents =
+                                await channel.invokeMethod<String?>('pickJson');
+                            if (contents != null) {
+                              _backupRestoreController.text = contents;
+                            }
+                          } catch (e) {
+                            debugPrint('Native pick error: $e');
+                            if (!mounted) return;
+                            await showDialog<void>(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title:
+                                      const Text('File picker not available'),
+                                  content: const Text(
+                                      'Could not open system file picker. Try rebuilding the app or copy-pasting JSON into the box.'),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.upload_file_rounded),
+                        label: const Text('Upload JSON file'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          // Paste from clipboard
+                          final ClipboardData? data =
+                              await Clipboard.getData('text/plain');
+                          if (data != null && data.text != null) {
+                            _backupRestoreController.text = data.text!;
+                          }
+                        },
+                        icon: const Icon(Icons.paste_rounded),
+                        label: const Text('Paste JSON'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _backupRestoreController,
+                  maxLines: 8,
+                  decoration: const InputDecoration(
+                    labelText: 'Paste JSON backup here',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
             ),
           ),
           actions: <Widget>[
@@ -1020,7 +1163,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           <XFile>[XFile(file.path)],
           text: 'BudgetBuddy PDF report',
         );
-        if (!context.mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PDF report shared successfully.')),
         );
@@ -1138,14 +1281,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           <XFile>[XFile(file.path)],
           text: 'BudgetBuddy CSV export',
         );
-        if (!context.mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('CSV shared successfully.')),
         );
         return;
       }
     } catch (_) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not export CSV file.')),
       );

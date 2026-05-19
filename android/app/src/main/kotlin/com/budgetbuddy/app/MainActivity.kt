@@ -9,10 +9,18 @@ import io.flutter.plugin.common.MethodChannel
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
+import android.content.Intent
+import android.net.Uri
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+import android.app.Activity
 
 class MainActivity : FlutterActivity() {
 	private val CHANNEL = "budgetbuddy/storage"
 	private val TAG = "MainActivity"
+	private var pendingResult: MethodChannel.Result? = null
+	private val PICK_JSON_REQUEST = 5678
 
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
@@ -23,6 +31,19 @@ class MainActivity : FlutterActivity() {
 				// Handler registered; will receive calls from Dart side
 				
 				when (call.method) {
+					"pickJson" -> {
+						if (pendingResult != null) {
+							result.error("BUSY", "Picker already active", null)
+							return@setMethodCallHandler
+						}
+						pendingResult = result
+						val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+							addCategory(Intent.CATEGORY_OPENABLE)
+							type = "application/json"
+						}
+						startActivityForResult(intent, PICK_JSON_REQUEST)
+						return@setMethodCallHandler
+					}
 					"saveToDownloads" -> {
 						val sourcePath = call.argument<String>("sourcePath")
 						val displayName = call.argument<String>("fileName")
@@ -72,5 +93,42 @@ class MainActivity : FlutterActivity() {
 					else -> result.notImplemented()
 				}
 			}
+	}
+
+	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		super.onActivityResult(requestCode, resultCode, data)
+		if (requestCode == PICK_JSON_REQUEST) {
+			val result = pendingResult
+			pendingResult = null
+			if (result == null) return
+			if (resultCode != Activity.RESULT_OK || data == null) {
+				result.success(null)
+				return
+			}
+			val uri: Uri? = data.data
+			if (uri == null) {
+				result.error("NO_URI", "No file selected", null)
+				return
+			}
+			try {
+				val resolver = applicationContext.contentResolver
+				resolver.openInputStream(uri).use { inputStream ->
+					if (inputStream == null) {
+						result.error("READ_FAILED", "Could not open selected file", null)
+						return
+					}
+					val reader = BufferedReader(InputStreamReader(inputStream))
+					val sb = StringBuilder()
+					var line: String? = reader.readLine()
+					while (line != null) {
+						sb.append(line)
+						line = reader.readLine()
+					}
+					result.success(sb.toString())
+				}
+			} catch (e: Exception) {
+				result.error("READ_FAILED", e.message, null)
+			}
+		}
 	}
 }
