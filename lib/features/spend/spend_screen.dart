@@ -362,6 +362,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           category: category,
           note: _withSpendTag(note),
           dateTime: DateTime.now(),
+          source: 'spend',
+          spendCategory: title,
         );
 
     Navigator.of(context).pop();

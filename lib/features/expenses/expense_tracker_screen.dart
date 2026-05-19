@@ -374,8 +374,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                               .category.color
                                               .withValues(alpha: 0.14),
                                           child: Icon(
-                                            _expenseCategoryIcon(
-                                                expense.category),
+                                            _expenseIconForExpense(expense),
                                             color: expense.category.color,
                                             size: 18,
                                           )),
@@ -794,13 +793,41 @@ String _formatDayLabel(DateTime dateTime) {
   return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
 }
 
+IconData _expenseIconForExpense(ExpenseEntry expense) {
+  final String selectedCategory = expense.spendCategory.trim().toLowerCase();
+  if (selectedCategory.isNotEmpty) {
+    return switch (selectedCategory) {
+      'food & drinks' => Icons.restaurant_rounded,
+      'transport' => Icons.directions_bus_rounded,
+      'shopping' => Icons.shopping_bag_rounded,
+      'leisure & gala' => Icons.celebration_rounded,
+      'health' => Icons.health_and_safety_rounded,
+      'bills & utilities' => Icons.receipt_long_rounded,
+      'custom' => Icons.edit_rounded,
+      _ => _expenseCategoryIcon(expense.category),
+    };
+  }
+
+  final String normalizedTitle = expense.title.trim().toLowerCase();
+  return switch (normalizedTitle) {
+    'food & drinks' => Icons.restaurant_rounded,
+    'transport' => Icons.directions_bus_rounded,
+    'shopping' => Icons.shopping_bag_rounded,
+    'leisure & gala' => Icons.celebration_rounded,
+    'health' => Icons.health_and_safety_rounded,
+    'bills & utilities' => Icons.receipt_long_rounded,
+    'custom' => Icons.edit_rounded,
+    _ => _expenseCategoryIcon(expense.category),
+  };
+}
+
 IconData _expenseCategoryIcon(BudgetCategory category) {
   return switch (category) {
     BudgetCategory.food => Icons.restaurant_rounded,
     BudgetCategory.transportation => Icons.directions_bus_rounded,
     BudgetCategory.entertainment => Icons.celebration_rounded,
     BudgetCategory.shopping => Icons.shopping_bag_rounded,
-    BudgetCategory.miscellaneous => Icons.receipt_long_rounded,
+    BudgetCategory.miscellaneous => Icons.edit_rounded,
   };
 }
 
@@ -881,7 +908,7 @@ class _DailySection extends StatelessWidget {
                                 backgroundColor: expense.category.color
                                     .withValues(alpha: 0.14),
                                 child: Icon(
-                                  _expenseCategoryIcon(expense.category),
+                                  _expenseIconForExpense(expense),
                                   color: expense.category.color,
                                   size: 18,
                                 )),

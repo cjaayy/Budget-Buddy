@@ -469,6 +469,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     required BudgetCategory category,
     String note = '',
     DateTime? dateTime,
+    String source = 'manual',
+    String spendCategory = '',
   }) {
     final ExpenseEntry entry = ExpenseEntry(
       id: _uuid.v4(),
@@ -477,6 +479,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       category: category,
       dateTime: dateTime ?? DateTime.now(),
       note: note,
+      source: source,
+      spendCategory: spendCategory,
     );
     state = state.copyWith(
         expenses: <ExpenseEntry>[entry, ...state.expenses],

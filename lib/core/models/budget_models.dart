@@ -435,6 +435,7 @@ class ExpenseEntry {
     required this.dateTime,
     this.note = '',
     this.source = 'manual',
+    this.spendCategory = '',
   });
 
   final String id;
@@ -444,6 +445,7 @@ class ExpenseEntry {
   final DateTime dateTime;
   final String note;
   final String source;
+  final String spendCategory;
 
   ExpenseEntry copyWith({
     String? id,
@@ -453,6 +455,7 @@ class ExpenseEntry {
     DateTime? dateTime,
     String? note,
     String? source,
+    String? spendCategory,
   }) {
     return ExpenseEntry(
       id: id ?? this.id,
@@ -462,6 +465,7 @@ class ExpenseEntry {
       dateTime: dateTime ?? this.dateTime,
       note: note ?? this.note,
       source: source ?? this.source,
+      spendCategory: spendCategory ?? this.spendCategory,
     );
   }
 
@@ -474,6 +478,7 @@ class ExpenseEntry {
       'dateTime': dateTime.toIso8601String(),
       'note': note,
       'source': source,
+      'spendCategory': spendCategory,
     };
   }
 
@@ -489,6 +494,7 @@ class ExpenseEntry {
           DateTime.now(),
       note: json['note'] as String? ?? '',
       source: json['source'] as String? ?? 'manual',
+      spendCategory: json['spendCategory'] as String? ?? '',
     );
   }
 
