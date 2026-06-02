@@ -118,9 +118,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         BudgetMetricCard(
                           label: _selectedPeriod == DashboardPeriod.daily
                               ? 'Daily Spent'
-                              : 'Monthly Spent',
+                              : 'Overall Spent',
                           value: formatPeso(spentAdjusted),
-                          subtitle: 'Out of ${formatPeso(totalBudget)}',
+                          subtitle: _selectedPeriod == DashboardPeriod.daily
+                              ? 'Out of ${formatPeso(totalBudget)}'
+                              : 'Overall budget this month: ${formatPeso(totalBudget)}',
                           icon: Icons.payments_rounded,
                           color: const Color(0xFFDC2626),
                         ),

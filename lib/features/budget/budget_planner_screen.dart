@@ -17,35 +17,42 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
 
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   late final TextEditingController _dailyController;
-  late final TextEditingController _monthlyController;
   FocusNode? _dailyFocusNode;
-  FocusNode? _monthlyFocusNode;
   bool _seededFromState = false;
 
   @override
   void initState() {
     super.initState();
     _dailyController = TextEditingController();
-    _monthlyController = TextEditingController();
   }
 
   @override
   void dispose() {
     _dailyController.dispose();
-    _monthlyController.dispose();
     _dailyFocusNode?.dispose();
-    _monthlyFocusNode?.dispose();
     super.dispose();
   }
 
   FocusNode get _dailyFocusNodeOrCreate => _dailyFocusNode ??= FocusNode();
 
-  FocusNode get _monthlyFocusNodeOrCreate => _monthlyFocusNode ??= FocusNode();
-
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
+    final BudgetPeriodSummary dailySummary =
+        summary.periodSummaries[BudgetPeriod.daily] ??
+            const BudgetPeriodSummary(
+              period: BudgetPeriod.daily,
+              limit: 0,
+              spent: 0,
+            );
+    final BudgetPeriodSummary monthlySummary =
+        summary.periodSummaries[BudgetPeriod.monthly] ??
+            const BudgetPeriodSummary(
+              period: BudgetPeriod.monthly,
+              limit: 0,
+              spent: 0,
+            );
 
     if (!_seededFromState && !state.isBootstrapping) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,10 +61,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         }
       });
     }
-
-    final int activeLimitCount = state.settings.activeLimitCount;
-    final Map<BudgetPeriod, BudgetPeriodSummary> periodSummaries =
-        summary.periodSummaries;
 
     return Scaffold(
       body: SafeArea(
@@ -69,7 +72,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               const SectionTitle(
                 title: 'Budget',
                 subtitle:
-                    'Set daily and monthly limits. Any expense counts toward every active period.',
+                    'Set a daily budget. Each saved day rolls into the current month total.',
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -77,52 +80,26 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                   padding: EdgeInsets.zero,
                   children: <Widget>[
                     BudgetMetricCard(
-                      label: 'Limits Set',
-                      value: '$activeLimitCount / 2',
-                      subtitle: activeLimitCount == 0
-                          ? 'Enable one or more limits to start tracking'
-                          : activeLimitCount == 2
-                              ? 'All periods active'
-                              : '${2 - activeLimitCount} optional period${2 - activeLimitCount == 1 ? '' : 's'} still open',
-                      icon: Icons.layers_rounded,
-                      color: activeLimitCount == 0
-                          ? const Color(0xFF64748B)
-                          : const Color(0xFF0F766E),
+                      label: 'This Month',
+                      value: formatPeso(monthlySummary.limit),
+                      subtitle: 'Sum of saved daily budget entries',
+                      icon: Icons.calendar_month_rounded,
+                      color: const Color(0xFF0F766E),
                     ),
                     const SizedBox(height: 16),
                     _LimitEditorCard(
-                      title: 'Max Per Day',
-                      helper: 'Resets Every Midnight',
+                      title: 'Daily Budget',
+                      helper: 'Saved as today\'s budget entry',
                       controller: _dailyController,
                       focusNode: _dailyFocusNodeOrCreate,
                       icon: Icons.calendar_today_rounded,
-                      periodSummary: periodSummaries[BudgetPeriod.daily],
+                      periodSummary: dailySummary,
                       onEdit: () => _startEditingLimit(
                         _dailyFocusNodeOrCreate,
                         _dailyController,
                       ),
                       onSave: () => _saveLimit(
-                        state,
-                        period: BudgetPeriod.daily,
                         controller: _dailyController,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _LimitEditorCard(
-                      title: 'Max Per Month',
-                      helper: 'Resets On The 1st Of The Month',
-                      controller: _monthlyController,
-                      focusNode: _monthlyFocusNodeOrCreate,
-                      icon: Icons.calendar_month_rounded,
-                      periodSummary: periodSummaries[BudgetPeriod.monthly],
-                      onEdit: () => _startEditingLimit(
-                        _monthlyFocusNodeOrCreate,
-                        _monthlyController,
-                      ),
-                      onSave: () => _saveLimit(
-                        state,
-                        period: BudgetPeriod.monthly,
-                        controller: _monthlyController,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -139,7 +116,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'The app deducts every new expense from whichever periods are active.',
+                            'Each daily budget entry is added to the month total automatically.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
@@ -148,7 +125,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             BudgetPeriod.monthly
                           ].map((BudgetPeriod period) {
                             final BudgetPeriodSummary? periodSummary =
-                                periodSummaries[period];
+                                summary.periodSummaries[period];
                             if (periodSummary == null ||
                                 !periodSummary.isActive) {
                               return Padding(
@@ -183,9 +160,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     _dailyController.text = state.settings.totalDailyBudget > 0
         ? state.settings.totalDailyBudget.toStringAsFixed(0)
         : '';
-    _monthlyController.text = (state.settings.monthlyBudget ?? 0) > 0
-        ? state.settings.monthlyBudget!.toStringAsFixed(0)
-        : '';
 
     setState(() {
       _seededFromState = true;
@@ -201,27 +175,15 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     );
   }
 
-  Future<void> _saveLimit(
-    BudgetBuddyState state, {
-    required BudgetPeriod period,
+  Future<void> _saveLimit({
     required TextEditingController controller,
   }) {
     final double limit = double.tryParse(controller.text.trim()) ?? 0;
-    final BudgetSettings updatedSettings = switch (period) {
-      BudgetPeriod.daily => state.settings.copyWith(
-          dailyLimit: limit > 0 ? limit : null,
-        ),
-      BudgetPeriod.monthly => state.settings.copyWith(
-          monthlyLimit: limit > 0 ? limit : null,
-        ),
-      BudgetPeriod.weekly => state.settings,
-    };
-
     ref
         .read(budgetBuddyControllerProvider.notifier)
-        .updateBudget(updatedSettings);
+        .recordDailyBudget(amount: limit > 0 ? limit : 0);
 
-    return _showSavedModal(period);
+    return _showSavedModal(BudgetPeriod.daily);
   }
 
   Future<void> _showSavedModal(BudgetPeriod period) {

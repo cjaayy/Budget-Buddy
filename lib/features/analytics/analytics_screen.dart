@@ -363,7 +363,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   List<Widget> _buildMonthlyReportRows(BudgetBuddyState state) {
     final DateTime now = DateTime.now();
-    final double monthlyLimit = state.settings.monthlyBudget ?? 0;
     final List<Widget> rows = <Widget>[];
 
     for (int monthOffset = 0; monthOffset < 4; monthOffset++) {
@@ -372,6 +371,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       final DateTime nextMonth =
           DateTime(monthStart.year, monthStart.month + 1, 1);
       final DateTime monthEnd = nextMonth.subtract(const Duration(days: 1));
+      final double monthlyLimit = _monthlyBudgetForMonth(state, monthStart);
 
       final List<ExpenseEntry> monthExpenses =
           state.expenses.where((ExpenseEntry expense) {
@@ -471,6 +471,21 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     return streak;
   }
 
+  double _monthlyBudgetForMonth(BudgetBuddyState state, DateTime monthStart) {
+    final DateTime nextMonth =
+        DateTime(monthStart.year, monthStart.month + 1, 1);
+    final double total = state.budgetEntries.where((BudgetEntry entry) {
+      final DateTime day = _startOfDay(entry.date);
+      return !day.isBefore(monthStart) && day.isBefore(nextMonth);
+    }).fold(0, (double sum, BudgetEntry entry) => sum + entry.amount);
+
+    if (total > 0) {
+      return total;
+    }
+
+    return state.settings.monthlyBudget ?? 0;
+  }
+
   _ReportStatus _statusFrom(double spent, double limit) {
     if (limit <= 0) {
       return const _ReportStatus(
@@ -479,7 +494,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         color: Color(0xFF64748B),
       );
     }
-
     if (spent > limit) {
       final double over = spent - limit;
       return _ReportStatus(

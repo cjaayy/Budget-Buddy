@@ -906,6 +906,40 @@ class DailyRecord {
   }
 }
 
+class BudgetEntry {
+  const BudgetEntry({
+    required this.date,
+    required this.amount,
+  });
+
+  final DateTime date;
+  final double amount;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'date': date.toIso8601String(),
+      'amount': amount,
+    };
+  }
+
+  factory BudgetEntry.fromJson(Map<String, dynamic> json) {
+    return BudgetEntry(
+      date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  BudgetEntry copyWith({
+    DateTime? date,
+    double? amount,
+  }) {
+    return BudgetEntry(
+      date: date ?? this.date,
+      amount: amount ?? this.amount,
+    );
+  }
+}
+
 class UserProfile {
   const UserProfile({
     required this.displayName,
@@ -1017,6 +1051,7 @@ class BudgetBuddyState {
     required this.settings,
     required this.expenses,
     required this.lastExpenseCategory,
+    required this.budgetEntries,
     required this.customMeals,
     required this.favoriteMealIds,
     required this.savedActivityPlans,
@@ -1041,6 +1076,7 @@ class BudgetBuddyState {
   final BudgetSettings settings;
   final List<ExpenseEntry> expenses;
   final BudgetCategory? lastExpenseCategory;
+  final List<BudgetEntry> budgetEntries;
   final List<MealSuggestion> customMeals;
   final List<String> favoriteMealIds;
   final List<ActivitySuggestion> savedActivityPlans;
@@ -1066,6 +1102,7 @@ class BudgetBuddyState {
       settings: BudgetSettings.defaults(),
       expenses: <ExpenseEntry>[],
       lastExpenseCategory: null,
+      budgetEntries: <BudgetEntry>[],
       customMeals: <MealSuggestion>[],
       favoriteMealIds: <String>[],
       savedActivityPlans: <ActivitySuggestion>[],
@@ -1092,6 +1129,7 @@ class BudgetBuddyState {
     BudgetSettings? settings,
     List<ExpenseEntry>? expenses,
     Object? lastExpenseCategory = _lastExpenseCategorySentinel,
+    List<BudgetEntry>? budgetEntries,
     List<MealSuggestion>? customMeals,
     List<String>? favoriteMealIds,
     List<ActivitySuggestion>? savedActivityPlans,
@@ -1119,6 +1157,7 @@ class BudgetBuddyState {
           identical(lastExpenseCategory, _lastExpenseCategorySentinel)
               ? this.lastExpenseCategory
               : lastExpenseCategory as BudgetCategory?,
+      budgetEntries: budgetEntries ?? this.budgetEntries,
       customMeals: customMeals ?? this.customMeals,
       favoriteMealIds: favoriteMealIds ?? this.favoriteMealIds,
       savedActivityPlans: savedActivityPlans ?? this.savedActivityPlans,
@@ -1167,6 +1206,8 @@ class BudgetBuddyState {
       'settings': settings.toJson(),
       'expenses': expenses.map((ExpenseEntry entry) => entry.toJson()).toList(),
       'lastExpenseCategory': lastExpenseCategory?.name,
+      'budgetEntries':
+          budgetEntries.map((BudgetEntry entry) => entry.toJson()).toList(),
       'customMeals':
           customMeals.map((MealSuggestion meal) => meal.toJson()).toList(),
       'favoriteMealIds': favoriteMealIds,
@@ -1206,6 +1247,11 @@ class BudgetBuddyState {
       lastExpenseCategory: json['lastExpenseCategory'] == null
           ? null
           : BudgetCategoryX.fromString(json['lastExpenseCategory'] as String),
+      budgetEntries: (json['budgetEntries'] as List<dynamic>?)
+              ?.map((dynamic item) =>
+                  BudgetEntry.fromJson((item as Map).cast<String, dynamic>()))
+              .toList() ??
+          <BudgetEntry>[],
       customMeals: (json['customMeals'] as List<dynamic>?)
               ?.map((dynamic item) => MealSuggestion.fromJson(
                   (item as Map).cast<String, dynamic>()))

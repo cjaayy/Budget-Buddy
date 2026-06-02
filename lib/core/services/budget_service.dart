@@ -1,11 +1,11 @@
 import '../models/budget_models.dart';
 
 class BudgetService {
-  BudgetSummary computeSummary(BudgetBuddyState state) {
-    final DateTime now = DateTime.now();
+  BudgetSummary computeSummary(BudgetBuddyState state, {DateTime? now}) {
+    final DateTime current = now ?? DateTime.now();
     final BudgetPeriod primaryPeriod = _primaryPeriod(state.settings);
     final Map<BudgetPeriod, double> periodLimits =
-        _periodLimits(state.settings);
+        _periodLimits(state, current);
     final Map<BudgetPeriod, double> periodSpent = <BudgetPeriod, double>{
       BudgetPeriod.daily: state.dailySpent,
       BudgetPeriod.weekly: state.weeklySpent,
@@ -32,10 +32,11 @@ class BudgetService {
 
     final List<ExpenseEntry> primaryExpenses = _expensesSince(
       state.expenses,
-      _periodStart(primaryPeriod, now),
+      _periodStart(primaryPeriod, current),
     );
 
-    if (!state.settings.hasActiveLimit) {
+    if (!state.settings.hasActiveLimit &&
+        periodLimits.values.every((double value) => value <= 0)) {
       return BudgetSummary(
         totalBudget: 0,
         totalSpent: 0,
@@ -247,7 +248,7 @@ class BudgetService {
       tips.add(
           'Leisure is high today. Consider a coffee walk or window shopping instead of a full outing.');
     }
-    if (totalSpent > settings.totalDailyBudget * 0.85) {
+    if (totalSpent > primarySummary.limit * 0.85 && primarySummary.limit > 0) {
       tips.add(
           'You are close to your daily budget cap. Keep the next purchase under ₱50 if possible.');
     }
@@ -267,11 +268,50 @@ class BudgetService {
     return tips;
   }
 
-  Map<BudgetPeriod, double> _periodLimits(BudgetSettings settings) {
+  Map<BudgetPeriod, double> _periodLimits(
+      BudgetBuddyState state, DateTime now) {
     return <BudgetPeriod, double>{
-      BudgetPeriod.daily: settings.totalDailyBudget,
-      BudgetPeriod.monthly: settings.monthlyBudget ?? 0,
+      BudgetPeriod.daily: _budgetTotalForPeriod(state, BudgetPeriod.daily, now),
+      BudgetPeriod.weekly:
+          _budgetTotalForPeriod(state, BudgetPeriod.weekly, now),
+      BudgetPeriod.monthly:
+          _budgetTotalForPeriod(state, BudgetPeriod.monthly, now),
     };
+  }
+
+  double _budgetTotalForPeriod(
+    BudgetBuddyState state,
+    BudgetPeriod period,
+    DateTime now,
+  ) {
+    final DateTime start = _periodStart(period, now);
+    final DateTime endExclusive = _nextPeriodStart(period, start);
+    final double total =
+        _budgetTotalInRange(state.budgetEntries, start, endExclusive);
+    if (total > 0) {
+      return total;
+    }
+
+    return switch (period) {
+      BudgetPeriod.daily => state.settings.dailyLimit ?? 0,
+      BudgetPeriod.weekly => state.settings.weeklyLimit ?? 0,
+      BudgetPeriod.monthly => state.settings.monthlyLimit ?? 0,
+    };
+  }
+
+  double _budgetTotalInRange(
+    List<BudgetEntry> entries,
+    DateTime start,
+    DateTime endExclusive,
+  ) {
+    final double total = entries
+        .where((BudgetEntry entry) =>
+            !entry.date.isBefore(start) && entry.date.isBefore(endExclusive))
+        .fold(0, (double sum, BudgetEntry entry) => sum + entry.amount);
+    if (total > 0) {
+      return total;
+    }
+    return 0;
   }
 
   BudgetPeriod _primaryPeriod(BudgetSettings settings) {
@@ -291,6 +331,15 @@ class BudgetService {
           Duration(days: now.weekday - DateTime.monday),
         ),
       BudgetPeriod.monthly => DateTime(now.year, now.month, 1),
+    };
+  }
+
+  DateTime _nextPeriodStart(BudgetPeriod period, DateTime currentStart) {
+    return switch (period) {
+      BudgetPeriod.daily => currentStart.add(const Duration(days: 1)),
+      BudgetPeriod.weekly => currentStart.add(const Duration(days: 7)),
+      BudgetPeriod.monthly =>
+        DateTime(currentStart.year, currentStart.month + 1, 1),
     };
   }
 

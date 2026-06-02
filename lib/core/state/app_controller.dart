@@ -489,6 +489,34 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _triggerWarningIfNeeded();
   }
 
+  void recordDailyBudget({
+    required double amount,
+    DateTime? date,
+  }) {
+    final DateTime budgetDate = DateTime(
+      (date ?? DateTime.now()).year,
+      (date ?? DateTime.now()).month,
+      (date ?? DateTime.now()).day,
+    );
+    final List<BudgetEntry> updatedEntries = <BudgetEntry>[
+      ...state.budgetEntries.where(
+        (BudgetEntry entry) => !_isSameDay(entry.date, budgetDate),
+      ),
+      BudgetEntry(date: budgetDate, amount: amount),
+    ]..sort((BudgetEntry left, BudgetEntry right) {
+        return left.date.compareTo(right.date);
+      });
+
+    state = state.copyWith(
+      budgetEntries: updatedEntries,
+      settings: state.settings.copyWith(
+        dailyLimit: amount > 0 ? amount : null,
+        hasConfiguredBudget: amount > 0,
+      ),
+    );
+    _persist();
+  }
+
   void updateExpense(ExpenseEntry expense) {
     final List<ExpenseEntry> updated = state.expenses.map((ExpenseEntry entry) {
       return entry.id == expense.id ? expense : entry;
