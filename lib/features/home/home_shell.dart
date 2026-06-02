@@ -7,6 +7,7 @@ import '../expenses/expense_tracker_screen.dart';
 import '../profile/profile_settings_screen.dart';
 import '../savings/savings_screen.dart';
 import '../spend/spend_screen.dart';
+import '../together/together_screen.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 
@@ -29,6 +30,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     const SpendScreen(),
     const SavingsScreen(),
     const ExpenseTrackerScreen(),
+    const TogetherScreen(),
     const ProfileSettingsScreen(),
   ];
 
@@ -39,50 +41,69 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        selectedIndex: _index,
-        onDestinationSelected: (int value) => setState(() => _index = value),
-        destinations: <NavigationDestination>[
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: budgetExpired,
-              backgroundColor: const Color(0xFFDC2626),
-              child: const Icon(Icons.account_balance_wallet_outlined),
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: MaterialStateProperty.resolveWith<TextStyle?>(
+              (Set<MaterialState> states) {
+            return const TextStyle(fontSize: 11, height: 1.0);
+          }),
+        ),
+        child: NavigationBar(
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+          selectedIndex: _index,
+          onDestinationSelected: (int value) => setState(() => _index = value),
+          destinations: <NavigationDestination>[
+            const NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Home',
             ),
-            selectedIcon: Badge(
-              isLabelVisible: budgetExpired,
-              backgroundColor: const Color(0xFFDC2626),
-              child: const Icon(Icons.account_balance_wallet_rounded),
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: budgetExpired,
+                backgroundColor: const Color(0xFFDC2626),
+                child: const Icon(Icons.account_balance_wallet_outlined),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: budgetExpired,
+                backgroundColor: const Color(0xFFDC2626),
+                child: const Icon(Icons.account_balance_wallet_rounded),
+              ),
+              label: 'Budget',
             ),
-            label: 'Budget',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag_rounded),
-            label: 'Spend',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.savings_outlined),
-            selectedIcon: Icon(Icons.savings_rounded),
-            label: 'Savings',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long_rounded),
-            label: 'Expenses',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: 'Settings',
-          ),
-        ],
+            const NavigationDestination(
+              icon: Icon(Icons.shopping_bag_outlined),
+              selectedIcon: Icon(Icons.shopping_bag_rounded),
+              label: 'Spend',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.savings_outlined),
+              selectedIcon: Icon(Icons.savings_rounded),
+              label: 'Savings',
+            ),
+            const NavigationDestination(
+              icon: SizedBox.square(
+                dimension: 24,
+                child: Icon(Icons.receipt_long_outlined),
+              ),
+              selectedIcon: SizedBox.square(
+                dimension: 24,
+                child: Icon(Icons.receipt_long_rounded),
+              ),
+              label: 'Expenses',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.groups_outlined),
+              selectedIcon: Icon(Icons.groups_rounded),
+              label: 'Together',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }
