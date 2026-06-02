@@ -16,9 +16,8 @@ class TogetherScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SectionTitle(
-                title: 'Together',
-                subtitle:
-                    'Shared planning for the people you manage money with.',
+                title: 'Budget Together',
+                subtitle: 'Main menu sections from the shell.',
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -31,29 +30,37 @@ class TogetherScreen extends StatelessWidget {
                         children: <Widget>[
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.group_add_rounded),
-                            title: Text('Invite your circle'),
-                            subtitle: Text(
-                              'Add the people who should see shared goals and budgets.',
-                            ),
+                            leading: Icon(Icons.home_rounded),
+                            title: Text('Home'),
+                            subtitle: Text('Dashboard and quick actions.'),
                           ),
                           Divider(height: 1),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.handshake_rounded),
-                            title: Text('Coordinate goals'),
-                            subtitle: Text(
-                              'Track common savings targets and spending plans together.',
-                            ),
+                            leading: Icon(Icons.account_balance_wallet_rounded),
+                            title: Text('Budget'),
+                            subtitle: Text('Budget planner and budget status.'),
                           ),
                           Divider(height: 1),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.chat_bubble_outline_rounded),
-                            title: Text('Stay in sync'),
-                            subtitle: Text(
-                              'Keep everyone aligned with a shared money workspace.',
-                            ),
+                            leading: Icon(Icons.shopping_bag_rounded),
+                            title: Text('Spend'),
+                            subtitle: Text('Track daily spending.'),
+                          ),
+                          Divider(height: 1),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.savings_rounded),
+                            title: Text('Savings'),
+                            subtitle: Text('View savings progress.'),
+                          ),
+                          Divider(height: 1),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.receipt_long_rounded),
+                            title: Text('Expenses'),
+                            subtitle: Text('Review expense tracking.'),
                           ),
                         ],
                       ),
