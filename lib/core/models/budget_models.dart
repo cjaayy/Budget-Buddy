@@ -1052,6 +1052,7 @@ class BudgetBuddyState {
     required this.expenses,
     required this.lastExpenseCategory,
     required this.budgetEntries,
+    required this.togetherBudget,
     required this.customMeals,
     required this.favoriteMealIds,
     required this.savedActivityPlans,
@@ -1077,6 +1078,7 @@ class BudgetBuddyState {
   final List<ExpenseEntry> expenses;
   final BudgetCategory? lastExpenseCategory;
   final List<BudgetEntry> budgetEntries;
+  final double togetherBudget;
   final List<MealSuggestion> customMeals;
   final List<String> favoriteMealIds;
   final List<ActivitySuggestion> savedActivityPlans;
@@ -1103,6 +1105,7 @@ class BudgetBuddyState {
       expenses: <ExpenseEntry>[],
       lastExpenseCategory: null,
       budgetEntries: <BudgetEntry>[],
+      togetherBudget: 0,
       customMeals: <MealSuggestion>[],
       favoriteMealIds: <String>[],
       savedActivityPlans: <ActivitySuggestion>[],
@@ -1130,6 +1133,7 @@ class BudgetBuddyState {
     List<ExpenseEntry>? expenses,
     Object? lastExpenseCategory = _lastExpenseCategorySentinel,
     List<BudgetEntry>? budgetEntries,
+    double? togetherBudget,
     List<MealSuggestion>? customMeals,
     List<String>? favoriteMealIds,
     List<ActivitySuggestion>? savedActivityPlans,
@@ -1158,6 +1162,7 @@ class BudgetBuddyState {
               ? this.lastExpenseCategory
               : lastExpenseCategory as BudgetCategory?,
       budgetEntries: budgetEntries ?? this.budgetEntries,
+      togetherBudget: togetherBudget ?? this.togetherBudget,
       customMeals: customMeals ?? this.customMeals,
       favoriteMealIds: favoriteMealIds ?? this.favoriteMealIds,
       savedActivityPlans: savedActivityPlans ?? this.savedActivityPlans,
@@ -1208,6 +1213,7 @@ class BudgetBuddyState {
       'lastExpenseCategory': lastExpenseCategory?.name,
       'budgetEntries':
           budgetEntries.map((BudgetEntry entry) => entry.toJson()).toList(),
+      'togetherBudget': togetherBudget,
       'customMeals':
           customMeals.map((MealSuggestion meal) => meal.toJson()).toList(),
       'favoriteMealIds': favoriteMealIds,
@@ -1252,6 +1258,7 @@ class BudgetBuddyState {
                   BudgetEntry.fromJson((item as Map).cast<String, dynamic>()))
               .toList() ??
           <BudgetEntry>[],
+      togetherBudget: (json['togetherBudget'] as num?)?.toDouble() ?? 0,
       customMeals: (json['customMeals'] as List<dynamic>?)
               ?.map((dynamic item) => MealSuggestion.fromJson(
                   (item as Map).cast<String, dynamic>()))

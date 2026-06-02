@@ -42,6 +42,44 @@ final budgetSummaryProvider = Provider<BudgetSummary>((Ref<BudgetSummary> ref) {
   return ref.watch(budgetServiceProvider).computeSummary(state);
 });
 
+final budgetTogetherSummaryProvider =
+    Provider<BudgetSummary>((Ref<BudgetSummary> ref) {
+  final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
+  final BudgetService service = ref.watch(budgetServiceProvider);
+  final double togetherBudget = state.togetherBudget;
+  final DateTime now = DateTime.now();
+  final DateTime dailyStart = DateTime(now.year, now.month, now.day);
+  final DateTime weeklyStart = DateTime(now.year, now.month, now.day)
+      .subtract(Duration(days: now.weekday - DateTime.monday));
+  final DateTime monthlyStart = DateTime(now.year, now.month, 1);
+  final List<ExpenseEntry> spendExpenses = state.expenses
+      .where((ExpenseEntry expense) => expense.source == 'togetherSpend')
+      .toList();
+
+  double sumSince(DateTime start) {
+    return spendExpenses
+        .where((ExpenseEntry expense) =>
+            !expense.dateTime.isBefore(start) && !expense.dateTime.isAfter(now))
+        .fold(0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+  }
+
+  final BudgetBuddyState togetherState = state.copyWith(
+    settings: state.settings.copyWith(
+      dailyLimit: togetherBudget,
+      weeklyLimit: null,
+      monthlyLimit: null,
+      hasConfiguredBudget: togetherBudget > 0,
+    ),
+    expenses: spendExpenses,
+    dailySpent: sumSince(dailyStart),
+    weeklySpent: sumSince(weeklyStart),
+    monthlySpent: sumSince(monthlyStart),
+    budgetEntries: <BudgetEntry>[],
+  );
+
+  return service.computeSummary(togetherState);
+});
+
 final mealSuggestionsProvider =
     Provider<List<MealSuggestion>>((Ref<List<MealSuggestion>> ref) {
   final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
@@ -350,6 +388,11 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     state = state.copyWith(
       settings: settings.copyWith(hasConfiguredBudget: settings.hasActiveLimit),
     );
+    _persist();
+  }
+
+  void setTogetherBudget(double amount) {
+    state = state.copyWith(togetherBudget: amount > 0 ? amount : 0);
     _persist();
   }
 

@@ -19,7 +19,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final BudgetSummary summary = ref.watch(budgetSummaryProvider);
+    final BudgetSummary summary = ref.watch(budgetTogetherSummaryProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -362,12 +362,12 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           category: category,
           note: _withSpendTag(note),
           dateTime: DateTime.now(),
-          source: 'spend',
+          source: 'togetherSpend',
           spendCategory: title,
         );
 
     Navigator.of(context).pop();
-    final BudgetSummary summary = ref.read(budgetSummaryProvider);
+    final BudgetSummary summary = ref.read(budgetTogetherSummaryProvider);
     final BudgetPeriodSummary? daySummary =
         summary.periodSummaries[BudgetPeriod.daily];
     final String suffix = daySummary == null || !daySummary.isActive
