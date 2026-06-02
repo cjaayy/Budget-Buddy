@@ -43,8 +43,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          labelTextStyle: MaterialStateProperty.resolveWith<TextStyle?>(
-              (Set<MaterialState> states) {
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
+              (Set<WidgetState> states) {
             return const TextStyle(fontSize: 11, height: 1.0);
           }),
         ),

@@ -13,7 +13,55 @@ if not exist "pubspec.yaml" (
 )
 
 call :ensure_pub
-
+[{
+	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Projects/Android Application/Budget Buddy/lib/features/home/home_shell.dart",
+	"owner": "_generated_diagnostic_collection_name_#8",
+	"code": {
+		"value": "deprecated_member_use",
+		"target": {
+			"$mid": 1,
+			"path": "/diagnostics/deprecated_member_use",
+			"scheme": "https",
+			"authority": "dart.dev"
+		}
+	},
+	"severity": 2,
+	"message": "'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre.\nTry replacing the use of the deprecated member with the replacement.",
+	"source": "dart",
+	"startLineNumber": 46,
+	"startColumn": 27,
+	"endLineNumber": 46,
+	"endColumn": 48,
+	"modelVersionId": 13,
+	"tags": [
+		2
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Projects/Android Application/Budget Buddy/lib/features/home/home_shell.dart",
+	"owner": "_generated_diagnostic_collection_name_#8",
+	"code": {
+		"value": "deprecated_member_use",
+		"target": {
+			"$mid": 1,
+			"path": "/diagnostics/deprecated_member_use",
+			"scheme": "https",
+			"authority": "dart.dev"
+		}
+	},
+	"severity": 2,
+	"message": "'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre.\nTry replacing the use of the deprecated member with the replacement.",
+	"source": "dart",
+	"startLineNumber": 47,
+	"startColumn": 20,
+	"endLineNumber": 47,
+	"endColumn": 33,
+	"modelVersionId": 13,
+	"tags": [
+		2
+	],
+	"origin": "extHost1"
+}]
 set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
 set "PACKAGE=com.budgetbuddy.app"
 set "DEBUG_APK=%cd%\android\app\build\outputs\apk\debug\app-debug.apk"

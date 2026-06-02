@@ -30,13 +30,6 @@ class TogetherScreen extends StatelessWidget {
                         children: <Widget>[
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.home_rounded),
-                            title: Text('Home'),
-                            subtitle: Text('Dashboard and quick actions.'),
-                          ),
-                          Divider(height: 1),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
                             leading: Icon(Icons.account_balance_wallet_rounded),
                             title: Text('Budget'),
                             subtitle: Text('Budget planner and budget status.'),
@@ -47,13 +40,6 @@ class TogetherScreen extends StatelessWidget {
                             leading: Icon(Icons.shopping_bag_rounded),
                             title: Text('Spend'),
                             subtitle: Text('Track daily spending.'),
-                          ),
-                          Divider(height: 1),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.savings_rounded),
-                            title: Text('Savings'),
-                            subtitle: Text('View savings progress.'),
                           ),
                           Divider(height: 1),
                           ListTile(
