@@ -120,10 +120,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
-                          ...<BudgetPeriod>[
-                            BudgetPeriod.daily,
-                            BudgetPeriod.monthly
-                          ].map((BudgetPeriod period) {
+                          ...<BudgetPeriod>[BudgetPeriod.daily]
+                              .map((BudgetPeriod period) {
                             final BudgetPeriodSummary? periodSummary =
                                 summary.periodSummaries[period];
                             if (periodSummary == null ||
