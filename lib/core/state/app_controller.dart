@@ -372,6 +372,15 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     ];
     final int existingIndex = updatedRecords
         .indexWhere((DailyRecord record) => _isSameDay(record.date, now));
+
+    // Do not count or create a savings date if no budget amount was set and no spending logged.
+    if (currentSummary.totalBudget <= 0 && currentSummary.totalSpent <= 0) {
+      if (existingIndex >= 0) {
+        updatedRecords.removeAt(existingIndex);
+        state = state.copyWith(dailyRecords: updatedRecords);
+      }
+      return;
+    }
     final DailyRecord record = DailyRecord(
       date: now,
       totalSpent: currentSummary.totalSpent,

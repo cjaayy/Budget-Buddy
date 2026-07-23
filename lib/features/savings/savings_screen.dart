@@ -124,7 +124,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           const SizedBox(height: 12),
                           if (records.isEmpty)
                             Text(
-                              'No savings records yet.',
+                              'No savings records yet. Set a budget to start tracking your daily and monthly savings.',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium

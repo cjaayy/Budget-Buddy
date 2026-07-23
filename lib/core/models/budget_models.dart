@@ -1277,7 +1277,7 @@ class BudgetBuddyState {
               ?.map((dynamic item) =>
                   DailyRecord.fromJson((item as Map).cast<String, dynamic>()))
               .toList() ??
-          DailyRecord.sampleList(),
+          <DailyRecord>[],
       profile: UserProfile.fromJson(
           (json['profile'] as Map?)?.cast<String, dynamic>() ??
               <String, dynamic>{}),
