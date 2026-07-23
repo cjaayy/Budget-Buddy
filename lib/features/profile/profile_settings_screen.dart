@@ -96,6 +96,48 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     const SizedBox(height: 12),
                     SectionCard(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'APPEARANCE',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              state.themeMode == ThemeMode.dark
+                                  ? Icons.dark_mode_rounded
+                                  : Icons.light_mode_rounded,
+                            ),
+                            title: const Text('Dark Mode'),
+                            subtitle: Text(
+                              state.themeMode == ThemeMode.dark
+                                  ? 'Dark theme enabled'
+                                  : state.themeMode == ThemeMode.light
+                                      ? 'Light theme enabled'
+                                      : 'System theme default',
+                            ),
+                            trailing: Switch(
+                              value: state.themeMode == ThemeMode.dark,
+                              onChanged: (bool isDark) {
+                                ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .setThemeMode(
+                                      isDark ? ThemeMode.dark : ThemeMode.light,
+                                    );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      child: Column(
                         children: <Widget>[
                           ListTile(
                             contentPadding: EdgeInsets.zero,
@@ -346,9 +388,29 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              const SizedBox.shrink(),
-                              const SizedBox(height: 12),
+                               const Divider(height: 1),
+                               ListTile(
+                                 contentPadding: EdgeInsets.zero,
+                                 leading: Icon(
+                                   modalRef.watch(budgetBuddyControllerProvider).themeMode == ThemeMode.dark
+                                       ? Icons.dark_mode_rounded
+                                       : Icons.light_mode_rounded,
+                                 ),
+                                 title: const Text('Dark Mode Theme'),
+                                 subtitle: const Text(
+                                     'Switch between light mode and dark mode theme.'),
+                                 trailing: Switch(
+                                   value: modalRef.watch(budgetBuddyControllerProvider).themeMode == ThemeMode.dark,
+                                   onChanged: (bool isDark) {
+                                     modalRef
+                                         .read(budgetBuddyControllerProvider.notifier)
+                                         .setThemeMode(
+                                           isDark ? ThemeMode.dark : ThemeMode.light,
+                                         );
+                                   },
+                                 ),
+                               ),
+                               const SizedBox(height: 12),
                             ],
                           ),
                         ),
