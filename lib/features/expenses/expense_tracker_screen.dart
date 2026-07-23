@@ -315,11 +315,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
-                            tileColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant)),
                             leading: const Icon(Icons.calendar_today_outlined),
                             title: Text(_formatDayLabel(day),
                                 style: const TextStyle(
@@ -406,10 +407,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           final ExpenseEntry expense = dayExpenses[index];
                           return Container(
                             decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant)),
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Column(
@@ -418,9 +420,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   Row(
                                     children: <Widget>[
                                       CircleAvatar(
-                                          backgroundColor: expense
-                                              .category.color
-                                              .withValues(alpha: 0.14),
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerLow,
                                           child: Icon(
                                             _expenseIconForExpense(expense),
                                             color: expense.category.color,
@@ -962,10 +964,11 @@ class _DailySection extends StatelessWidget {
                       : onTapDay(DateTime.now()),
                   child: Container(
                     decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant)),
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -973,8 +976,9 @@ class _DailySection extends StatelessWidget {
                         Row(
                           children: <Widget>[
                             CircleAvatar(
-                                backgroundColor: expense.category.color
-                                    .withValues(alpha: 0.14),
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerLow,
                                 child: Icon(
                                   _expenseIconForExpense(expense),
                                   color: expense.category.color,
@@ -1118,10 +1122,12 @@ class _MonthlySection extends StatelessWidget {
                 child: ListTile(
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  tileColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant)),
                   leading: const Icon(Icons.date_range_outlined),
                   title: Text(DateFormat('MMMM yyyy').format(month),
                       style: const TextStyle(fontWeight: FontWeight.w700)),

@@ -489,8 +489,13 @@ class _CategoryGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: option.color.withValues(alpha: 0.10),
-      borderRadius: BorderRadius.circular(16),
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -507,7 +512,7 @@ class _CategoryGridTile extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: option.color.withValues(alpha: 0.12),
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
