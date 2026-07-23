@@ -56,6 +56,28 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              if (Navigator.of(context).canPop()) ...<Widget>[
+                FilledButton.tonalIcon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: const Text(
+                    'Back to Menu',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor:
+                        const Color(0xFF0F766E).withValues(alpha: 0.12),
+                    foregroundColor: const Color(0xFF0F766E),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               const SectionTitle(
                 title: 'Set Budget Together',
                 subtitle: 'This budget is only for the Budget Together tab.',

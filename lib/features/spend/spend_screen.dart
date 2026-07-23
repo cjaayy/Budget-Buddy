@@ -32,6 +32,37 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              if (Navigator.of(context).canPop()) ...<Widget>[
+                FilledButton.tonalIcon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: Text(
+                    widget.isTogetherOnly
+                        ? 'Back to Budget Together Menu'
+                        : 'Back to Menu',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: widget.isTogetherOnly
+                        ? const Color(0xFF0F766E).withValues(alpha: 0.12)
+                        : Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.12),
+                    foregroundColor: widget.isTogetherOnly
+                        ? const Color(0xFF0F766E)
+                        : Theme.of(context).colorScheme.primary,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               SectionTitle(
                 title: widget.isTogetherOnly ? 'Spend (Budget Together)' : 'Spend',
                 subtitle: widget.isTogetherOnly
