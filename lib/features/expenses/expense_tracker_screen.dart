@@ -31,11 +31,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         _sortExpenses(_expensesForDay(expenses, today));
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showExpenseDialog(ref),
-        icon: const Icon(Icons.add_rounded),
-        label: Text(widget.isTogetherOnly ? 'Add Together Expense' : 'Add Expense'),
-      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
