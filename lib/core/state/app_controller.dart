@@ -39,7 +39,11 @@ final budgetBuddyControllerProvider =
 
 final budgetSummaryProvider = Provider<BudgetSummary>((Ref<BudgetSummary> ref) {
   final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-  return ref.watch(budgetServiceProvider).computeSummary(state);
+  final List<ExpenseEntry> mainExpenses = state.expenses
+      .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
+      .toList();
+  final BudgetBuddyState mainState = state.copyWith(expenses: mainExpenses);
+  return ref.watch(budgetServiceProvider).computeSummary(mainState);
 });
 
 final budgetTogetherSummaryProvider =
@@ -119,7 +123,13 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   final NotificationService _notificationService;
   final Uuid _uuid = const Uuid();
 
-  BudgetSummary get summary => _service.computeSummary(state);
+  BudgetSummary get summary => _service.computeSummary(
+        state.copyWith(
+          expenses: state.expenses
+              .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
+              .toList(),
+        ),
+      );
 
   List<MealSuggestion> mealsFor(
       {MealCategory category = MealCategory.budgetMeals, MealType? mealType}) {
@@ -277,6 +287,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   double _sumExpensesSince(DateTime start, DateTime endInclusive) {
     return state.expenses
         .where((ExpenseEntry expense) =>
+            expense.source != 'togetherSpend' &&
             !expense.dateTime.isBefore(start) &&
             !expense.dateTime.isAfter(endInclusive))
         .fold(0, (double sum, ExpenseEntry expense) => sum + expense.amount);
@@ -285,6 +296,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   double _sumExpensesInRange(DateTime start, DateTime endExclusive) {
     return state.expenses
         .where((ExpenseEntry expense) =>
+            expense.source != 'togetherSpend' &&
             !expense.dateTime.isBefore(start) &&
             expense.dateTime.isBefore(endExclusive))
         .fold(0, (double sum, ExpenseEntry expense) => sum + expense.amount);
@@ -349,7 +361,11 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   Future<void> _syncDailyRecord() async {
-    final BudgetSummary currentSummary = _service.computeSummary(state);
+    final List<ExpenseEntry> mainExpenses = state.expenses
+        .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
+        .toList();
+    final BudgetSummary currentSummary =
+        _service.computeSummary(state.copyWith(expenses: mainExpenses));
     final DateTime now = DateTime.now();
     final List<DailyRecord> updatedRecords = <DailyRecord>[
       ...state.dailyRecords

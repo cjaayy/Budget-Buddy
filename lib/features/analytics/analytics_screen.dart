@@ -255,7 +255,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     for (int i = 6; i >= 0; i--) {
       final DateTime day = today.subtract(Duration(days: i));
       final List<ExpenseEntry> dayExpenses = state.expenses
-          .where((ExpenseEntry expense) => _sameDay(expense.dateTime, day))
+          .where((ExpenseEntry expense) =>
+              expense.source != 'togetherSpend' &&
+              _sameDay(expense.dateTime, day))
           .toList();
       final double spent = dayExpenses.fold(
           0, (double sum, ExpenseEntry expense) => sum + expense.amount);
@@ -321,6 +323,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
       final List<ExpenseEntry> weekExpenses =
           state.expenses.where((ExpenseEntry expense) {
+        if (expense.source == 'togetherSpend') return false;
         final DateTime day = _startOfDay(expense.dateTime);
         return !day.isBefore(weekStart) && !day.isAfter(weekEnd);
       }).toList();
@@ -375,6 +378,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
       final List<ExpenseEntry> monthExpenses =
           state.expenses.where((ExpenseEntry expense) {
+        if (expense.source == 'togetherSpend') return false;
         final DateTime day = _startOfDay(expense.dateTime);
         return !day.isBefore(monthStart) && day.isBefore(nextMonth);
       }).toList();
@@ -452,6 +456,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
     final Map<DateTime, double> dayTotals = <DateTime, double>{};
     for (final ExpenseEntry expense in state.expenses) {
+      if (expense.source == 'togetherSpend') continue;
       final DateTime day = _startOfDay(expense.dateTime);
       if (day.isBefore(monthStart) || day.isAfter(monthEnd)) {
         continue;

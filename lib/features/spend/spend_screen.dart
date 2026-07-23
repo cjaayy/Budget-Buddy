@@ -8,7 +8,9 @@ import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
 class SpendScreen extends ConsumerStatefulWidget {
-  const SpendScreen({super.key});
+  const SpendScreen({super.key, this.isTogetherOnly = false});
+
+  final bool isTogetherOnly;
 
   @override
   ConsumerState<SpendScreen> createState() => _SpendScreenState();
@@ -19,7 +21,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final BudgetSummary summary = ref.watch(budgetTogetherSummaryProvider);
+    final BudgetSummary summary = widget.isTogetherOnly
+        ? ref.watch(budgetTogetherSummaryProvider)
+        : ref.watch(budgetSummaryProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -28,10 +32,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SectionTitle(
-                title: 'Spend',
-                subtitle:
-                    'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
+              SectionTitle(
+                title: widget.isTogetherOnly ? 'Spend (Budget Together)' : 'Spend',
+                subtitle: widget.isTogetherOnly
+                    ? 'Plan and log spending inside Budget Together. Deducted from your tab budget.'
+                    : 'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -362,12 +367,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           category: category,
           note: _withSpendTag(note),
           dateTime: DateTime.now(),
-          source: 'togetherSpend',
+          source: widget.isTogetherOnly ? 'togetherSpend' : 'manual',
           spendCategory: title,
         );
 
     Navigator.of(context).pop();
-    final BudgetSummary summary = ref.read(budgetTogetherSummaryProvider);
+    final BudgetSummary summary = widget.isTogetherOnly
+        ? ref.read(budgetTogetherSummaryProvider)
+        : ref.read(budgetSummaryProvider);
     final BudgetPeriodSummary? daySummary =
         summary.periodSummaries[BudgetPeriod.daily];
     final String suffix = daySummary == null || !daySummary.isActive

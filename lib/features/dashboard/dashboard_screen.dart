@@ -42,7 +42,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               spent: 0,
             );
     final bool hasConfiguredBudget = state.settings.hasConfiguredBudget;
-    final bool hasExpenses = state.expenses.isNotEmpty;
+    final bool hasExpenses =
+        state.expenses.any((ExpenseEntry e) => e.source != 'togetherSpend');
     final double totalBudget = selectedSummary.limit;
     final double spentAdjusted = selectedSummary.spent;
     final double remainingAdjusted = selectedSummary.remaining;

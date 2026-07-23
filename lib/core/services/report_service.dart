@@ -13,7 +13,9 @@ class ReportService {
     required BudgetSummary summary,
   }) async {
     final pw.Document document = pw.Document();
-    final List<ExpenseEntry> expenses = state.expenses.toList()
+    final List<ExpenseEntry> expenses = state.expenses
+        .where((ExpenseEntry e) => e.source != 'togetherSpend')
+        .toList()
       ..sort(
         (ExpenseEntry left, ExpenseEntry right) =>
             right.dateTime.compareTo(left.dateTime),

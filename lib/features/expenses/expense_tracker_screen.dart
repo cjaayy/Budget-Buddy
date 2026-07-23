@@ -9,7 +9,9 @@ import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
 class ExpenseTrackerScreen extends ConsumerStatefulWidget {
-  const ExpenseTrackerScreen({super.key});
+  const ExpenseTrackerScreen({super.key, this.isTogetherOnly = false});
+
+  final bool isTogetherOnly;
 
   @override
   ConsumerState<ExpenseTrackerScreen> createState() =>
@@ -29,15 +31,24 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         _sortExpenses(_expensesForDay(expenses, today));
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showExpenseDialog(ref),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(widget.isTogetherOnly ? 'Add Together Expense' : 'Add Expense'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SectionTitle(
-                title: 'Expenses',
-                subtitle: 'View and manage your logged expenses.',
+              SectionTitle(
+                title: widget.isTogetherOnly
+                    ? 'Budget Together Expenses'
+                    : 'Expenses',
+                subtitle: widget.isTogetherOnly
+                    ? 'View and manage expenses logged for Budget Together.'
+                    : 'View and manage your logged expenses.',
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -92,6 +103,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       _DailySection(
                         dayLabel: _formatDayLabel(today),
                         expenses: todayExpenses,
+                        isTogetherOnly: widget.isTogetherOnly,
                         onTapDay: (DateTime day) => _showDayExpensesSheet(
                             ref, day, expenses,
                             showBackButton: true),
@@ -122,6 +134,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       _MonthlySection(
                         availableMonths: availableMonths,
                         expenses: expenses,
+                        isTogetherOnly: widget.isTogetherOnly,
                         onTapMonth: (DateTime month) =>
                             _showMonthDatesSheet(ref, month, expenses),
                       ),
@@ -138,6 +151,15 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   List<ExpenseEntry> _filteredExpenses(BudgetBuddyState state) {
     final List<ExpenseEntry> filtered =
         state.expenses.where((ExpenseEntry expense) {
+      if (widget.isTogetherOnly) {
+        if (expense.source != 'togetherSpend') {
+          return false;
+        }
+      } else {
+        if (expense.source == 'togetherSpend') {
+          return false;
+        }
+      }
       if (state.currentExpenseFilter != null &&
           expense.category != state.currentExpenseFilter) {
         return false;
@@ -571,7 +593,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 void Function(void Function()) setModalState) {
               final BudgetBuddyState state =
                   ref.read(budgetBuddyControllerProvider);
-              final BudgetSummary summary = ref.read(budgetSummaryProvider);
+              final BudgetSummary summary = widget.isTogetherOnly
+                  ? ref.read(budgetTogetherSummaryProvider)
+                  : ref.read(budgetSummaryProvider);
               final double enteredAmount =
                   double.tryParse(amountController.text) ?? 0;
               final double limit = _categoryLimit(category, state.settings);
@@ -591,7 +615,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                           child: Text(
-                              existing == null ? 'Add Expense' : 'Edit Expense',
+                              existing == null
+                                  ? (widget.isTogetherOnly
+                                      ? 'Add Together Expense'
+                                      : 'Add Expense')
+                                  : 'Edit Expense',
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -651,19 +679,27 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           onPressed: () {
                             final BudgetBuddyController controller = ref
                                 .read(budgetBuddyControllerProvider.notifier);
+                            final String source = existing != null &&
+                                    existing.source.isNotEmpty
+                                ? existing.source
+                                : (widget.isTogetherOnly
+                                    ? 'togetherSpend'
+                                    : 'manual');
                             final ExpenseEntry entry = ExpenseEntry(
-                                id: existing?.id ??
-                                    DateTime.now()
-                                        .microsecondsSinceEpoch
-                                        .toString(),
-                                title: titleController.text.trim().isEmpty
-                                    ? 'Expense'
-                                    : titleController.text.trim(),
-                                amount:
-                                    double.tryParse(amountController.text) ?? 0,
-                                category: category,
-                                dateTime: existing?.dateTime ?? DateTime.now(),
-                                note: noteController.text.trim());
+                              id: existing?.id ??
+                                  DateTime.now()
+                                      .microsecondsSinceEpoch
+                                      .toString(),
+                              title: titleController.text.trim().isEmpty
+                                  ? 'Expense'
+                                  : titleController.text.trim(),
+                              amount:
+                                  double.tryParse(amountController.text) ?? 0,
+                              category: category,
+                              dateTime: existing?.dateTime ?? DateTime.now(),
+                              note: noteController.text.trim(),
+                              source: source,
+                            );
                             if (existing == null) {
                               controller.addExpense(
                                 title: entry.title,
@@ -671,6 +707,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                 category: entry.category,
                                 note: entry.note,
                                 dateTime: entry.dateTime,
+                                source: entry.source,
                               );
                             } else {
                               controller.updateExpense(entry);
@@ -836,6 +873,7 @@ class _DailySection extends StatelessWidget {
     required this.dayLabel,
     required this.expenses,
     required this.onTapDay,
+    this.isTogetherOnly = false,
     this.onTapExpense,
     this.onEditExpense,
     this.onDeleteExpense,
@@ -844,6 +882,7 @@ class _DailySection extends StatelessWidget {
 
   final String dayLabel;
   final List<ExpenseEntry> expenses;
+  final bool isTogetherOnly;
   final ValueChanged<DateTime> onTapDay;
   final ValueChanged<ExpenseEntry>? onTapExpense;
   final Future<void> Function(ExpenseEntry)? onEditExpense;
@@ -876,7 +915,10 @@ class _DailySection extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 12),
           if (expenses.isEmpty)
-            Text('No expenses yet for today.',
+            Text(
+                isTogetherOnly
+                    ? 'No Budget Together expenses yet for today.'
+                    : 'No expenses yet for today.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant))
           else
@@ -1001,11 +1043,13 @@ class _MonthlySection extends StatelessWidget {
   const _MonthlySection(
       {required this.availableMonths,
       required this.expenses,
-      required this.onTapMonth});
+      required this.onTapMonth,
+      this.isTogetherOnly = false});
 
   final List<DateTime> availableMonths;
   final List<ExpenseEntry> expenses;
   final ValueChanged<DateTime> onTapMonth;
+  final bool isTogetherOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1026,7 +1070,10 @@ class _MonthlySection extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           if (availableMonths.isEmpty)
-            Text('No expenses yet.',
+            Text(
+                isTogetherOnly
+                    ? 'No Budget Together expenses yet.'
+                    : 'No expenses yet.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant))
           else

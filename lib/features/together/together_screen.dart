@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
-import 'budget_together_screen.dart';
+import '../expenses/expense_tracker_screen.dart';
 import '../spend/spend_screen.dart';
+import 'budget_together_screen.dart';
 
 class TogetherScreen extends StatelessWidget {
   const TogetherScreen({super.key});
@@ -58,17 +59,28 @@ class TogetherScreen extends StatelessWidget {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (BuildContext context) =>
-                                      const SpendScreen(),
+                                      const SpendScreen(isTogetherOnly: true),
                                 ),
                               );
                             },
                           ),
                           const Divider(height: 1),
-                          const ListTile(
+                          ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.receipt_long_rounded),
-                            title: Text('Expenses'),
-                            subtitle: Text('Review expense tracking.'),
+                            leading: const Icon(Icons.receipt_long_rounded),
+                            title: const Text('Expenses'),
+                            subtitle: const Text('Review expense tracking.'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (BuildContext context) =>
+                                      const ExpenseTrackerScreen(
+                                    isTogetherOnly: true,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
