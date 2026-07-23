@@ -9,7 +9,9 @@ import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 
 class SavingsScreen extends ConsumerStatefulWidget {
-  const SavingsScreen({super.key});
+  const SavingsScreen({super.key, this.isTogetherOnly = false});
+
+  final bool isTogetherOnly;
 
   @override
   ConsumerState<SavingsScreen> createState() => _SavingsScreenState();
@@ -21,7 +23,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final List<DailyRecord> records = _sortedRecords(state.dailyRecords);
+    final List<DailyRecord> records = _getRecords(state);
     final List<DateTime> availableMonths = _availableMonths(records);
     final double netSavings = _sectionNetSavings(records, _activeSection);
 
@@ -32,10 +34,44 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SectionTitle(
-                title: 'Savings',
-                subtitle:
-                    'Track how much you saved each day based on your active budget.',
+              if (Navigator.of(context).canPop()) ...<Widget>[
+                FilledButton.tonalIcon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: Text(
+                    widget.isTogetherOnly
+                        ? 'Back to Budget Together Menu'
+                        : 'Back to Menu',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: widget.isTogetherOnly
+                        ? const Color(0xFF0F766E).withValues(alpha: 0.12)
+                        : Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.12),
+                    foregroundColor: widget.isTogetherOnly
+                        ? const Color(0xFF0F766E)
+                        : Theme.of(context).colorScheme.primary,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              SectionTitle(
+                title: widget.isTogetherOnly
+                    ? 'Savings (Budget Together)'
+                    : 'Savings',
+                subtitle: widget.isTogetherOnly
+                    ? 'Track how much you saved in Budget Together based on your tab budget.'
+                    : 'Track how much you saved each day based on your active budget.',
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -51,7 +87,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
                           : 'Across ${availableMonths.length} month${availableMonths.length == 1 ? '' : 's'}',
                       icon: Icons.savings_rounded,
-                      color: const Color(0xFFD4AF37),
+                      color: widget.isTogetherOnly
+                          ? const Color(0xFF0F766E)
+                          : const Color(0xFFD4AF37),
                       centerContent: true,
                     ),
                     const SizedBox(height: 16),
@@ -124,7 +162,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           const SizedBox(height: 12),
                           if (records.isEmpty)
                             Text(
-                              'No savings records yet. Set a budget to start tracking your daily and monthly savings.',
+                              widget.isTogetherOnly
+                                  ? 'No Budget Together savings records yet. Set a budget in Budget Together to start tracking tab savings.'
+                                  : 'No savings records yet. Set a budget to start tracking your daily and monthly savings.',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
@@ -490,6 +530,69 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         );
       },
     );
+  }
+
+  List<DailyRecord> _getRecords(BudgetBuddyState state) {
+    if (!widget.isTogetherOnly) {
+      return _sortedRecords(state.dailyRecords);
+    }
+
+    final double togetherBudget = state.togetherBudget;
+    final List<ExpenseEntry> togetherExpenses = state.expenses
+        .where((ExpenseEntry e) => e.source == 'togetherSpend')
+        .toList();
+
+    if (togetherBudget <= 0 && togetherExpenses.isEmpty) {
+      return <DailyRecord>[];
+    }
+
+    final Set<DateTime> dates = <DateTime>{};
+    if (togetherBudget > 0) {
+      final DateTime now = DateTime.now();
+      dates.add(DateTime(now.year, now.month, now.day));
+    }
+    for (final ExpenseEntry expense in togetherExpenses) {
+      dates.add(DateTime(
+          expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
+    }
+
+    final List<DailyRecord> records = <DailyRecord>[];
+    for (final DateTime date in dates) {
+      final List<ExpenseEntry> dayExpenses = togetherExpenses
+          .where((ExpenseEntry e) => DateUtils.isSameDay(e.dateTime, date))
+          .toList();
+      final double totalSpent = dayExpenses.fold(
+          0, (double sum, ExpenseEntry e) => sum + e.amount);
+      final double savings =
+          togetherBudget > 0 ? togetherBudget - totalSpent : -totalSpent;
+
+      final Map<String, double> categoryTotals = <String, double>{
+        for (final BudgetCategory category in BudgetCategory.values)
+          category.label: 0,
+      };
+      for (final ExpenseEntry e in dayExpenses) {
+        categoryTotals[e.category.label] =
+            (categoryTotals[e.category.label] ?? 0) + e.amount;
+      }
+
+      records.add(
+        DailyRecord(
+          date: date,
+          totalSpent: totalSpent,
+          remainingBalance: savings,
+          savings: savings,
+          biggestExpenseCategory: dayExpenses.isEmpty
+              ? BudgetCategory.miscellaneous.label
+              : dayExpenses
+                  .reduce((a, b) => a.amount >= b.amount ? a : b)
+                  .category
+                  .label,
+          categoryTotals: categoryTotals,
+        ),
+      );
+    }
+
+    return _sortedRecords(records);
   }
 
   List<DailyRecord> _sortedRecords(List<DailyRecord> records) {

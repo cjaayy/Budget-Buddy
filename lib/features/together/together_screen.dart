@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 import '../expenses/expense_tracker_screen.dart';
+import '../savings/savings_screen.dart';
 import '../spend/spend_screen.dart';
 import 'budget_together_screen.dart';
 
@@ -76,6 +77,25 @@ class TogetherScreen extends StatelessWidget {
                                 MaterialPageRoute<void>(
                                   builder: (BuildContext context) =>
                                       const ExpenseTrackerScreen(
+                                    isTogetherOnly: true,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.savings_rounded),
+                            title: const Text('Savings'),
+                            subtitle:
+                                const Text('Track savings for Budget Together.'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (BuildContext context) =>
+                                      const SavingsScreen(
                                     isTogetherOnly: true,
                                   ),
                                 ),
