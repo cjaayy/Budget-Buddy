@@ -1,0 +1,89 @@
+Running Gradle task 'assembleDebug'...                          
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:6:8 Unresolved reference 'io'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:7:8 Unresolved reference 'io'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:8:8 Unresolved reference 'io'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:19:22 Unresolved reference 'FlutterActivity'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:22:29 Unresolved reference 'MethodChannel'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:25:2 'configureFlutterEngine' overrides nothing.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:25:53 Unresolved reference 'FlutterEngine'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:26:3 Unresolved reference 'FlutterActivity'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:26:9 Unresolved reference 'configureFlutterEngine'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:28:3 Unresolved reference 'MethodChannel'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:28:31 Unresolved reference 'dartExecutor'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:29:28 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:29:34 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:33:16 Unresolved reference 'method'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:36:15 Unresolved reference 'error'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:37:8 Return type mismatch: expected 'ERROR CLASS: Cannot infer type variable TypeVariable(_L)', actual 'kotlin.Unit'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:44:7 Unresolved reference 'startActivityForResult'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:45:7 Argument type mismatch: actual type is 'kotlin.Nothing', but 'K' was expected.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:45:7 Return type mismatch: expected 'ERROR CLASS: Cannot infer type variable TypeVariable(_L)', actual 'kotlin.Unit'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:48:29 Unresolved reference 'argument'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:49:30 Unresolved reference 'argument'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:50:27 Unresolved reference 'argument'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:53:15 Unresolved reference 'error'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:54:8 Return type mismatch: expected 'ERROR CLASS: Cannot infer type variable TypeVariable(_L)', actual 'kotlin.Unit'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:57:7 Argument type mismatch: actual type is 'K#2 (type parameter of fun <K> TRY_CALL(vararg branches: K): K)', but 'K#1 (type parameter of fun <K> WHEN_CALL(vararg branches: K): K)' was expected.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:58:23 Unresolved reference 'applicationContext'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:60:9 None of the following candidates is applicable:
+fun put(p0: String!, p1: ByteArray!): Unit
+fun put(p0: String!, p1: Boolean!): Unit
+fun put(p0: String!, p1: Byte!): Unit
+fun put(p0: String!, p1: Double!): Unit
+fun put(p0: String!, p1: Float!): Unit
+fun put(p0: String!, p1: Int!): Unit
+fun put(p0: String!, p1: Long!): Unit
+fun put(p0: String!, p1: Short!): Unit
+fun put(p0: String!, p1: String!): Unit
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:71:16 Unresolved reference 'error'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:72:9 Return type mismatch: expected 'ERROR CLASS: Cannot infer type variable TypeVariable(_L)', actual 'kotlin.Unit'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:75:39 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:75:45 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:76:25 None of the following candidates is applicable:
+constructor(p0: String!): File
+constructor(p0: URI!): File
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:76:43 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:76:43 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+fun <T : Closeable?, R> T.use(block: (T) -> R): R
+    [R|Contract description]
+     <
+        CallsInPlace(block, EXACTLY_ONCE)
+    >
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:76:49 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:78:30 Unresolved reference 'read'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:80:22 Unresolved reference 'write'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:81:27 Unresolved reference 'read'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:83:21 Unresolved reference 'flush'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:88:15 Unresolved reference 'success'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:90:15 Unresolved reference 'error'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:93:21 Unresolved reference 'notImplemented'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:98:2 'onActivityResult' overrides nothing.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:99:3 Unresolved reference 'FlutterActivity'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:99:9 Unresolved reference 'onActivityResult'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:105:12 Unresolved reference 'success'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:110:12 Unresolved reference 'error'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:114:20 Unresolved reference 'applicationContext'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:115:5 Argument type mismatch: actual type is 'R', but 'K' was expected.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:115:35 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:115:41 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:117:14 Unresolved reference 'error'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:120:52 Argument type mismatch: actual type is 'kotlin.Any', but 'java.io.InputStream!' was expected.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:127:13 Unresolved reference 'success'.
+e: file:///C:/Users/mjhay/Desktop/Programming/Visual%20Studio%20Code/Projects/Android%20Application/Budget%20Buddy/android/app/src/main/kotlin/com/budgetbuddy/app/MainActivity.kt:130:12 Unresolved reference 'error'.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 53s
+Running Gradle task 'assembleDebug'...                             54.5s
+Gradle task assembleDebug failed with exit code 1

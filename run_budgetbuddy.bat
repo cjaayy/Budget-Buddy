@@ -13,61 +13,24 @@ if not exist "pubspec.yaml" (
 )
 
 call :ensure_pub
-[{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Projects/Android Application/Budget Buddy/lib/features/home/home_shell.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 46,
-	"startColumn": 27,
-	"endLineNumber": 46,
-	"endColumn": 48,
-	"modelVersionId": 13,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Projects/Android Application/Budget Buddy/lib/features/home/home_shell.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 47,
-	"startColumn": 20,
-	"endLineNumber": 47,
-	"endColumn": 33,
-	"modelVersionId": 13,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-}]
 set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
 set "PACKAGE=com.budgetbuddy.app"
 set "DEBUG_APK=%cd%\android\app\build\outputs\apk\debug\app-debug.apk"
 set "RELEASE_APK=%cd%\android\app\build\outputs\apk\release\app-release.apk"
 set "GRADLEW=%cd%\android\gradlew.bat"
 set "ANDROID_DIR=%cd%\android"
+
+rem Force the Android build to use a supported local JDK installation.
+rem This avoids Unsupported class file major version 66 when the default
+rem java on PATH is newer or incompatible for this project's Gradle/Kotlin.
+if exist "C:\Progra~1\Java\jdk-22\bin\java.exe" (
+    set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
+    set "PATH=!JAVA_HOME!\bin;!PATH!"
+    set "GRADLE_OPTS=-Dorg.gradle.java.home=C:\Progra~1\Java\jdk-22"
+) else (
+    echo [WARNING] Supported JDK not found at C:\Progra~1\Java\jdk-22.
+    echo [WARNING] The Android build may still fail if JAVA_HOME is not set.
+)
 
 echo ========================================
 echo    Budget Buddy - Physical Device Run
@@ -284,7 +247,9 @@ echo ========================================
 echo.
 
 pushd "%ANDROID_DIR%"
-call gradlew.bat assembleDebug
+set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+call "%GRADLEW%" --no-daemon -Dorg.gradle.java.home=C:\Progra~1\Java\jdk-22 assembleDebug
 set "GRADLE_STATUS=%ERRORLEVEL%"
 popd
 if not "%GRADLE_STATUS%"=="0" (
@@ -312,7 +277,9 @@ echo Building and installing app (debug)...
 echo.
 
 pushd "%ANDROID_DIR%"
-call gradlew.bat assembleDebug
+set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+call "%GRADLEW%" --no-daemon -Dorg.gradle.java.home=C:\Progra~1\Java\jdk-22 assembleDebug
 set "GRADLE_STATUS=%ERRORLEVEL%"
 popd
 if not "%GRADLE_STATUS%"=="0" (
@@ -366,7 +333,7 @@ call flutter clean
 call flutter pub get
 
 pushd "%ANDROID_DIR%"
-call gradlew.bat assembleRelease
+call "%GRADLEW%" --no-daemon assembleRelease
 set "GRADLE_STATUS=%ERRORLEVEL%"
 popd
 if not "%GRADLE_STATUS%"=="0" (
@@ -425,8 +392,6 @@ if not exist ".dart_tool\package_config.json" (
     )
 )
 exit /b 0
-[{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
 		call android\gradlew.bat assembleRelease
 	"code": {
 		"value": "unused_local_variable",
@@ -755,42 +720,84 @@ exit /b 0
 
 :DetectJava
 set "JAVA_BIN="
+set "JAVA_HOME="
+set "JAVA_VERSION="
+set "JAVA_MAJOR="
+set "JAVA_INVALID="
 
-rem Prefer Android Studio JBR first, then common JDK 21/17 installs.
-if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" (
-    set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
-    set "JAVA_BIN=%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe"
-)
-
-if not defined JAVA_BIN (
-    for /d %%J in ("%ProgramFiles%\Eclipse Adoptium\jdk-21*" "%ProgramFiles%\Java\jdk-21*" "%ProgramFiles%\Java\jdk-17*") do (
-        if not defined JAVA_BIN if exist "%%~fJ\bin\java.exe" (
-            set "JAVA_HOME=%%~fJ"
-            set "JAVA_BIN=%%~fJ\bin\java.exe"
+rem Prefer explicit supported JDK 17/21 installations first.
+for %%J in (
+    "%ProgramFiles%\Eclipse Adoptium\jdk-21*"
+    "%ProgramFiles%\Java\jdk-21*"
+    "%ProgramFiles%\Eclipse Adoptium\jdk-17*"
+    "%ProgramFiles%\Java\jdk-17*"
+) do (
+    if exist %%~J\bin\java.exe (
+        call :CheckJavaVersion "%%~J\bin\java.exe"
+        if not defined JAVA_INVALID (
+            set "JAVA_HOME=%%~J"
+            set "JAVA_BIN=%%~J\bin\java.exe"
+            goto :JavaFound
         )
     )
 )
 
-if not defined JAVA_BIN if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA_BIN=%JAVA_HOME%\bin\java.exe"
+rem Fallback to Android Studio JBR if it is supported.
+if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" (
+    call :CheckJavaVersion "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe"
+    if not defined JAVA_INVALID (
+        set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
+        set "JAVA_BIN=%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe"
+        goto :JavaFound
+    )
+)
 
-if not defined JAVA_BIN (
-    for /f "usebackq delims=" %%J in (`where java 2^>nul`) do (
-        if not defined JAVA_BIN set "JAVA_BIN=%%J"
+rem Final fallback to any java on PATH if supported.
+for /f "usebackq delims=" %%J in (`where java 2^>nul`) do (
+    if not defined JAVA_BIN (
+        call :CheckJavaVersion "%%~J"
+        if not defined JAVA_INVALID (
+            set "JAVA_BIN=%%~J"
+            for %%D in ("%%~J") do for %%E in ("%%~dpD..") do set "JAVA_HOME=%%~fE"
+        )
     )
 )
 
 if not defined JAVA_BIN (
-    call :Error "Java was not found. Install JDK 17 or JDK 21 (Android Studio JBR is recommended)."
+    call :Error "Supported Java not found. Install JDK 17 or JDK 21 and rerun this script."
     exit /b 1
 )
 
-if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
+:JavaFound
+set "PATH=%JAVA_HOME%\bin;%PATH%"
 
 "%JAVA_BIN%" -version >nul 2>&1
 if errorlevel 1 (
     call :Error "Java runtime check failed for %JAVA_BIN%"
     exit /b 1
 )
+
+if defined JAVA_HOME (
+    call :Info "Using Java runtime from %JAVA_HOME%"
+) else (
+    call :Info "Using Java runtime from %JAVA_BIN%"
+)
+exit /b 0
+
+:CheckJavaVersion
+set "JAVA_INVALID="
+set "JAVA_VERSION="
+set "JAVA_MAJOR="
+for /f "usebackq tokens=2 delims=\" %%V in (`"%~1" -version 2^>^&1 ^| findstr /R /C:\"version\"`) do (
+    set "JAVA_VERSION=%%~V"
+)
+if defined JAVA_VERSION (
+    for /f "tokens=1 delims=." %%M in ("%JAVA_VERSION%") do set "JAVA_MAJOR=%%M"
+    if defined JAVA_MAJOR (
+        if %JAVA_MAJOR% gtr 21 set "JAVA_INVALID=1"
+    )
+)
+exit /b 0
 
 if defined JAVA_HOME (
     call :Info "Using Java runtime from %JAVA_HOME%"

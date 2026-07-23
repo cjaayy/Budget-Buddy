@@ -43,10 +43,29 @@ android {
     }
 }
 
+def localProperties = new Properties()
+file("${rootProject.projectDir}/local.properties").withInputStream { stream ->
+    localProperties.load(stream)
+}
+
+def flutterSdkPath = localProperties.getProperty('flutter.sdk')
+
+def flutterEngineVersion = '1.0.0-42d3d75a56efe1a2e9902f52dc8006099c45d937'
+if (flutterSdkPath != null) {
+    def engineStampFile = file("${flutterSdkPath}/bin/cache/engine.stamp")
+    if (engineStampFile.exists()) {
+        flutterEngineVersion = "1.0.0-${engineStampFile.text.trim()}"
+    }
+}
+
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.1'
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'com.google.android.material:material:1.12.0'
+
+    debugApi "io.flutter:flutter_embedding_debug:$flutterEngineVersion"
+    profileApi "io.flutter:flutter_embedding_profile:$flutterEngineVersion"
+    releaseApi "io.flutter:flutter_embedding_release:$flutterEngineVersion"
 }
 
 flutter {
