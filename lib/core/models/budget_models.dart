@@ -1320,7 +1320,8 @@ class BudgetBuddyState {
   String encode() => jsonEncode(toJson());
 
   factory BudgetBuddyState.decode(String raw) {
-    return BudgetBuddyState.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    final String clean = raw.replaceAll('\uFEFF', '').trim();
+    return BudgetBuddyState.fromJson(jsonDecode(clean) as Map<String, dynamic>);
   }
 }
 

@@ -39,7 +39,17 @@ class MainActivity : FlutterActivity() {
 						pendingResult = result
 						val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
 							addCategory(Intent.CATEGORY_OPENABLE)
-							type = "application/json"
+							type = "*/*"
+							putExtra(
+								Intent.EXTRA_MIME_TYPES,
+								arrayOf(
+									"application/json",
+									"text/plain",
+									"text/json",
+									"application/octet-stream",
+									"*/*"
+								)
+							)
 						}
 						startActivityForResult(intent, PICK_JSON_REQUEST)
 						return@setMethodCallHandler
@@ -117,14 +127,8 @@ class MainActivity : FlutterActivity() {
 						result.error("READ_FAILED", "Could not open selected file", null)
 						return
 					}
-					val reader = BufferedReader(InputStreamReader(inputStream))
-					val sb = StringBuilder()
-					var line: String? = reader.readLine()
-					while (line != null) {
-						sb.append(line)
-						line = reader.readLine()
-					}
-					result.success(sb.toString())
+					val text = inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+					result.success(text)
 				}
 			} catch (e: Exception) {
 				result.error("READ_FAILED", e.message, null)
