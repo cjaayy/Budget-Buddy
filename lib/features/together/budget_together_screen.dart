@@ -37,6 +37,19 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
 
+    ref.listen<BudgetBuddyState>(budgetBuddyControllerProvider,
+        (BudgetBuddyState? previous, BudgetBuddyState next) {
+      final double nextAmount = next.togetherBudget;
+      final double prevAmount = previous?.togetherBudget ?? -1;
+      if (nextAmount != prevAmount) {
+        final String newText =
+            nextAmount > 0 ? nextAmount.toStringAsFixed(0) : '';
+        if (_budgetController.text != newText) {
+          _budgetController.text = newText;
+        }
+      }
+    });
+
     if (!_seededFromState && !state.isBootstrapping) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

@@ -732,22 +732,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Semantics(
-                                  button: true,
-                                  label: 'Reset Day',
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => _confirmResetDay(context),
-                                    icon: const Icon(Icons.refresh_rounded),
-                                    label: const Text('Reset Day'),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                           const SizedBox(height: 16),
                           SectionCard(
                             child: Column(
@@ -1061,90 +1045,21 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
   }
 
-  Future<void> _confirmResetDay(BuildContext context) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Reset today only?'),
-          content: const Text(
-              'This clears today\'s expenses and starts a fresh day.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Reset Day'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted || confirm != true) {
-      return;
-    }
-
-    ref.read(budgetBuddyControllerProvider.notifier).resetForNextDay();
-    if (!mounted) {
-      return;
-    }
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Day reset successfully.')),
-    );
-  }
-
   Future<void> _confirmResetApp(BuildContext context) async {
-    final TextEditingController confirmationController =
-        TextEditingController();
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Reset entire app?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text(
-                'This will clear all budgets, expenses, spending records, and daily logs. Type RESET to continue.',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirmationController,
-                decoration: const InputDecoration(labelText: 'Type RESET'),
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (confirmationController.text.trim().toUpperCase() ==
-                    'RESET') {
-                  Navigator.of(context).pop(true);
-                }
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Reset'),
-            ),
-          ],
-        );
-      },
+      builder: (BuildContext context) => const _ResetAppDialog(),
     );
 
-    confirmationController.dispose();
-
     if (!mounted || confirm != true) {
+      return;
+    }
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    if (!mounted) {
       return;
     }
 
@@ -1152,8 +1067,36 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     if (!mounted) {
       return;
     }
+
     messenger.showSnackBar(
-      const SnackBar(content: Text('App reset to zero successfully.')),
+      const SnackBar(
+        content: Text('App reset to zero successfully.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          icon: const Icon(
+            Icons.check_circle_rounded,
+            color: Color(0xFF16A34A),
+            size: 48,
+          ),
+          title: const Text('Reset Complete'),
+          content: const Text(
+            'All budgets, expenses, spending records, and daily logs have been reset to zero successfully.',
+            textAlign: TextAlign.center,
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1691,5 +1634,69 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
 
     return parts.take(2).map((String part) => part[0]).join().toUpperCase();
+  }
+}
+
+class _ResetAppDialog extends StatefulWidget {
+  const _ResetAppDialog();
+
+  @override
+  State<_ResetAppDialog> createState() => _ResetAppDialogState();
+}
+
+class _ResetAppDialogState extends State<_ResetAppDialog> {
+  late final TextEditingController _confirmationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confirmationController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _confirmationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reset entire app?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Text(
+              'This will clear all budgets, expenses, spending records, and daily logs. Type RESET to continue.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirmationController,
+              decoration: const InputDecoration(labelText: 'Type RESET'),
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_confirmationController.text.trim().toUpperCase() ==
+                'RESET') {
+              Navigator.of(context).pop(true);
+            }
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFDC2626),
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Reset'),
+        ),
+      ],
+    );
   }
 }

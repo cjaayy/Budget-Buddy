@@ -678,12 +678,33 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void resetForNextDay() {
+    final DateTime now = DateTime.now();
+    final DateTime todayStart = DateTime(now.year, now.month, now.day);
+    final List<ExpenseEntry> remainingExpenses = state.expenses
+        .where((ExpenseEntry expense) => expense.dateTime.isBefore(todayStart))
+        .toList();
+    final List<BudgetEntry> remainingBudgetEntries = state.budgetEntries
+        .where((BudgetEntry entry) => !_isSameDay(entry.date, todayStart))
+        .toList();
+
+    state = state.copyWith(
+      expenses: remainingExpenses,
+      budgetEntries: remainingBudgetEntries,
+      dailySpent: 0,
+      dailyPeriodStart: todayStart,
+      settings: state.settings.copyWith(
+        dailyLimit: null,
+        hasConfiguredBudget: state.settings.weeklyLimit != null ||
+            state.settings.monthlyLimit != null,
+      ),
+    );
     _persist();
   }
 
   Future<void> resetApp() async {
     // Reset to initial state with all data cleared and budgets at 0
     state = BudgetBuddyState.initial().copyWith(
+      isBootstrapping: false,
       loggedIn: state.loggedIn,
       onboardingComplete: state.onboardingComplete,
       profile: state.profile,

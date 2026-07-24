@@ -54,6 +54,19 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               spent: 0,
             );
 
+    ref.listen<BudgetBuddyState>(budgetBuddyControllerProvider,
+        (BudgetBuddyState? previous, BudgetBuddyState next) {
+      final double nextDaily = next.settings.totalDailyBudget;
+      final double prevDaily = previous?.settings.totalDailyBudget ?? -1;
+      if (nextDaily != prevDaily) {
+        final String newText =
+            nextDaily > 0 ? nextDaily.toStringAsFixed(0) : '';
+        if (_dailyController.text != newText) {
+          _dailyController.text = newText;
+        }
+      }
+    });
+
     if (!_seededFromState && !state.isBootstrapping) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
