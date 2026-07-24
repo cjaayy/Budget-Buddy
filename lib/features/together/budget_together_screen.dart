@@ -245,6 +245,12 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   }
 
   Future<void> _saveBudget() async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isEditing = false;
+      _editingSnapshot = _budgetController.text;
+    });
+
     final double amount = double.tryParse(_budgetController.text.trim()) ?? 0;
 
     ref.read(budgetBuddyControllerProvider.notifier).setTogetherBudget(amount);

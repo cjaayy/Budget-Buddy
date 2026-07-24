@@ -6,6 +6,8 @@ import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
+import '../budget/budget_planner_screen.dart';
+import '../together/budget_together_screen.dart';
 
 class SpendScreen extends ConsumerStatefulWidget {
   const SpendScreen({super.key, this.isTogetherOnly = false});
@@ -19,11 +21,73 @@ class SpendScreen extends ConsumerStatefulWidget {
 class _SpendScreenState extends ConsumerState<SpendScreen> {
   static const String _spendTag = '[SPEND]';
 
+  bool _ensureBudgetSet(BuildContext context) {
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final bool hasBudget = widget.isTogetherOnly
+        ? state.togetherBudget > 0
+        : state.settings.totalDailyBudget > 0;
+
+    if (!hasBudget) {
+      showDialog<void>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            icon: const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFDC2626),
+              size: 44,
+            ),
+            title: Text(widget.isTogetherOnly
+                ? 'Budget Together Required'
+                : 'Daily Budget Required'),
+            content: Text(
+              widget.isTogetherOnly
+                  ? 'You cannot log expenses until you set a Budget Together amount. Please set a budget first.'
+                  : 'You cannot log expenses until you set a daily budget. Please set a budget first.',
+              textAlign: TextAlign.center,
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  if (widget.isTogetherOnly) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const BudgetTogetherScreen(),
+                      ),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const BudgetPlannerScreen(),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Set Budget'),
+              ),
+            ],
+          );
+        },
+      );
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = widget.isTogetherOnly
         ? ref.watch(budgetTogetherSummaryProvider)
         : ref.watch(budgetSummaryProvider);
+    final bool hasBudget = widget.isTogetherOnly
+        ? state.togetherBudget > 0
+        : state.settings.totalDailyBudget > 0;
 
     return Scaffold(
       body: SafeArea(
@@ -74,6 +138,35 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
+                    if (!hasBudget)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.warning_amber_rounded,
+                                color: Color(0xFFDC2626)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                widget.isTogetherOnly
+                                    ? 'Please set a Budget Together amount before logging spend.'
+                                    : 'Please set a daily budget before logging spend.',
+                                style: const TextStyle(
+                                  color: Color(0xFF991B1B),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     _RemainingPills(summary: summary),
                     const SizedBox(height: 16),
                     SectionCard(
@@ -139,6 +232,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   void _showQuickCategorySheet(
       BuildContext context, _SpendCategoryOption option) {
+    if (!_ensureBudgetSet(context)) return;
+
     final TextEditingController amountController =
         TextEditingController(text: '');
     final TextEditingController noteController = TextEditingController();
@@ -247,6 +342,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   }
 
   void _showCustomSpendSheet(BuildContext context, {ExpenseEntry? existing}) {
+    if (existing == null && !_ensureBudgetSet(context)) return;
+
     final TextEditingController nameController =
         TextEditingController(text: existing?.title ?? '');
     final TextEditingController amountController = TextEditingController(

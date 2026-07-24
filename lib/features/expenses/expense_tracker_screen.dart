@@ -7,6 +7,8 @@ import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
+import '../budget/budget_planner_screen.dart';
+import '../together/budget_together_screen.dart';
 
 class ExpenseTrackerScreen extends ConsumerStatefulWidget {
   const ExpenseTrackerScreen({super.key, this.isTogetherOnly = false});
@@ -20,6 +22,64 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   ExpenseSection _activeSection = ExpenseSection.daily;
+
+  bool _ensureBudgetSet(BuildContext context) {
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final bool hasBudget = widget.isTogetherOnly
+        ? state.togetherBudget > 0
+        : state.settings.totalDailyBudget > 0;
+
+    if (!hasBudget) {
+      showDialog<void>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            icon: const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFDC2626),
+              size: 44,
+            ),
+            title: Text(widget.isTogetherOnly
+                ? 'Budget Together Required'
+                : 'Daily Budget Required'),
+            content: Text(
+              widget.isTogetherOnly
+                  ? 'You cannot log expenses until you set a Budget Together amount. Please set a budget first.'
+                  : 'You cannot log expenses until you set a daily budget. Please set a budget first.',
+              textAlign: TextAlign.center,
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  if (widget.isTogetherOnly) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const BudgetTogetherScreen(),
+                      ),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const BudgetPlannerScreen(),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Set Budget'),
+              ),
+            ],
+          );
+        },
+      );
+      return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -593,6 +653,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
   Future<void> _showExpenseDialog(WidgetRef ref,
       {ExpenseEntry? existing}) async {
+    if (existing == null && !_ensureBudgetSet(context)) return;
+
     final TextEditingController titleController =
         TextEditingController(text: existing?.title ?? '');
     final TextEditingController amountController =
