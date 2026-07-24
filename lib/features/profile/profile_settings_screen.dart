@@ -1467,8 +1467,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
   void _openProfileMenu(BuildContext parentContext, BudgetBuddyState state) {
     final String originalName = state.profile.displayName;
+    final bool hasCustomName =
+        originalName.trim().isNotEmpty && originalName != 'Budget Buddy';
     String updatedName = originalName;
-    bool isEditing = false;
+    bool isEditing = !hasCustomName;
 
     showModalBottomSheet<void>(
       context: parentContext,
@@ -1487,8 +1489,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               builder: (BuildContext context, StateSetter setModalState) {
                 final String normalizedName = updatedName.trim();
                 final bool hasChanges = normalizedName != originalName;
-                final bool canSave =
-                    isEditing && normalizedName.isNotEmpty && hasChanges;
+                final bool canSave = normalizedName.isNotEmpty &&
+                    (!hasCustomName || (isEditing && hasChanges));
 
                 return ConstrainedBox(
                   constraints: BoxConstraints(
@@ -1531,7 +1533,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             children: <Widget>[
                               TextFormField(
                                 initialValue: originalName,
-                                enabled: isEditing,
+                                enabled: isEditing || !hasCustomName,
                                 textInputAction: TextInputAction.done,
                                 onChanged: (String value) {
                                   setModalState(() => updatedName = value);
@@ -1542,114 +1544,173 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () {
-                                        setModalState(() {
-                                          if (isEditing) {
+                              if (!hasCustomName && !isEditing) ...<Widget>[
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: canSave
+                                        ? () async {
+                                            ref
+                                                .read(budgetBuddyControllerProvider
+                                                    .notifier)
+                                                .updateProfile(
+                                                  state.profile.copyWith(
+                                                    displayName: normalizedName,
+                                                    avatarSeed: _buildInitials(
+                                                        normalizedName),
+                                                  ),
+                                                );
+
+                                            if (!context.mounted ||
+                                                !parentContext.mounted) {
+                                              return;
+                                            }
+
+                                            Navigator.of(context).pop();
+
+                                            await showDialog<void>(
+                                              context: parentContext,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: const Text('Saved'),
+                                                  content: const Text(
+                                                    'Profile name saved successfully.',
+                                                  ),
+                                                  actions: <Widget>[
+                                                    FilledButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(context)
+                                                              .pop(),
+                                                      child: const Text('OK'),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.check_circle_rounded),
+                                    label: const Text('Save Name'),
+                                  ),
+                                ),
+                              ] else if (hasCustomName && !isEditing) ...<Widget>[
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        isEditing = true;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.edit_rounded),
+                                    label: const Text('Edit Name'),
+                                  ),
+                                ),
+                              ] else ...<Widget>[
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () {
+                                          setModalState(() {
                                             updatedName = originalName;
                                             isEditing = false;
-                                            return;
-                                          }
-                                          isEditing = true;
-                                        });
-                                      },
-                                      child:
-                                          Text(isEditing ? 'Cancel' : 'Edit'),
+                                          });
+                                        },
+                                        child: const Text('Cancel'),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: FilledButton(
-                                      onPressed: canSave
-                                          ? () async {
-                                              final bool? confirmSave =
-                                                  await showDialog<bool>(
-                                                context: context,
-                                                builder:
-                                                    (BuildContext context) {
-                                                  return AlertDialog(
-                                                    title: const Text(
-                                                        'Confirm Save'),
-                                                    content: const Text(
-                                                      'Do you want to save this name change?',
-                                                    ),
-                                                    actions: <Widget>[
-                                                      TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop(false),
-                                                        child: const Text('No'),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: FilledButton(
+                                        onPressed: canSave
+                                            ? () async {
+                                                final bool? confirmSave =
+                                                    await showDialog<bool>(
+                                                  context: context,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return AlertDialog(
+                                                      title: const Text(
+                                                          'Confirm Save'),
+                                                      content: const Text(
+                                                        'Do you want to save this name change?',
                                                       ),
-                                                      FilledButton(
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop(true),
-                                                        child:
-                                                            const Text('Yes'),
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              );
+                                                      actions: <Widget>[
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(false),
+                                                          child: const Text('No'),
+                                                        ),
+                                                        FilledButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(true),
+                                                          child:
+                                                              const Text('Yes'),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
 
-                                              if (confirmSave != true) {
-                                                return;
+                                                if (confirmSave != true) {
+                                                  return;
+                                                }
+
+                                                ref
+                                                    .read(
+                                                        budgetBuddyControllerProvider
+                                                            .notifier)
+                                                    .updateProfile(
+                                                      state.profile.copyWith(
+                                                        displayName:
+                                                            normalizedName,
+                                                        avatarSeed:
+                                                            _buildInitials(
+                                                                normalizedName),
+                                                      ),
+                                                    );
+
+                                                if (!context.mounted ||
+                                                    !parentContext.mounted) {
+                                                  return;
+                                                }
+
+                                                Navigator.of(context).pop();
+
+                                                await showDialog<void>(
+                                                  context: parentContext,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return AlertDialog(
+                                                      title: const Text('Saved'),
+                                                      content: const Text(
+                                                        'Profile name saved successfully.',
+                                                      ),
+                                                      actions: <Widget>[
+                                                        FilledButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(),
+                                                          child: const Text('OK'),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
                                               }
-
-                                              ref
-                                                  .read(
-                                                      budgetBuddyControllerProvider
-                                                          .notifier)
-                                                  .updateProfile(
-                                                    state.profile.copyWith(
-                                                      displayName:
-                                                          normalizedName,
-                                                      avatarSeed:
-                                                          _buildInitials(
-                                                              normalizedName),
-                                                    ),
-                                                  );
-
-                                              if (!context.mounted ||
-                                                  !parentContext.mounted) {
-                                                return;
-                                              }
-
-                                              Navigator.of(context).pop();
-
-                                              await showDialog<void>(
-                                                context: parentContext,
-                                                builder:
-                                                    (BuildContext context) {
-                                                  return AlertDialog(
-                                                    title: const Text('Saved'),
-                                                    content: const Text(
-                                                      'Profile name saved successfully.',
-                                                    ),
-                                                    actions: <Widget>[
-                                                      FilledButton(
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop(),
-                                                        child: const Text('OK'),
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              );
-                                            }
-                                          : null,
-                                      child: const Text('Save'),
+                                            : null,
+                                        child: const Text('Save'),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                              ],
                               const SizedBox(height: 4),
                               const Text(
                                 'Only your name is shown in profile.',

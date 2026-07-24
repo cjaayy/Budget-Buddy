@@ -13,7 +13,6 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final TextEditingController _nameController = TextEditingController();
   bool _isEditingName = false;
-  bool _hasSeededSavedName = false;
 
   String _buildInitials(String displayName) {
     final String trimmed = displayName.trim();
@@ -45,27 +44,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     final String normalizedSavedName =
         savedDisplayName == 'Budget Buddy' ? '' : savedDisplayName.trim();
-    final String currentInputName = _nameController.text.trim();
-    final bool canSaveName = _isEditingName &&
-        currentInputName.isNotEmpty &&
-        currentInputName != normalizedSavedName;
-    if (!state.loggedIn &&
+    if (normalizedSavedName.isNotEmpty &&
         !_isEditingName &&
-        !_hasSeededSavedName &&
-        _nameController.text.trim().isEmpty &&
-        normalizedSavedName.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
-        _nameController.value = TextEditingValue(
-          text: normalizedSavedName,
-          selection:
-              TextSelection.collapsed(offset: normalizedSavedName.length),
-        );
-        _hasSeededSavedName = true;
-      });
+        _nameController.text != normalizedSavedName) {
+      _nameController.value = TextEditingValue(
+        text: normalizedSavedName,
+        selection: TextSelection.collapsed(offset: normalizedSavedName.length),
+      );
     }
+    final String currentInputName = _nameController.text.trim();
+    final bool hasSavedName = normalizedSavedName.isNotEmpty;
+    final bool canEditName = _isEditingName || !hasSavedName;
+    final bool canSaveName =
+        currentInputName.isNotEmpty && currentInputName != normalizedSavedName;
 
     return Scaffold(
       body: SafeArea(
@@ -119,76 +110,127 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   children: <Widget>[
                     TextField(
                       controller: _nameController,
-                      readOnly: !_isEditingName,
+                      readOnly: !canEditName,
                       onChanged: (_) {
-                        if (_isEditingName) {
+                        if (mounted) {
                           setState(() {});
                         }
                       },
-                      decoration: InputDecoration(
+                      onSubmitted: (_) {
+                        if (canSaveName) {
+                          final String updatedName = _nameController.text.trim();
+                          ref.read(budgetBuddyControllerProvider.notifier).updateProfile(
+                                state.profile.copyWith(
+                                  displayName: updatedName,
+                                  avatarSeed: _buildInitials(updatedName),
+                                ),
+                              );
+                          setState(() {
+                            _isEditingName = false;
+                          });
+                        }
+                      },
+                      decoration: const InputDecoration(
                         labelText: 'Display Name',
-                        hintText: placeholderName,
-                        prefixIcon: const Icon(Icons.person_rounded),
-                        suffixIcon: !_isEditingName
-                            ? TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isEditingName = true;
-                                  });
-                                },
-                                child: const Text('Edit'),
-                              )
-                            : null,
+                        hintText: 'Enter display name',
+                        prefixIcon: Icon(Icons.person_rounded),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: <Widget>[
-                        if (_isEditingName) ...<Widget>[
-                          FilledButton(
-                            onPressed: canSaveName
-                                ? () {
-                                    final String updatedName =
-                                        _nameController.text.trim();
-                                    ref
-                                        .read(budgetBuddyControllerProvider
-                                            .notifier)
-                                        .updateProfile(
-                                          state.profile.copyWith(
-                                            displayName: updatedName,
-                                            avatarSeed:
-                                                _buildInitials(updatedName),
-                                          ),
-                                        );
-                                    setState(() {
-                                      _isEditingName = false;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Display name saved')),
-                                    );
-                                  }
-                                : null,
-                            child: const Text('Save'),
+                    const SizedBox(height: 12),
+                    if (!hasSavedName && !_isEditingName) ...<Widget>[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: canSaveName
+                              ? () {
+                                  final String updatedName =
+                                      _nameController.text.trim();
+                                  ref
+                                      .read(budgetBuddyControllerProvider.notifier)
+                                      .updateProfile(
+                                        state.profile.copyWith(
+                                          displayName: updatedName,
+                                          avatarSeed: _buildInitials(updatedName),
+                                        ),
+                                      );
+                                  setState(() {
+                                    _isEditingName = false;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Display name saved')),
+                                  );
+                                }
+                              : null,
+                          icon: const Icon(Icons.check_circle_rounded),
+                          label: const Text('Save Name'),
+                        ),
+                      ),
+                    ] else if (hasSavedName && !_isEditingName) ...<Widget>[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isEditingName = true;
+                            });
+                          },
+                          icon: const Icon(Icons.edit_rounded),
+                          label: const Text('Edit Name'),
+                        ),
+                      ),
+                    ] else if (_isEditingName) ...<Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                _nameController.value = TextEditingValue(
+                                  text: normalizedSavedName,
+                                  selection: TextSelection.collapsed(
+                                      offset: normalizedSavedName.length),
+                                );
+                                setState(() {
+                                  _isEditingName = false;
+                                });
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                              label: const Text('Cancel'),
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed: () {
-                              _nameController.value = TextEditingValue(
-                                text: normalizedSavedName,
-                                selection: TextSelection.collapsed(
-                                    offset: normalizedSavedName.length),
-                              );
-                              setState(() {
-                                _isEditingName = false;
-                              });
-                              _hasSeededSavedName = true;
-                            },
-                            child: const Text('Cancel'),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: canSaveName
+                                  ? () {
+                                      final String updatedName =
+                                          _nameController.text.trim();
+                                      ref
+                                          .read(budgetBuddyControllerProvider
+                                              .notifier)
+                                          .updateProfile(
+                                            state.profile.copyWith(
+                                              displayName: updatedName,
+                                              avatarSeed:
+                                                  _buildInitials(updatedName),
+                                            ),
+                                          );
+                                      setState(() {
+                                        _isEditingName = false;
+                                      });
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text('Display name saved')),
+                                      );
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.save_rounded),
+                              label: const Text('Save'),
+                            ),
                           ),
                         ],
-                      ],
-                    ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     LayoutBuilder(
                       builder: (BuildContext ctx, BoxConstraints constraints) {

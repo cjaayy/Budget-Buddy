@@ -295,12 +295,6 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                   ],
                 ),
               ),
-              if (hasBudget && !_isEditing)
-                OutlinedButton.icon(
-                  onPressed: _beginEditing,
-                  icon: const Icon(Icons.edit_rounded, size: 18),
-                  label: const Text('Edit'),
-                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -352,6 +346,15 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                 onPressed: hasText ? _doSave : null,
                 icon: const Icon(Icons.check_circle_rounded),
                 label: const Text('Save Budget'),
+              ),
+            ),
+          ] else if (hasBudget && !_isEditing) ...<Widget>[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _beginEditing,
+                icon: const Icon(Icons.edit_rounded),
+                label: const Text('Edit Budget'),
               ),
             ),
           ] else if (_isEditing) ...<Widget>[

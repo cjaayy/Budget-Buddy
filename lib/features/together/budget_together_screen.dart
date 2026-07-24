@@ -139,15 +139,15 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                                 ),
                               ),
                               if (hasBudget && !_isEditing)
-                                OutlinedButton.icon(
+                                IconButton(
                                   onPressed: () {
                                     setState(() {
                                       _editingSnapshot = _budgetController.text;
                                       _isEditing = true;
                                     });
                                   },
-                                  icon: const Icon(Icons.edit_rounded, size: 18),
-                                  label: const Text('Edit'),
+                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF0F766E)),
+                                  tooltip: 'Edit Budget',
                                 ),
                             ],
                           ),
@@ -179,6 +179,20 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                                     : _saveBudget,
                                 icon: const Icon(Icons.check_circle_rounded),
                                 label: const Text('Save Budget'),
+                              ),
+                            ),
+                          ] else if (hasBudget && !_isEditing) ...<Widget>[
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _editingSnapshot = _budgetController.text;
+                                    _isEditing = true;
+                                  });
+                                },
+                                icon: const Icon(Icons.edit_rounded),
+                                label: const Text('Edit Budget'),
                               ),
                             ),
                           ] else if (_isEditing) ...<Widget>[
