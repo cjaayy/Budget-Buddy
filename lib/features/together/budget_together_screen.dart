@@ -18,6 +18,8 @@ class BudgetTogetherScreen extends ConsumerStatefulWidget {
 class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   late final TextEditingController _budgetController;
   bool _seededFromState = false;
+  bool _isEditing = false;
+  String? _editingSnapshot;
 
   @override
   void initState() {
@@ -61,6 +63,8 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     final double amount =
         double.tryParse(_budgetController.text.trim()) ?? state.togetherBudget;
     final String displayedBudget = amount > 0 ? formatPeso(amount) : '₱0';
+    final bool hasBudget = state.togetherBudget > 0;
+    final bool canEdit = _isEditing || !hasBudget;
 
     return Scaffold(
       body: SafeArea(
@@ -113,21 +117,44 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            'Budget Amount',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Set a budget that stays inside the Budget Together tab.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Budget Amount',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(fontWeight: FontWeight.w800),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Set a budget that stays inside the Budget Together tab.',
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (hasBudget && !_isEditing)
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _editingSnapshot = _budgetController.text;
+                                      _isEditing = true;
+                                    });
+                                  },
+                                  icon: const Icon(Icons.edit_rounded, size: 18),
+                                  label: const Text('Edit'),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: _budgetController,
+                            readOnly: !canEdit,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -136,17 +163,55 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                               labelText: 'Enter tab budget',
                               border: OutlineInputBorder(),
                             ),
+                            onSubmitted: (_) {
+                              if (canEdit && _budgetController.text.trim().isNotEmpty) {
+                                _saveBudget();
+                              }
+                            },
                           ),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: _budgetController.text.trim().isEmpty
-                                  ? null
-                                  : _saveBudget,
-                              child: const Text('Save Budget'),
+                          if (!hasBudget && !_isEditing) ...<Widget>[
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _budgetController.text.trim().isEmpty
+                                    ? null
+                                    : _saveBudget,
+                                icon: const Icon(Icons.check_circle_rounded),
+                                label: const Text('Save Budget'),
+                              ),
                             ),
-                          ),
+                          ] else if (_isEditing) ...<Widget>[
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      FocusScope.of(context).unfocus();
+                                      setState(() {
+                                        if (_editingSnapshot != null) {
+                                          _budgetController.text = _editingSnapshot!;
+                                        }
+                                        _isEditing = false;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.close_rounded),
+                                    label: const Text('Cancel'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: _budgetController.text.trim().isEmpty
+                                        ? null
+                                        : _saveBudget,
+                                    icon: const Icon(Icons.save_rounded),
+                                    label: const Text('Save'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

@@ -172,14 +172,6 @@ class ReportService {
               ],
             ),
           ],
-          if (summary.recommendedActions.isNotEmpty) ...<pw.Widget>[
-            pw.SizedBox(height: 16),
-            pw.Text('Smart insights',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            ...summary.recommendedActions
-                .map((String tip) => pw.Bullet(text: tip)),
-          ],
         ],
       ),
     );
@@ -201,11 +193,15 @@ class ReportService {
         (ExpenseEntry left, ExpenseEntry right) =>
             left.dateTime.compareTo(right.dateTime),
       );
-    final StringBuffer buffer = StringBuffer()
-      ..writeln('Date,Title,Selected Category,Category,Amount,Note,Source');
+    final StringBuffer buffer = StringBuffer('\uFEFF')
+      ..writeln('"Date","Title","Sub Category","Category","Amount","Note","Source"');
     for (final ExpenseEntry expense in rows) {
+      final String dateStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(expense.dateTime);
+      final String subCategory = expense.spendCategory.trim().isEmpty
+          ? _expenseReportCategoryLabel(expense)
+          : expense.spendCategory.trim();
       buffer.writeln(
-        '${DateFormat('yyyy-MM-dd HH:mm:ss').format(expense.dateTime)},"${_escapeCsv(expense.title)}","${_escapeCsv(expense.spendCategory.isEmpty ? _expenseReportCategoryLabel(expense) : expense.spendCategory)}","${_escapeCsv(expense.category.label)}",${expense.amount.toStringAsFixed(2)},"${_escapeCsv(expense.note)}","${_escapeCsv(expense.source)}"',
+        '"$dateStr","${_escapeCsv(expense.title)}","${_escapeCsv(subCategory)}","${_escapeCsv(expense.category.label)}",${expense.amount.toStringAsFixed(2)},"${_escapeCsv(expense.note)}","${_escapeCsv(expense.source)}"',
       );
     }
 

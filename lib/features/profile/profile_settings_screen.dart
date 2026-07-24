@@ -1100,23 +1100,50 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.download_rounded),
-                title: const Text('Download'),
-                subtitle: const Text('Save report to device'),
-                onTap: () => Navigator.of(context).pop('download'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_rounded),
-                title: const Text('Share'),
-                subtitle: const Text('Share via other apps'),
-                onTap: () => Navigator.of(context).pop('share'),
-              ),
-              const SizedBox(height: 8),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  size: 40,
+                  color: Color(0xFFDC2626),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Export PDF Report',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.download_rounded),
+                  title: const Text('Download'),
+                  subtitle: const Text('Save PDF report to device Downloads'),
+                  onTap: () => Navigator.of(context).pop('download'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share_rounded),
+                  title: const Text('Share'),
+                  subtitle: const Text('Share via other apps'),
+                  onTap: () => Navigator.of(context).pop('share'),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1221,23 +1248,50 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.download_rounded),
-                title: const Text('Download'),
-                subtitle: const Text('Save CSV to device'),
-                onTap: () => Navigator.of(context).pop('download'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_rounded),
-                title: const Text('Share'),
-                subtitle: const Text('Share via other apps'),
-                onTap: () => Navigator.of(context).pop('share'),
-              ),
-              const SizedBox(height: 8),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.table_chart_rounded,
+                  size: 40,
+                  color: Color(0xFF16A34A),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Export CSV Data',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.download_rounded),
+                  title: const Text('Download'),
+                  subtitle: const Text('Save CSV to device Downloads'),
+                  onTap: () => Navigator.of(context).pop('download'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share_rounded),
+                  title: const Text('Share'),
+                  subtitle: const Text('Share via other apps'),
+                  onTap: () => Navigator.of(context).pop('share'),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

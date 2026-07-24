@@ -246,6 +246,8 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
   bool _isEditing = false;
   String? _editingSnapshot;
 
+  bool get _canEdit => _isEditing || !(widget.periodSummary?.isActive ?? false);
+
   @override
   Widget build(BuildContext context) {
     final BudgetPeriodSummary? summary = widget.periodSummary;
@@ -257,8 +259,9 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF16A34A);
     final bool hasBudget = summary?.isActive ?? false;
+    final bool hasText = widget.controller.text.trim().isNotEmpty;
     final bool hasChanges = _isEditing &&
-        widget.controller.text.trim().isNotEmpty &&
+        hasText &&
         widget.controller.text != (_editingSnapshot ?? '');
 
     return SectionCard(
@@ -292,29 +295,40 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
                   ],
                 ),
               ),
+              if (hasBudget && !_isEditing)
+                OutlinedButton.icon(
+                  onPressed: _beginEditing,
+                  icon: const Icon(Icons.edit_rounded, size: 18),
+                  label: const Text('Edit'),
+                ),
             ],
           ),
           const SizedBox(height: 12),
           TextField(
             controller: widget.controller,
             focusNode: widget.focusNode,
-            readOnly: !_isEditing,
+            readOnly: !_canEdit,
             keyboardType: TextInputType.number,
             onChanged: (_) {
               if (mounted) {
                 setState(() {});
               }
             },
+            onSubmitted: (_) {
+              if (_canEdit && hasText) {
+                _doSave();
+              }
+            },
             decoration: InputDecoration(
               labelText: widget.title,
               prefixText: '₱ ',
-              hintText: 'Leave blank to disable',
+              hintText: 'Enter daily budget amount',
               helperText: summary == null
-                  ? 'Inactive until you add a value.'
+                  ? 'Enter an amount to set budget.'
                   : summary.warningMessage,
             ),
           ),
-          if (summary != null) ...<Widget>[
+          if (summary != null && hasBudget) ...<Widget>[
             const SizedBox(height: 10),
             LinearProgressIndicator(
               value: summary.limit <= 0
@@ -331,20 +345,16 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
             ),
           ],
           const SizedBox(height: 12),
-          if (!_isEditing) ...<Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _beginEditing,
-                    icon: const Icon(Icons.edit_rounded),
-                    label: Text(hasBudget ? 'Edit' : 'Set It'),
-                  ),
-                ),
-              ],
+          if (!hasBudget && !_isEditing) ...<Widget>[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: hasText ? _doSave : null,
+                icon: const Icon(Icons.check_circle_rounded),
+                label: const Text('Save Budget'),
+              ),
             ),
-          ] else ...<Widget>[
-            const SizedBox(height: 10),
+          ] else if (_isEditing) ...<Widget>[
             Row(
               children: <Widget>[
                 Expanded(
@@ -368,6 +378,15 @@ class _LimitEditorCardState extends State<_LimitEditorCard> {
         ],
       ),
     );
+  }
+
+  void _doSave() {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isEditing = false;
+      _editingSnapshot = widget.controller.text;
+    });
+    widget.onSave();
   }
 
   void _beginEditing() {
