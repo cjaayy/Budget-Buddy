@@ -809,29 +809,56 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.download_rounded),
-                title: const Text('Download'),
-                subtitle: const Text('Save JSON to device Downloads'),
-                onTap: () => Navigator.of(context).pop('download'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.share_rounded),
-                title: const Text('Share'),
-                subtitle: const Text('Share via other apps'),
-                onTap: () => Navigator.of(context).pop('share'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.copy_all_rounded),
-                title: const Text('Copy JSON'),
-                subtitle: const Text('Copy backup JSON to clipboard'),
-                onTap: () => Navigator.of(context).pop('copy'),
-              ),
-              const SizedBox(height: 8),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.cloud_upload_rounded,
+                  size: 40,
+                  color: Color(0xFF2563EB),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Back Up Data Snapshot',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.download_rounded),
+                  title: const Text('Download'),
+                  subtitle: const Text('Save JSON to device Downloads'),
+                  onTap: () => Navigator.of(context).pop('download'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share_rounded),
+                  title: const Text('Share'),
+                  subtitle: const Text('Share via other apps'),
+                  onTap: () => Navigator.of(context).pop('share'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy_all_rounded),
+                  title: const Text('Copy JSON'),
+                  subtitle: const Text('Copy backup JSON to clipboard'),
+                  onTap: () => Navigator.of(context).pop('copy'),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -886,43 +913,133 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
   Future<void> _restoreSnapshot(BuildContext context) async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    try {
-      const MethodChannel channel = MethodChannel('budgetbuddy/storage');
-      final String? contents = await channel.invokeMethod<String?>('pickJson');
-      if (contents == null || contents.trim().isEmpty) return;
-
-      try {
-        final String rawText = contents.trim();
-        final BudgetBuddyState snapshot = BudgetBuddyState.decode(rawText);
-        ref
-            .read(budgetBuddyControllerProvider.notifier)
-            .restoreSnapshot(snapshot);
-        if (!mounted) return;
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Expenses, Savings (daily/monthly), & Budget Together restored.',
+    final String? action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  Icons.cloud_download_rounded,
+                  size: 44,
+                  color: Color(0xFF2563EB),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Restore Backup Data',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Choose how to restore your expenses, savings, and Budget Together data:',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).pop('paste'),
+                        icon: const Icon(Icons.content_paste_rounded),
+                        label: const Text('Paste JSON'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.of(context).pop('file'),
+                        icon: const Icon(Icons.folder_open_rounded),
+                        label: const Text('Select File'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
             ),
-            behavior: SnackBarBehavior.floating,
           ),
         );
+      },
+    );
+
+    if (action == null || !mounted) return;
+
+    String? jsonText;
+
+    if (action == 'file') {
+      try {
+        const MethodChannel channel = MethodChannel('budgetbuddy/storage');
+        jsonText = await channel.invokeMethod<String?>('pickJson');
       } catch (e) {
-        debugPrint('Restore JSON decode error: $e');
+        debugPrint('Native pick error: $e');
         if (!mounted) return;
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Could not restore backup: $e'),
+            content: Text('Could not open file: $e'),
             backgroundColor: const Color(0xFFDC2626),
             behavior: SnackBarBehavior.floating,
           ),
         );
+        return;
       }
+    } else if (action == 'paste') {
+      jsonText = await showDialog<String>(
+        context: context,
+        builder: (BuildContext context) => const _PasteJsonDialog(),
+      );
+    }
+
+    if (jsonText == null || jsonText.trim().isEmpty || !mounted) return;
+
+    try {
+      final String rawText = jsonText.trim();
+      final BudgetBuddyState snapshot = BudgetBuddyState.decode(rawText);
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .restoreSnapshot(snapshot);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            icon: const Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFF16A34A),
+              size: 48,
+            ),
+            title: const Text('Restore Complete'),
+            content: const Text(
+              'Expenses, Savings (daily/monthly), and Budget Together data have been restored successfully.',
+              textAlign: TextAlign.center,
+            ),
+            actions: <Widget>[
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
     } catch (e) {
-      debugPrint('Native pick error: $e');
+      debugPrint('Restore JSON decode error: $e');
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not open file: $e'),
+          content: Text('Could not restore backup: $e'),
           backgroundColor: const Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
         ),
@@ -931,7 +1048,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   }
 
   Future<void> _confirmResetApp(BuildContext context) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => const _ResetAppDialog(),
@@ -953,11 +1069,28 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       return;
     }
 
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('App reset to zero successfully.'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          icon: const Icon(
+            Icons.check_circle_rounded,
+            color: Color(0xFF16A34A),
+            size: 48,
+          ),
+          title: const Text('Reset Complete'),
+          content: const Text(
+            'App data has been reset to zero successfully.',
+            textAlign: TextAlign.center,
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1556,6 +1689,97 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
             foregroundColor: Colors.white,
           ),
           child: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PasteJsonDialog extends StatefulWidget {
+  const _PasteJsonDialog();
+
+  @override
+  State<_PasteJsonDialog> createState() => _PasteJsonDialogState();
+}
+
+class _PasteJsonDialogState extends State<_PasteJsonDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _tryAutoPaste();
+  }
+
+  Future<void> _tryAutoPaste() async {
+    final ClipboardData? clip = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clip?.text != null && clip!.text!.trim().startsWith('{')) {
+      if (mounted) {
+        setState(() {
+          _controller.text = clip.text!.trim();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Paste JSON Backup'),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final ClipboardData? clip =
+                        await Clipboard.getData(Clipboard.kTextPlain);
+                    if (clip?.text != null) {
+                      _controller.text = clip!.text!.trim();
+                    }
+                  },
+                  icon: const Icon(Icons.content_paste_rounded, size: 18),
+                  label: const Text('Paste Clipboard'),
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _controller,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  labelText: 'Paste JSON text here',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_controller.text.trim().isNotEmpty) {
+              Navigator.of(context).pop(_controller.text.trim());
+            }
+          },
+          child: const Text('Restore'),
         ),
       ],
     );

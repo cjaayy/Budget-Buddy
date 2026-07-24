@@ -266,6 +266,9 @@ if not exist "%DEBUG_APK%" (
 	echo.
 	goto menu
 )
+echo Installing debug APK to device (%DEVICE_ID%)...
+"%ADB%" -s %DEVICE_ID% install -r -t "%DEBUG_APK%"
+if errorlevel 1 goto install_failed
 
 flutter run -d %DEVICE_ID% --use-application-binary "%DEBUG_APK%"
 echo.
@@ -297,20 +300,58 @@ if not exist "%DEBUG_APK%" (
 	goto menu
 )
 
-"%ADB%" -s %DEVICE_ID% install -r "%DEBUG_APK%"
-if errorlevel 1 (
-	echo.
-	echo [ERROR] APK install failed!
-	echo.
-	goto menu
-)
+echo Installing debug APK to device (%DEVICE_ID%)...
+"%ADB%" -s %DEVICE_ID% install -r -t "%DEBUG_APK%"
+if errorlevel 1 goto install_failed
 
 "%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
 echo App installed and launched!
 echo.
 goto menu
 
-REM Removed old :cleanrebuild - replaced by :release_share
+:install_failed
+echo.
+echo ======================================================================
+echo   [ERROR] WIRELESS INSTALLATION BLOCKED BY DEVICE PERMISSIONS
+echo ======================================================================
+echo.
+echo   Failure: INSTALL_FAILED_USER_RESTRICTED (Install canceled by user)
+echo.
+echo   FOR WIRELESS DEBUGGING (Xiaomi / Redmi / POCO / Vivo / OPPO):
+echo   ------------------------------------------------------------------
+echo   1. OPEN DEVELOPER OPTIONS ON YOUR PHONE:
+echo      - Go to Settings -^> Additional Settings -^> Developer Options
+echo.
+echo   2. ENABLE "INSTALL VIA USB":
+echo      - Toggle "Install via USB" to ON (Must be enabled even over WiFi!)
+echo.
+echo   3. ENABLE "USB DEBUGGING (SECURITY SETTINGS)":
+echo      - Toggle ON if present (Tap Accept/Next on prompts).
+echo.
+echo   4. UNLOCK PHONE SCREEN ^& ACCEPT PROMPT:
+echo      - Look for "Allow USB installation?" pop-up on phone screen.
+echo      - Tap "INSTALL" or "ALLOW".
+echo   ------------------------------------------------------------------
+echo.
+set /p "RETRY_INS=Press ENTER after turning ON 'Install via USB' to retry (or N to cancel): "
+if /i "%RETRY_INS%"=="N" goto menu
+
+echo Retrying wireless installation to device (%DEVICE_ID%)...
+"%ADB%" -s %DEVICE_ID% install -r -t "%DEBUG_APK%"
+if errorlevel 1 (
+	echo.
+	echo [ERROR] Installation failed again. Please verify phone Developer Options.
+	echo.
+	goto menu
+)
+echo Installation succeeded!
+if "%CHOICE%"=="3" (
+	flutter run -d %DEVICE_ID% --use-application-binary "%DEBUG_APK%"
+) else (
+	"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
+)
+echo.
+goto menu
 
 :uninstall
 echo.
@@ -319,8 +360,6 @@ echo Uninstalling app...
 echo App uninstalled!
 echo.
 goto menu
-
-REM Removed old :buildapk - replaced by :release_share
 
 :release_share
 echo.
@@ -351,11 +390,11 @@ if not exist "%RELEASE_APK%" (
 	goto menu
 )
 
-echo Installing release APK to device...
-"%ADB%" -s %DEVICE_ID% install -r "%RELEASE_APK%"
+echo Installing release APK to device (%DEVICE_ID%)...
+"%ADB%" -s %DEVICE_ID% install -r -t "%RELEASE_APK%"
 if errorlevel 1 (
 	echo.
-	echo [ERROR] Release APK install failed!
+	echo [ERROR] Release APK install failed! Check phone screen for USB Install permission.
 	echo.
 	goto menu
 )
