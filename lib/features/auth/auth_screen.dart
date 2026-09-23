@@ -37,10 +37,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(budgetBuddyControllerProvider);
     final String savedDisplayName = state.profile.displayName;
-    final String placeholderName =
-        savedDisplayName.trim().isEmpty || savedDisplayName == 'Budget Buddy'
-            ? 'Enter display name'
-            : savedDisplayName;
 
     final String normalizedSavedName =
         savedDisplayName == 'Budget Buddy' ? '' : savedDisplayName.trim();

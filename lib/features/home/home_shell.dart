@@ -10,6 +10,7 @@ import '../spend/spend_screen.dart';
 import '../together/together_screen.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
+import '../../core/services/update_service.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -20,6 +21,16 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        UpdateService.instance.checkOnLaunch(context);
+      }
+    });
+  }
 
   late final List<Widget> _pages = <Widget>[
     DashboardScreen(

@@ -1,39 +1,53 @@
 @echo off
 setlocal enabledelayedexpansion
-title Budget Buddy - Run on Physical Device
+title Budget Buddy - App Runner (Device / Web)
 
-cd /d "%~dp0"
-
-if not exist "pubspec.yaml" (
+set "SCRIPT_DIR=%~dp0"
+if exist "%SCRIPT_DIR%pubspec.yaml" (
+    cd /d "%SCRIPT_DIR%"
+    set "PROJECT_DIR=%cd%"
+    set "SCRIPTS_DIR=%SCRIPT_DIR%scripts\"
+) else if exist "%SCRIPT_DIR%..\pubspec.yaml" (
+    cd /d "%SCRIPT_DIR%.."
+    set "PROJECT_DIR=%cd%"
+    set "SCRIPTS_DIR=%SCRIPT_DIR%"
+) else (
     echo [ERROR] pubspec.yaml not found in %cd%
-    echo Please run this script from the Flutter project root folder.
+    echo Please run this script from the Flutter project root or scripts folder.
     echo.
     pause
     exit /b 1
 )
 
-call :ensure_pub
-set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
-set "PACKAGE=com.budgetbuddy.app"
-set "DEBUG_APK=%cd%\android\app\build\outputs\apk\debug\app-debug.apk"
-set "RELEASE_APK=%cd%\android\app\build\outputs\apk\release\app-release.apk"
-set "GRADLEW=%cd%\android\gradlew.bat"
-set "ANDROID_DIR=%cd%\android"
-
-rem Force the Android build to use a supported local JDK installation.
-rem This avoids Unsupported class file major version 66 when the default
-rem java on PATH is newer or incompatible for this project's Gradle/Kotlin.
-if exist "C:\Progra~1\Java\jdk-22\bin\java.exe" (
-    set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
-    set "PATH=!JAVA_HOME!\bin;!PATH!"
-    set "GRADLE_OPTS=-Dorg.gradle.java.home=C:\Progra~1\Java\jdk-22"
-) else (
-    echo [WARNING] Supported JDK not found at C:\Progra~1\Java\jdk-22.
-    echo [WARNING] The Android build may still fail if JAVA_HOME is not set.
+if not exist "%SCRIPTS_DIR%prepare_ota_release.ps1" (
+    if exist "%PROJECT_DIR%\scripts\prepare_ota_release.ps1" (
+        set "SCRIPTS_DIR=%PROJECT_DIR%\scripts\"
+    ) else if exist "%SCRIPT_DIR%prepare_ota_release.ps1" (
+        set "SCRIPTS_DIR=%SCRIPT_DIR%"
+    )
 )
 
+if not exist "%JAVA_HOME%\bin\java.exe" (
+    if exist "C:\Program Files\Java\jdk-22\bin\java.exe" (
+        set "JAVA_HOME=C:\Program Files\Java\jdk-22"
+    ) else if exist "C:\Progra~1\Java\jdk-22\bin\java.exe" (
+        set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
+    )
+)
+
+call :ensure_pub
+
+set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+if not exist "%ADB%" (
+    for /f "tokens=*" %%i in ('where adb 2^>nul') do (
+        if "!ADB!"=="" set "ADB=%%i"
+    )
+)
+set "PACKAGE=com.budgetbuddy.app"
+set "IP_FILE=%PROJECT_DIR%\.device_ip"
+
 echo ========================================
-echo    Budget Buddy - Physical Device Run
+echo    Budget Buddy - App Runner
 echo ========================================
 echo.
 echo -------- System Specs --------
@@ -54,135 +68,425 @@ echo -----------------------------
 echo.
 
 :connection_menu
-echo How do you want to connect?
-echo   [1] USB (device already connected)
-echo   [2] Wireless Debugging (connect via WiFi)
-echo   [3] Already connected wirelessly
-echo.
-set /p "CONN_TYPE=Enter choice (1-3): "
+set "IS_WEB=0"
+set "IS_DUAL_LAUNCH=0"
+set "DEVICE_ID="
+set "SAVED_IP="
+if exist "%IP_FILE%" (
+    set /p SAVED_IP=<"%IP_FILE%"
+)
 
-if "%CONN_TYPE%"=="2" goto wireless_connect
-if "%CONN_TYPE%"=="3" goto check_device
-if "%CONN_TYPE%"=="1" goto check_device
+echo Where do you want to run the app?
+echo.
+echo   DUAL RUN (MOBILE + WEB):
+echo   [D] Dual Run Debug (Mobile Device + Microsoft Edge in 2 Terminals)
+echo.
+echo   STABLE WIRELESS ^& USB:
+echo   [1] Physical Android Device (USB Cable)
+echo   [2] Wireless: USB-to-WiFi Switch (Port 5555 - Most Stable, No Disconnects)
+if not "%SAVED_IP%"=="" (
+    echo   [3] Wireless: Quick Reconnect to Last Saved IP [%SAVED_IP%:5555]
+) else (
+    echo   [3] Wireless: Quick Reconnect by IP [Port 5555]
+)
+echo   [4] Wireless: Android 11+ Pairing Code (Pair ^& auto-switch to Port 5555)
+echo   [5] Wireless: Direct IP:Port (Manual)
+echo.
+echo   STABILITY ^& FIXES:
+echo   [6] Fix Wireless Disconnects ^& Phone Sleep (Anti-Sleep ADB Fix)
+echo   [7] Restart ADB Server (Fix stuck / offline wireless connection)
+echo.
+echo   WEB:
+echo   [8] Web - Google Chrome
+echo   [9] Web - Microsoft Edge
+echo.
+echo   [0] Exit
+echo.
+set "CONN_TYPE="
+set /p "CONN_TYPE=Enter choice (1-9, D, 0): "
+if "!CONN_TYPE!"=="" goto connection_menu
+
+if /i "!CONN_TYPE!"=="D" (
+    set "IS_DUAL_LAUNCH=1"
+    goto dual_debug_entry
+)
+if "!CONN_TYPE!"=="1" goto check_device_usb
+if "!CONN_TYPE!"=="2" goto usb_to_wireless
+if "!CONN_TYPE!"=="3" goto quick_reconnect
+if "!CONN_TYPE!"=="4" goto wireless_connect
+if "!CONN_TYPE!"=="5" goto wireless_manual_connect
+if "!CONN_TYPE!"=="6" goto fix_disconnects
+if "!CONN_TYPE!"=="7" goto restart_adb
+if "!CONN_TYPE!"=="8" goto select_chrome
+if "!CONN_TYPE!"=="9" goto select_edge
+if "!CONN_TYPE!"=="0" exit /b 0
 echo Invalid choice.
 echo.
 goto connection_menu
 
-:wireless_connect
+:select_chrome
+set "DEVICE_ID=chrome"
+set "IS_WEB=1"
 echo.
-echo ========================================
-echo   Wireless Debugging Setup
-echo ========================================
+echo Target set to Google Chrome (%DEVICE_ID%)
 echo.
-echo How do you want to pair?
-echo   [1] Guided Setup (recommended)
-echo   [2] Quick Manual (enter IP and code directly)
-echo   [3] Skip pairing (already paired before)
-echo.
-set /p "PAIR_METHOD=Enter choice (1-3): "
+goto web_menu
 
-if "%PAIR_METHOD%"=="1" goto wireless_guided
-if "%PAIR_METHOD%"=="2" goto wireless_manual
-if "%PAIR_METHOD%"=="3" goto wireless_direct
-echo Invalid choice.
-goto wireless_connect
+:select_edge
+set "DEVICE_ID=edge"
+set "IS_WEB=1"
+echo.
+echo Target set to Microsoft Edge (%DEVICE_ID%)
+echo.
+goto web_menu
 
-:wireless_guided
+:usb_to_wireless
 echo.
-echo On your phone, tap "Pair device with pairing code"
+echo ====================================================
+echo   USB-to-WiFi Switch (Ultra-Stable Static Port 5555)
+echo ====================================================
 echo.
-echo Enter the PAIRING address (e.g., 192.168.1.100:37215):
-set /p "PAIR_ADDR="
-echo Enter the PAIRING code shown on device:
-set /p "PAIR_CODE="
+echo 1. Plug in your phone via USB cable with USB Debugging enabled.
 echo.
-echo Pairing with device...
-"%ADB%" pair %PAIR_ADDR% %PAIR_CODE%
+"%ADB%" get-state >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo [ERROR] Pairing failed! Check the address and code.
-    echo.
-    goto connection_menu
-)
-echo.
-echo Pairing successful!
-echo.
-goto wireless_direct
-
-:wireless_manual
-echo.
-echo On your phone, tap "Pair device with pairing code"
-echo.
-echo Enter the PAIRING address (e.g., 192.168.1.100:37215):
-set /p "PAIR_ADDR="
-echo Enter the PAIRING code shown on device:
-set /p "PAIR_CODE="
-echo.
-echo Pairing with device...
-"%ADB%" pair %PAIR_ADDR% %PAIR_CODE%
-if errorlevel 1 (
-    echo.
-    echo [ERROR] Pairing failed! Check the address and code.
-    echo.
-    goto connection_menu
-)
-echo.
-echo Pairing successful!
-echo.
-
-:wireless_direct
-echo.
-echo Now enter the CONNECT address from Wireless debugging screen
-echo (This is different from the pairing address, e.g., 192.168.1.100:43567):
-set /p "CONNECT_ADDR="
-echo.
-echo Connecting to device...
-"%ADB%" connect %CONNECT_ADDR%
-if errorlevel 1 (
-    echo.
-    echo [ERROR] Connection failed!
-    echo.
-    goto connection_menu
-)
-echo.
-timeout /t 2 /nobreak >nul
-
-:check_device
-echo.
-echo Checking for Android device...
-echo.
-
-REM Extract device ID using PowerShell
-for /f "usebackq delims=" %%i in (`powershell -Command "(flutter devices | Select-String 'mobile.*android' | ForEach-Object { ($_ -split '•')[1].Trim() } | Select-Object -First 1)"`) do set "DEVICE_ID=%%i"
-
-if "%DEVICE_ID%"=="" (
-    echo [ERROR] No physical Android device found!
-    echo.
+    echo [ERROR] No USB device detected by ADB.
     echo Please make sure:
-    echo   - For USB: Device connected and USB debugging enabled
-    echo   - For Wireless: Device paired and connected via adb
-    echo.
-    echo Available devices:
-    flutter devices
+    echo   - Phone is plugged into this PC via USB cable
+    echo   - USB Debugging is enabled in Developer Options
+    echo   - You accepted the Allow USB debugging prompt on phone
     echo.
     pause
     goto connection_menu
 )
 
-echo Found device: %DEVICE_ID%
+echo Device detected on USB!
+echo Detecting phone Wi-Fi IP address...
+set "PHONE_IP="
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPTS_DIR%get_device_ip.ps1" > "%PROJECT_DIR%\.temp_ip" 2>nul
+if exist "%PROJECT_DIR%\.temp_ip" (
+    set /p PHONE_IP=<"%PROJECT_DIR%\.temp_ip"
+    del "%PROJECT_DIR%\.temp_ip" >nul 2>&1
+)
+
+if "%PHONE_IP%"=="" (
+    echo.
+    echo [NOTICE] Could not automatically detect Wi-Fi IP.
+    set /p "PHONE_IP=Please enter your phone Wi-Fi IP e.g. 192.168.1.100: "
+)
+
+if "%PHONE_IP%"=="" (
+    echo [ERROR] IP address cannot be empty.
+    goto connection_menu
+)
+
+echo Phone IP detected: %PHONE_IP%
+echo Enabling ADB TCP/IP on static port 5555...
+"%ADB%" tcpip 5555
+timeout /t 2 /nobreak >nul
+
+echo Connecting wirelessly to %PHONE_IP%:5555...
+"%ADB%" connect %PHONE_IP%:5555
+timeout /t 1 /nobreak >nul
+
+set "DEVICE_ID=%PHONE_IP%:5555"
+
+"%ADB%" devices | findstr /c:"!DEVICE_ID!	device" >nul 2>&1
+if errorlevel 1 (
+    echo [WARNING] Initial connect did not register. Retrying...
+    timeout /t 2 /nobreak >nul
+    "%ADB%" connect !DEVICE_ID!
+    timeout /t 1 /nobreak >nul
+    "%ADB%" devices | findstr /c:"!DEVICE_ID!	device" >nul 2>&1
+)
+
+if errorlevel 1 (
+    echo.
+    echo ====================================================
+    echo   [ERROR] Could not connect to !DEVICE_ID!!
+    echo ====================================================
+    echo   Connection was refused or device is unreachable.
+    echo.
+    echo   Please check:
+    echo     1. Phone and PC must be on the SAME Wi-Fi network.
+    echo     2. Ensure the IP address entered is your PHONE's Wi-Fi IP (not router).
+    echo     3. Keep phone screen ON and unlocked.
+    echo ====================================================
+    echo.
+    pause
+    goto connection_menu
+)
+
+echo %PHONE_IP%>"%IP_FILE%"
+
+echo.
+:: Auto-open Wireless Debugging settings on the phone so the user can confirm it's ON
+echo Auto-opening Wireless Debugging settings on your phone...
+"%ADB%" shell am start -n com.android.settings/.DevelopmentSettingsActivity >nul 2>&1
+"%ADB%" shell am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS >nul 2>&1
+timeout /t 1 /nobreak >nul
+call :apply_device_optimizations
+
+echo.
+echo ====================================================
+echo   [SUCCESS] Connected to %DEVICE_ID%!
+echo.
+echo   NOTE FOR XIAOMI / MIUI PHONES:
+echo   MIUI closes Port 5555 if the phone is not charging!
+echo   - Keep USB plugged into PC or charger, OR
+echo   - Use Option [1] USB Cable (fastest, most reliable)
+echo   - Use Option [4] Wireless Pairing (pure wireless on Android 11+)
+echo ====================================================
+echo.
+goto check_device_ready
+
+:quick_reconnect
+if "%SAVED_IP%"=="" (
+    echo.
+    echo No saved IP found.
+    set /p "SAVED_IP=Enter phone Wi-Fi IP address e.g. 192.168.1.100: "
+)
+if "%SAVED_IP%"=="" goto connection_menu
+
+echo.
+echo Disconnecting any stale ADB session...
+"%ADB%" disconnect %SAVED_IP%:5555 >nul 2>&1
+timeout /t 1 /nobreak >nul
+echo Connecting to %SAVED_IP%:5555...
+"%ADB%" connect %SAVED_IP%:5555
+timeout /t 1 /nobreak >nul
+set "DEVICE_ID=%SAVED_IP%:5555"
+
+"%ADB%" devices | findstr /c:"!DEVICE_ID!	device" >nul 2>&1
+if errorlevel 1 (
+    echo [WARNING] Direct connect failed. Restarting ADB server and retrying...
+    "%ADB%" kill-server >nul 2>&1
+    timeout /t 1 /nobreak >nul
+    "%ADB%" start-server >nul 2>&1
+    timeout /t 2 /nobreak >nul
+    "%ADB%" connect %SAVED_IP%:5555
+    timeout /t 1 /nobreak >nul
+    "%ADB%" devices | findstr /c:"!DEVICE_ID!	device" >nul 2>&1
+    if errorlevel 1 (
+        echo.
+        echo [ERROR] Could not connect to %SAVED_IP%:5555!
+        echo The device is offline or Port 5555 was closed by the phone.
+        echo.
+        echo Please ensure:
+        echo   1. Plug phone into PC with USB cable [Use Option 2].
+        echo   2. Or on phone: Developer options - toggle Wireless debugging.
+        echo.
+        pause
+        goto connection_menu
+    )
+)
+
+echo %SAVED_IP%>"%IP_FILE%"
+echo.
+echo [SUCCESS] Connected to %DEVICE_ID%!
+echo.
+call :apply_device_optimizations
+goto check_device_ready
+
+:wireless_manual_connect
+echo.
+echo Enter device address e.g. 192.168.1.100:5555 or 192.168.1.100:43567:
+set /p "CONNECT_ADDR="
+if "%CONNECT_ADDR%"=="" (
+    echo [ERROR] Address cannot be empty.
+    goto connection_menu
+)
+echo Connecting to %CONNECT_ADDR%...
+"%ADB%" connect %CONNECT_ADDR%
+set "DEVICE_ID=%CONNECT_ADDR%"
+echo.
+goto check_device_ready
+
+:wireless_connect
+echo.
+echo ========================================
+echo   Android 11+ Wireless Debugging Pairing
+echo ========================================
+echo.
+echo On your phone:
+echo   1. Go to Settings ^> Developer options
+echo   2. Tap 'Wireless debugging' and turn it ON
+echo   3. Tap 'Pair device with pairing code'
+echo.
+echo Enter the PAIRING address e.g. 192.168.1.100:37215:
+set /p "PAIR_ADDR="
+if "%PAIR_ADDR%"=="" (
+    echo [ERROR] Pairing address cannot be empty.
+    goto connection_menu
+)
+echo Enter the 6-digit PAIRING code shown on phone:
+set /p "PAIR_CODE="
+if "%PAIR_CODE%"=="" (
+    echo [ERROR] Pairing code cannot be empty.
+    goto connection_menu
+)
+echo.
+echo Pairing with %PAIR_ADDR%...
+"%ADB%" pair %PAIR_ADDR% %PAIR_CODE%
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Pairing failed! Check the address and code and try again.
+    echo.
+    pause
+    goto connection_menu
+)
+echo.
+echo Pairing successful!
+echo.
+echo Now look at the main Wireless Debugging screen on your phone.
+echo Enter the CONNECT address e.g. 192.168.1.100:43567:
+set /p "CONNECT_ADDR="
+if "%CONNECT_ADDR%"=="" (
+    echo [ERROR] Connect address cannot be empty.
+    goto connection_menu
+)
+echo.
+echo Connecting to %CONNECT_ADDR%...
+"%ADB%" connect %CONNECT_ADDR%
+timeout /t 1 /nobreak >nul
+
+set "EXTRACTED_IP="
+for /f "tokens=1 delims=:" %%a in ("%CONNECT_ADDR%") do set "EXTRACTED_IP=%%a"
+
+if not "%EXTRACTED_IP%"=="" (
+    echo Auto-upgrading connection to static port 5555 [Prevents future disconnects]...
+    "%ADB%" -s %CONNECT_ADDR% tcpip 5555 >nul 2>&1
+    timeout /t 2 /nobreak >nul
+    "%ADB%" connect %EXTRACTED_IP%:5555 >nul 2>&1
+    set "DEVICE_ID=%EXTRACTED_IP%:5555"
+    echo %EXTRACTED_IP%>"%IP_FILE%"
+) else (
+    set "DEVICE_ID=%CONNECT_ADDR%"
+)
+
+echo.
+call :apply_device_optimizations
+
+echo.
+echo [SUCCESS] Connected to %DEVICE_ID%!
+echo.
+goto check_device_ready
+
+:fix_disconnects
+echo.
+echo ====================================================
+echo   Wireless Connection Stability ^& Anti-Sleep Setup
+echo ====================================================
+echo.
+echo Applying ADB stability tweaks to all connected devices...
+for /f "tokens=1" %%d in ('"%ADB%" devices ^| findstr /v "List of" ^| findstr "device"') do (
+    echo Configuring device: %%d
+    "%ADB%" -s %%d shell settings put global stay_on_while_plugged_in 7 >nul 2>&1
+    "%ADB%" -s %%d shell settings put global wifi_sleep_policy 2 >nul 2>&1
+    "%ADB%" -s %%d shell settings put global adb_wifi_enabled 1 >nul 2>&1
+    "%ADB%" -s %%d shell dumpsys deviceidle whitelist +%PACKAGE% >nul 2>&1
+)
+echo.
+echo ----------------------------------------------------
+echo   CRITICAL PHONE SETTINGS (Xiaomi MIUI / Android):
+echo ----------------------------------------------------
+echo   1. Keep phone PLUGGED IN to a charger while debugging.
+echo   2. Phone Settings ^> Developer options:
+echo      - Turn ON "Stay awake"
+echo      - Turn ON "Disable ADB authorization timeout"
+echo      - Turn ON "USB debugging (Security settings)"
+echo      - Turn OFF "MIUI optimization" / "System optimization" if present
+echo   3. Phone Settings ^> Wi-Fi ^> Additional settings:
+echo      - Turn OFF "Wi-Fi power saving" / "Wi-Fi assistant sleep mode"
+echo   4. Phone Settings ^> Apps ^> Manage Apps ^> Budget Buddy:
+echo      - Battery Saver: Set to "No restrictions"
+echo      - Autostart: Turn ON
+echo ----------------------------------------------------
+echo.
+pause
+goto connection_menu
+
+:restart_adb
+echo.
+echo Restarting ADB Server...
+"%ADB%" kill-server >nul 2>&1
+timeout /t 1 /nobreak >nul
+"%ADB%" start-server >nul 2>&1
+echo ADB Server restarted.
+if not "%SAVED_IP%"=="" (
+    echo Reconnecting to saved IP %SAVED_IP%:5555...
+    "%ADB%" connect %SAVED_IP%:5555
+)
+echo.
+pause
+goto connection_menu
+
+:check_device_usb
+echo.
+echo Checking for USB Android device...
+set "DEVICE_ID="
+"%ADB%" devices > "%PROJECT_DIR%\.temp_devices" 2>nul
+if exist "%PROJECT_DIR%\.temp_devices" (
+    for /f "tokens=1" %%d in ('findstr /v "List of" "%PROJECT_DIR%\.temp_devices" ^| findstr "device"') do (
+        if "!DEVICE_ID!"=="" (
+            echo %%d | findstr ":" >nul
+            if errorlevel 1 set "DEVICE_ID=%%d"
+        )
+    )
+    if "!DEVICE_ID!"=="" (
+        for /f "tokens=1" %%d in ('findstr /v "List of" "%PROJECT_DIR%\.temp_devices" ^| findstr "device"') do (
+            if "!DEVICE_ID!"=="" set "DEVICE_ID=%%d"
+        )
+    )
+    del "%PROJECT_DIR%\.temp_devices" >nul 2>&1
+)
+if "%DEVICE_ID%"=="" (
+    echo [ERROR] No Android device found!
+    echo Please make sure your phone is plugged in via USB and USB Debugging is ON.
+    echo.
+    pause
+    goto connection_menu
+)
+goto check_device_ready
+
+:check_device_ready
+if "%DEVICE_ID%"=="" (
+    echo [ERROR] No device selected.
+    goto connection_menu
+)
+
+if "%IS_DUAL_LAUNCH%"=="1" (
+    goto dual_debug_run
+)
+
+echo ----------------------------------------
+echo Active Target: !DEVICE_ID! (Android)
+echo ----------------------------------------
 echo.
 
-REM Check if app is already installed
-"%ADB%" -s %DEVICE_ID% shell pm list packages | findstr /i "%PACKAGE%" >nul 2>&1
+"%ADB%" devices | findstr /c:"!DEVICE_ID!	device" >nul 2>&1
 if errorlevel 1 (
-    echo App not installed. Building and installing...
+    echo [ERROR] Device !DEVICE_ID! is offline or not found!
+    pause
+    goto connection_menu
+)
+
+call :apply_device_optimizations
+
+"%ADB%" -s !DEVICE_ID! shell pm list packages | findstr /i "!PACKAGE!" >nul 2>&1
+if errorlevel 1 (
+    echo App is not yet installed on !DEVICE_ID!. Building and installing...
     echo.
     goto buildrun
 )
 
 :menu
 echo ----------------------------------------
+echo Target: %DEVICE_ID% (Android)
 echo Select an option:
+echo.
+echo   DUAL RUN (MOBILE + WEB):
+echo   [D] Dual Debug Run (Mobile %DEVICE_ID% + Microsoft Edge in 2 Windows)
 echo.
 echo   QUICK ACTIONS:
 echo   [1] Launch App
@@ -190,33 +494,164 @@ echo   [2] Restart App (force stop + launch)
 echo.
 echo   DEBUG MODE (Hot Reload):
 echo   [3] Debug Run (r=hot reload, R=hot restart)
+echo   [W] Dedicated Debug Window (Separate clean terminal, instant r/R/q)
 echo.
-echo.
-echo   SHARE/RELEASE:
-echo   [4] Clean Release Build, Install ^& Open Folder (share + run on device)
+echo   RELEASE MODE ^& SHARE:
+echo   [4] Release Build ^& Run (Clean / Build APK / Run)
 echo.
 echo   OTHER:
 echo   [5] Uninstall App
-echo   [6] Disconnect Wireless ^& Reconnect
+echo   [6] Switch Target Device / Reconnect
 echo   [0] Exit
 echo ----------------------------------------
 echo.
-set /p "CHOICE=Enter choice (1-6, 0): "
+set "CHOICE="
+set /p "CHOICE=Enter choice (1-6, D, W, 0): "
+if "!CHOICE!"=="" goto menu
 
-if "%CHOICE%"=="1" goto launch
-if "%CHOICE%"=="2" goto restart
-if "%CHOICE%"=="3" goto debugrun
-if "%CHOICE%"=="4" goto release_share
-if "%CHOICE%"=="5" goto uninstall
-if "%CHOICE%"=="6" goto disconnect
-if "%CHOICE%"=="0" exit /b 0
-echo Invalid choice. Please enter 1-6 or 0.
+if /i "!CHOICE!"=="D" goto dual_debug_run
+if /i "!CHOICE!"=="W" goto debugrun_window
+if "!CHOICE!"=="1" goto launch
+if "!CHOICE!"=="2" goto restart
+if "!CHOICE!"=="3" goto debugrun
+if "!CHOICE!"=="4" goto releasemenu
+if "!CHOICE!"=="5" goto uninstall
+if "!CHOICE!"=="6" goto disconnect
+if "!CHOICE!"=="0" exit /b 0
+echo Invalid choice. Please enter 1-6, D, W, or 0.
 echo.
+goto menu
+
+:web_menu
+echo ----------------------------------------
+echo Target: %DEVICE_ID% (Web)
+echo Select an option:
+echo.
+echo   DUAL RUN (MOBILE + WEB):
+echo   [D] Dual Debug Run (Web %DEVICE_ID% + Mobile Device in 2 Windows)
+echo.
+echo   RUN / DEBUG:
+echo   [1] Debug Run (Hot Reload / Restart in Browser)
+echo   [2] Release Build ^& Run in Browser
+echo.
+echo   BUILD / CLEAN:
+echo   [3] Clean ^& Rebuild (Release)
+echo   [4] Build Web Release ^& Open Folder
+echo.
+echo   OTHER:
+echo   [5] Switch Target Device / Browser
+echo   [0] Exit
+echo ----------------------------------------
+echo.
+set "CHOICE="
+set /p "CHOICE=Enter choice (1-5, D, 0): "
+if "!CHOICE!"=="" goto web_menu
+
+if /i "!CHOICE!"=="D" goto dual_debug_entry
+if "!CHOICE!"=="1" goto debugrun
+if "!CHOICE!"=="2" goto buildrun
+if "!CHOICE!"=="3" goto cleanrebuild
+if "!CHOICE!"=="4" goto buildweb
+if "!CHOICE!"=="5" goto disconnect
+if "!CHOICE!"=="0" exit /b 0
+echo Invalid choice. Please enter 1-5, D, or 0.
+echo.
+goto web_menu
+
+:dual_debug_entry
+set "IS_DUAL_LAUNCH=1"
+echo.
+echo ====================================================
+echo   Dual Debug Launcher (Mobile + Microsoft Edge Web)
+echo ====================================================
+echo.
+if not "%DEVICE_ID%"=="" (
+    if not "%IS_WEB%"=="1" (
+        goto dual_debug_run
+    )
+)
+
+set "DEVICE_ID="
+"%ADB%" devices > "%PROJECT_DIR%\.temp_devices" 2>nul
+if exist "%PROJECT_DIR%\.temp_devices" (
+    for /f "tokens=1" %%d in ('findstr /v "List of" "%PROJECT_DIR%\.temp_devices" ^| findstr "device"') do (
+        if "!DEVICE_ID!"=="" (
+            set "DEVICE_ID=%%d"
+        )
+    )
+    del "%PROJECT_DIR%\.temp_devices" >nul 2>&1
+)
+
+if "%DEVICE_ID%"=="" (
+    if not "%SAVED_IP%"=="" (
+        echo Attempting to reconnect to saved phone IP %SAVED_IP%:5555...
+        "%ADB%" connect %SAVED_IP%:5555 >nul 2>&1
+        timeout /t 1 /nobreak >nul
+        "%ADB%" -s %SAVED_IP%:5555 get-state >nul 2>&1
+        if not errorlevel 1 (
+            set "DEVICE_ID=%SAVED_IP%:5555"
+        )
+    )
+)
+
+if "%DEVICE_ID%"=="" (
+    echo [NOTICE] No mobile device currently connected.
+    echo Please select how your phone is connected:
+    echo.
+    echo   [1] Physical Android Device (USB Cable)
+    echo   [2] Wireless: USB-to-WiFi Switch (Port 5555)
+    if not "%SAVED_IP%"=="" (
+        echo   [3] Wireless: Quick Reconnect to [%SAVED_IP%:5555]
+    )
+    echo   [4] Wireless: Android 11+ Pairing Code
+    echo   [0] Cancel
+    echo.
+    set /p "D_CHOICE=Enter choice: "
+    if "!D_CHOICE!"=="1" goto check_device_usb
+    if "!D_CHOICE!"=="2" goto usb_to_wireless
+    if "!D_CHOICE!"=="3" goto quick_reconnect
+    if "!D_CHOICE!"=="4" goto wireless_connect
+    if "!D_CHOICE!"=="0" goto connection_menu
+    goto connection_menu
+)
+
+:dual_debug_run
+set "IS_DUAL_LAUNCH=0"
+echo.
+echo ====================================================
+echo   STARTING DUAL DEBUG SESSIONS (2 TERMINALS)
+echo ====================================================
+echo   Window 1 (Mobile) : %DEVICE_ID%
+echo   Window 2 (Web)    : Microsoft Edge (edge)
+echo ====================================================
+echo.
+call :apply_device_optimizations
+call :start_keepalive
+echo [1/2] Spawning Mobile Debug Window (%DEVICE_ID%)...
+powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Mobile Debug (%DEVICE_ID%) && echo. && echo ======================================================== && echo   Budget Buddy - MOBILE DEBUG (%DEVICE_ID%) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run -d %DEVICE_ID%' -WorkingDirectory '%PROJECT_DIR%'"
+
+timeout /t 2 /nobreak >nul
+
+echo [2/2] Spawning Web Edge Debug Window...
+powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Web Edge Debug && echo. && echo ======================================================== && echo   Budget Buddy - WEB EDGE DEBUG (Microsoft Edge) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run -d edge' -WorkingDirectory '%PROJECT_DIR%'"
+
+echo.
+echo ====================================================
+echo   [SUCCESS] Both debug terminals are now active!
+echo.
+echo   - Window 1: Mobile (%DEVICE_ID%)
+echo   - Window 2: Web (Microsoft Edge)
+echo.
+echo   Tip: You can use 'r' (hot reload) and 'R' (hot restart)
+echo   independently in each terminal window!
+echo ====================================================
+echo.
+pause
 goto menu
 
 :launch
 echo.
-echo Launching app...
+echo Launching app on %DEVICE_ID%...
 "%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
 echo App launched!
 echo.
@@ -224,12 +659,36 @@ goto menu
 
 :restart
 echo.
-echo Restarting app...
+echo Restarting app on %DEVICE_ID%...
 "%ADB%" -s %DEVICE_ID% shell am force-stop %PACKAGE%
 timeout /t 1 /nobreak >nul
 "%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
 echo App restarted!
 echo.
+goto menu
+
+:debugrun_window
+echo.
+echo ====================================================
+echo   LAUNCHING DEBUG IN DEDICATED WINDOW
+echo ====================================================
+echo   Target: %DEVICE_ID%
+echo.
+if not "%IS_WEB%"=="1" (
+    call :verify_device_connected
+    if errorlevel 1 (
+        echo [ERROR] Target %DEVICE_ID% is offline or disconnected!
+        goto handle_lost_connection
+    )
+)
+call :apply_device_optimizations
+call :start_keepalive
+powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Debug (%DEVICE_ID%) && echo. && echo ======================================================== && echo   Budget Buddy - DEBUG (%DEVICE_ID%) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run -d %DEVICE_ID%' -WorkingDirectory '%PROJECT_DIR%'"
+echo.
+echo [SUCCESS] Dedicated debug terminal opened in new window!
+echo Hot reload (r) and hot restart (R) are active in that window.
+echo.
+pause
 goto menu
 
 :debugrun
@@ -238,190 +697,542 @@ echo ========================================
 echo   DEBUG MODE - Hot Reload Enabled
 echo ========================================
 echo.
-echo   While running, press:
-echo     r = Hot Reload (update UI instantly)
+echo   Target: %DEVICE_ID%
+echo   While running:
+echo     r = Hot Reload  (update UI instantly)
 echo     R = Hot Restart (restart app state)
 echo     q = Quit
 echo.
+echo   Tip: Press 'r' directly. If your terminal buffers input, press 'r' then Enter!
+echo   Tip: If console paused from mouse click, press Enter or Esc to unfreeze.
+echo.
 echo ========================================
 echo.
-
-pushd "%ANDROID_DIR%"
-set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
-set "PATH=%JAVA_HOME%\bin;%PATH%"
-call "%GRADLEW%" --no-daemon -Dorg.gradle.java.home=C:\Progra~1\Java\jdk-22 assembleDebug
-set "GRADLE_STATUS=%ERRORLEVEL%"
-popd
-if not "%GRADLE_STATUS%"=="0" (
-	echo.
-	echo [ERROR] Debug build failed!
-	echo.
-	goto menu
+if not "%IS_WEB%"=="1" (
+    call :verify_device_connected
+    if errorlevel 1 (
+        echo [ERROR] Target %DEVICE_ID% is offline or disconnected!
+        goto handle_lost_connection
+    )
 )
+call :apply_device_optimizations
+call :start_keepalive
+call flutter run -d %DEVICE_ID%
+call :stop_keepalive
+goto handle_run_end
 
-if not exist "%DEBUG_APK%" (
-	echo.
-	echo [ERROR] Debug APK not found at:
-	echo   %DEBUG_APK%
-	echo.
-	goto menu
-)
-echo Installing debug APK to device (%DEVICE_ID%)...
-"%ADB%" -s %DEVICE_ID% install -r -t "%DEBUG_APK%"
-if errorlevel 1 goto install_failed
-
-flutter run -d %DEVICE_ID% --use-application-binary "%DEBUG_APK%"
+:releasemenu
 echo.
-goto menu
+echo ----------------------------------------
+echo   RELEASE MODE ^& SHARE OPTIONS:
+echo.
+echo   [1] Release Build ^& Run (Quick)
+echo   [2] Clean Release Build ^& Run
+echo   [3] Build APK ^& Open Folder (share manually)
+echo   [4] Full Release (Clean + Build APK + Open Folder + Run)
+echo   [5] One-Click Auto Publish to GitHub OTA Release
+echo   [0] Back to Main Menu
+echo ----------------------------------------
+echo.
+set "REL_CHOICE="
+set /p "REL_CHOICE=Enter choice (1-5, 0): "
+if "!REL_CHOICE!"=="" goto releasemenu
+
+if "!REL_CHOICE!"=="1" goto buildrun
+if "!REL_CHOICE!"=="2" goto cleanrebuild
+if "!REL_CHOICE!"=="3" goto buildapk
+if "!REL_CHOICE!"=="4" goto fullrelease
+if "!REL_CHOICE!"=="5" goto github_ota_release
+if "!REL_CHOICE!"=="0" goto menu
+echo Invalid choice. Please enter 1-5 or 0.
+echo.
+goto releasemenu
+
+:github_ota_release
+echo.
+echo ====================================================
+echo   One-Click Auto Publish to GitHub OTA Release
+echo ====================================================
+echo.
+
+set "GH_USER=cjaayy"
+set "GH_REPO=Budget-Buddy"
+
+:: Auto-detect repo from git remote if possible
+for /f "tokens=4,5 delims=/:." %%A in ('git config --get remote.origin.url 2^>nul') do (
+    if not "%%A"=="" if not "%%B"=="" (
+        set "GH_USER=%%A"
+        set "GH_REPO=%%B"
+    )
+)
+
+set "GH_BIN="
+where gh >nul 2>&1
+if not errorlevel 1 set "GH_BIN=gh"
+if not defined GH_BIN if exist "%LOCALAPPDATA%\Programs\GitHub CLI\bin\gh.exe" set "GH_BIN=%LOCALAPPDATA%\Programs\GitHub CLI\bin\gh.exe"
+if not defined GH_BIN if exist "C:\Program Files\GitHub CLI\gh.exe" set "GH_BIN=C:\Program Files\GitHub CLI\gh.exe"
+
+if not defined GH_TOKEN (
+    for /f "tokens=2 delims==" %%A in ('cmd /c "echo url=https://github.com| git credential fill | findstr /i password=" 2^>nul') do (
+        set "GH_TOKEN=%%A"
+    )
+)
+
+if defined GH_BIN (
+    echo [Pre-Flight] Verifying GitHub authentication...
+    call "!GH_BIN!" auth status >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] GitHub CLI is not authenticated!
+        echo Please run: gh auth login
+        echo or set GH_TOKEN before publishing.
+        pause
+        goto releasemenu
+    )
+    echo [OK] GitHub connection verified.
+)
+
+call powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPTS_DIR%prepare_ota_release.ps1" -Action scan
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Failed to scan app version and commits.
+    pause
+    goto releasemenu
+)
+
+set "CURRENT_VER=1.0.0"
+set "CURRENT_BUILD=1"
+set "DEFAULT_NEXT_VER=1.0.1"
+set "DEFAULT_NEXT_BUILD=2"
+set "COMMITS_COUNT=0"
+
+if exist "%SCRIPTS_DIR%.ota_env.bat" (
+    call "%SCRIPTS_DIR%.ota_env.bat"
+    del "%SCRIPTS_DIR%.ota_env.bat" >nul 2>&1
+)
+
+echo.
+set "NEW_VERSION="
+set /p "NEW_VERSION=Enter new version number [default !DEFAULT_NEXT_VER!]: "
+if "!NEW_VERSION!"=="" set "NEW_VERSION=!DEFAULT_NEXT_VER!"
+
+set "NEW_BUILD="
+set /p "NEW_BUILD=Enter build number [default !DEFAULT_NEXT_BUILD!]: "
+if "!NEW_BUILD!"=="" set "NEW_BUILD=!DEFAULT_NEXT_BUILD!"
+
+set "REPO_INPUT="
+set /p "REPO_INPUT=GitHub repository [default %GH_USER%/%GH_REPO%]: "
+if not "!REPO_INPUT!"=="" (
+    for /f "tokens=1,2 delims=/" %%U in ("!REPO_INPUT!") do (
+        set "GH_USER=%%U"
+        set "GH_REPO=%%V"
+    )
+)
+
+echo.
+echo [Release Notes]
+echo Default notes generated from the !COMMITS_COUNT! scanned commit(s).
+set "CUSTOM_NOTES="
+set /p "CUSTOM_NOTES=Enter custom notes to override (or press Enter to use scanned commits): "
+if not "!CUSTOM_NOTES!"=="" (
+    powershell -NoProfile -Command "Set-Content -Path '%SCRIPTS_DIR%.custom_notes.txt' -Value '!CUSTOM_NOTES!' -Encoding UTF8"
+    set "NOTES_ARG=-ReleaseNotesFile ""%SCRIPTS_DIR%.custom_notes.txt"""
+) else (
+    set "NOTES_ARG="
+)
+
+echo.
+echo ----------------------------------------------------
+echo Target Release: v!NEW_VERSION! (Build !NEW_BUILD!)
+echo Repository:     %GH_USER%/%GH_REPO%
+if "!CUSTOM_NOTES!"=="" (
+    echo Release Notes:  Auto-generated from !COMMITS_COUNT! scanned commit(s)
+) else (
+    echo Release Notes:  !CUSTOM_NOTES!
+)
+echo ----------------------------------------------------
+echo.
+
+set /p "CONFIRM=Proceed with building and publishing v!NEW_VERSION!? (y/n): "
+if /i not "!CONFIRM!"=="y" (
+    echo Publishing cancelled.
+    if exist "%SCRIPTS_DIR%.custom_notes.txt" del "%SCRIPTS_DIR%.custom_notes.txt" >nul 2>&1
+    pause
+    goto releasemenu
+)
+
+echo.
+echo [1/5] Synchronizing version.json and pubspec.yaml with real app version...
+call powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPTS_DIR%prepare_ota_release.ps1" -Action apply -NewVersion "!NEW_VERSION!" -NewBuild !NEW_BUILD! -GhUser "%GH_USER%" -GhRepo "%GH_REPO%" !NOTES_ARG!
+if exist "%SCRIPTS_DIR%.custom_notes.txt" del "%SCRIPTS_DIR%.custom_notes.txt" >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Failed to update version files.
+    pause
+    goto releasemenu
+)
+
+echo.
+echo [2/5] Cleaning project...
+call flutter clean
+
+echo.
+echo [3/5] Resolving dependencies...
+call flutter pub get
+
+echo.
+echo [4/5] Building Release APK (v!NEW_VERSION!+!NEW_BUILD!)...
+call flutter build apk --release --build-name=!NEW_VERSION! --build-number=!NEW_BUILD!
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Flutter release build failed.
+    pause
+    goto releasemenu
+)
+
+if not exist "build\app\outputs\flutter-apk\app-release.apk" (
+    echo.
+    echo [ERROR] APK not found at build\app\outputs\flutter-apk\app-release.apk.
+    pause
+    goto releasemenu
+)
+
+echo.
+echo [5/5] Committing and tagging release in Git repository...
+git add version.json pubspec.yaml
+git commit -m "chore(release): bump version to v!NEW_VERSION! (build !NEW_BUILD!)"
+git tag -a "v!NEW_VERSION!" -m "Budget Buddy v!NEW_VERSION!"
+git push origin main
+git push origin "v!NEW_VERSION!"
+
+echo.
+echo ====================================================
+echo   Publishing Release Asset to GitHub
+echo ====================================================
+echo.
+
+set "GH_BIN="
+where gh >nul 2>&1
+if not errorlevel 1 set "GH_BIN=gh"
+if not defined GH_BIN if exist "%LOCALAPPDATA%\Programs\GitHub CLI\bin\gh.exe" set "GH_BIN=%LOCALAPPDATA%\Programs\GitHub CLI\bin\gh.exe"
+if not defined GH_BIN if exist "C:\Program Files\GitHub CLI\gh.exe" set "GH_BIN=C:\Program Files\GitHub CLI\gh.exe"
+
+if not defined GH_BIN goto gh_cli_missing
+
+if not defined GH_TOKEN (
+    for /f "tokens=2 delims==" %%A in ('cmd /c "echo url=https://github.com| git credential fill | findstr /i password=" 2^>nul') do (
+        set "GH_TOKEN=%%A"
+    )
+)
+
+echo GitHub CLI detected. Creating GitHub Release automatically...
+call "!GH_BIN!" release create v!NEW_VERSION! "build\app\outputs\flutter-apk\app-release.apk" --repo "%GH_USER%/%GH_REPO%" --title "Budget Buddy v!NEW_VERSION!" -F "%SCRIPTS_DIR%.release_notes.txt"
+if errorlevel 1 goto gh_cli_failed
+
+echo.
+echo ====================================================
+echo   [SUCCESS] GitHub OTA Release v!NEW_VERSION! Published
+echo   Direct APK: https://github.com/%GH_USER%/%GH_REPO%/releases/download/v!NEW_VERSION!/app-release.apk
+echo ====================================================
+goto gh_release_done
+
+:gh_cli_failed
+echo.
+echo ====================================================
+echo   [ERROR] GitHub CLI release creation encountered an issue.
+echo ====================================================
+echo   The git tag v!NEW_VERSION! was pushed, but the APK was NOT uploaded
+echo   to GitHub Releases automatically.
+echo.
+echo   Opening browser to GitHub Releases and local APK folder as fallback...
+if exist "build\app\outputs\flutter-apk" explorer "build\app\outputs\flutter-apk"
+start https://github.com/%GH_USER%/%GH_REPO%/releases/new?tag=v!NEW_VERSION!
+echo.
+echo   ACTION REQUIRED to enable In-App OTA Update:
+echo     1. Verify the Tag is v!NEW_VERSION!
+echo     2. Title: Budget Buddy v!NEW_VERSION!
+echo     3. Drag and drop app-release.apk into the release binaries
+echo     4. Copy notes from scripts\.release_notes.txt
+echo     5. Click "Publish release"
+echo.
+echo   Release notes are preserved at: scripts\.release_notes.txt
+echo ====================================================
+echo.
+pause
+goto releasemenu
+
+:gh_cli_missing
+echo.
+echo ====================================================
+echo   [WARNING] GitHub CLI not detected on your system.
+echo ====================================================
+echo   Opening browser to GitHub Releases and local APK folder...
+if exist "build\app\outputs\flutter-apk" explorer "build\app\outputs\flutter-apk"
+start https://github.com/%GH_USER%/%GH_REPO%/releases/new?tag=v!NEW_VERSION!
+echo.
+echo   Complete release manually:
+echo     1. Set Tag: v!NEW_VERSION!
+echo     2. Title: Budget Buddy v!NEW_VERSION!
+echo     3. Drag app-release.apk into binaries
+echo     4. Copy notes from scripts\.release_notes.txt
+echo     5. Click "Publish release"
+echo.
+echo   Release notes are preserved at: scripts\.release_notes.txt
+echo ====================================================
+echo.
+pause
+goto releasemenu
+
+:gh_release_done
+if exist "%SCRIPTS_DIR%.release_notes.txt" del "%SCRIPTS_DIR%.release_notes.txt" >nul 2>&1
+echo.
+echo ====================================================
+echo   [SUCCESS] OTA Release v!NEW_VERSION! Published to GitHub!
+echo ====================================================
+echo   Direct APK: https://github.com/%GH_USER%/%GH_REPO%/releases/download/v!NEW_VERSION!/app-release.apk
+echo.
+echo   Note: The new build was NOT auto-installed via ADB.
+echo   You can now open the app on your phone to test the
+echo   in-app OTA update flow!
+echo ====================================================
+echo.
+pause
+goto releasemenu
+
+:buildapk
+echo.
+echo ========================================
+echo   Build Release APK
+echo ========================================
+echo.
+call flutter build apk --release
+if exist "build\app\outputs\flutter-apk" (
+    explorer "build\app\outputs\flutter-apk"
+)
+pause
+goto releasemenu
+
+:fullrelease
+echo.
+echo ========================================
+echo   Full Release Build ^& Share
+echo ========================================
+echo.
+echo Step 1/3: Cleaning project...
+call flutter clean
+call flutter pub get
+echo.
+echo Step 2/3: Building Release APK...
+call flutter build apk --release
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Build failed!
+    echo.
+    goto menu
+)
+echo.
+echo Opening APK folder...
+if exist "build\app\outputs\flutter-apk" (
+    explorer "build\app\outputs\flutter-apk"
+)
+echo.
+echo Auto-uninstalling existing build to prevent signature mismatch...
+if not "%IS_WEB%"=="1" if not "%DEVICE_ID%"=="" "%ADB%" -s %DEVICE_ID% uninstall %PACKAGE% >nul 2>&1
+
+echo Step 3/3: Running Release build on device...
+call :apply_device_optimizations
+call :start_keepalive
+call flutter run --release -d %DEVICE_ID%
+call :stop_keepalive
+goto handle_run_end
 
 :buildrun
 echo.
-echo Building and installing app (debug)...
-echo.
+echo Auto-uninstalling existing build to prevent signature mismatch...
+if not "%IS_WEB%"=="1" if not "%DEVICE_ID%"=="" "%ADB%" -s %DEVICE_ID% uninstall %PACKAGE% >nul 2>&1
 
-pushd "%ANDROID_DIR%"
-set "JAVA_HOME=C:\Progra~1\Java\jdk-22"
-set "PATH=%JAVA_HOME%\bin;%PATH%"
-call "%GRADLEW%" --no-daemon -Dorg.gradle.java.home=C:\Progra~1\Java\jdk-22 assembleDebug
-set "GRADLE_STATUS=%ERRORLEVEL%"
-popd
-if not "%GRADLE_STATUS%"=="0" (
-	echo.
-	echo [ERROR] Debug build failed!
-	echo.
-	goto menu
+echo Building and running app (release)...
+echo.
+call :apply_device_optimizations
+call :start_keepalive
+call flutter run --release -d %DEVICE_ID%
+call :stop_keepalive
+goto handle_run_end
+
+:cleanrebuild
+echo.
+echo Cleaning and rebuilding app...
+echo.
+call flutter clean
+call flutter pub get
+
+echo Auto-uninstalling existing build to prevent signature mismatch...
+if not "%IS_WEB%"=="1" if not "%DEVICE_ID%"=="" "%ADB%" -s %DEVICE_ID% uninstall %PACKAGE% >nul 2>&1
+
+call :apply_device_optimizations
+call :start_keepalive
+call flutter run --release -d %DEVICE_ID%
+call :stop_keepalive
+goto handle_run_end
+
+:handle_run_end
+echo.
+call :stop_keepalive
+if "%IS_WEB%"=="1" goto web_menu
+
+"%ADB%" -s %DEVICE_ID% get-state >nul 2>&1
+if not errorlevel 1 goto menu
+
+:handle_lost_connection
+echo ====================================================
+echo   [ALERT] Connection to %DEVICE_ID% was lost!
+echo ====================================================
+echo.
+if exist "build\app\outputs\flutter-apk\app-debug.apk" (
+    echo   [F] Fast Install: Install already-built APK directly [3s - no rebuild]
 )
+echo   [1] Quick Reconnect ^& Re-run Debug
+echo   [2] USB Auto-Switch [Plug USB cable to PC to re-open Port 5555]
+echo   [3] Restart ADB Server, Reconnect ^& Re-run Debug
+echo   [4] Return to Main Menu
+echo.
+set /p "RECON_CHOICE=Enter choice (F, 1-4): "
+if /i "%RECON_CHOICE%"=="F" goto fast_install_reconnect
+if "%RECON_CHOICE%"=="1" goto handle_recon_1
+if "%RECON_CHOICE%"=="2" goto usb_to_wireless
+if "%RECON_CHOICE%"=="3" goto handle_recon_3
+goto connection_menu
 
-if not exist "%DEBUG_APK%" (
-	echo.
-	echo [ERROR] Debug APK not found at:
-	echo   %DEBUG_APK%
-	echo.
-	goto menu
-)
-
-echo Installing debug APK to device (%DEVICE_ID%)...
-"%ADB%" -s %DEVICE_ID% install -r -t "%DEBUG_APK%"
-if errorlevel 1 goto install_failed
-
-"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
-echo App installed and launched!
+:fast_install_reconnect
 echo.
-goto menu
-
-:install_failed
-echo.
-echo ======================================================================
-echo   [ERROR] WIRELESS INSTALLATION BLOCKED BY DEVICE PERMISSIONS
-echo ======================================================================
-echo.
-echo   Failure: INSTALL_FAILED_USER_RESTRICTED (Install canceled by user)
-echo.
-echo   FOR WIRELESS DEBUGGING (Xiaomi / Redmi / POCO / Vivo / OPPO):
-echo   ------------------------------------------------------------------
-echo   1. OPEN DEVELOPER OPTIONS ON YOUR PHONE:
-echo      - Go to Settings -^> Additional Settings -^> Developer Options
-echo.
-echo   2. ENABLE "INSTALL VIA USB":
-echo      - Toggle "Install via USB" to ON (Must be enabled even over WiFi!)
-echo.
-echo   3. ENABLE "USB DEBUGGING (SECURITY SETTINGS)":
-echo      - Toggle ON if present (Tap Accept/Next on prompts).
-echo.
-echo   4. UNLOCK PHONE SCREEN ^& ACCEPT PROMPT:
-echo      - Look for "Allow USB installation?" pop-up on phone screen.
-echo      - Tap "INSTALL" or "ALLOW".
-echo   ------------------------------------------------------------------
-echo.
-set /p "RETRY_INS=Press ENTER after turning ON 'Install via USB' to retry (or N to cancel): "
-if /i "%RETRY_INS%"=="N" goto menu
-
-echo Retrying wireless installation to device (%DEVICE_ID%)...
-"%ADB%" -s %DEVICE_ID% install -r -t "%DEBUG_APK%"
+echo Disconnecting stale session...
+if not "%SAVED_IP%"=="" "%ADB%" disconnect %SAVED_IP%:5555 >nul 2>&1
+timeout /t 1 /nobreak >nul
+echo Reconnecting to %DEVICE_ID%...
+if not "%SAVED_IP%"=="" "%ADB%" connect %SAVED_IP%:5555
+timeout /t 1 /nobreak >nul
+"%ADB%" devices | findstr /c:"%DEVICE_ID%	device" >nul 2>&1
 if errorlevel 1 (
-	echo.
-	echo [ERROR] Installation failed again. Please verify phone Developer Options.
-	echo.
-	goto menu
+    echo.
+    echo [ERROR] Phone could not be reached on port 5555.
+    echo Port 5555 was closed by the phone when USB unplugged or phone went to sleep.
+    echo.
+    echo To fix this:
+    echo   1. Plug your phone into PC with USB cable [Recommended], OR
+    echo   2. On phone: Developer options - toggle 'Wireless debugging' OFF then ON.
+    echo.
+    pause
+    goto handle_lost_connection
 )
-echo Installation succeeded!
-if "%CHOICE%"=="3" (
-	flutter run -d %DEVICE_ID% --use-application-binary "%DEBUG_APK%"
-) else (
-	"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
-)
+call :apply_device_optimizations
 echo.
+echo [SUCCESS] Reconnected!
+echo Installing build\app\outputs\flutter-apk\app-debug.apk directly...
+"%ADB%" -s %DEVICE_ID% install -r "build\app\outputs\flutter-apk\app-debug.apk"
+echo Launching app...
+"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
+echo.
+echo [SUCCESS] App installed and launched on %DEVICE_ID%!
+pause
 goto menu
+
+:handle_recon_1
+if "%SAVED_IP%"=="" goto connection_menu
+echo Disconnecting stale session...
+"%ADB%" disconnect %SAVED_IP%:5555 >nul 2>&1
+timeout /t 1 /nobreak >nul
+echo Connecting to %SAVED_IP%:5555...
+"%ADB%" connect %SAVED_IP%:5555
+set "DEVICE_ID=%SAVED_IP%:5555"
+timeout /t 1 /nobreak >nul
+"%ADB%" devices | findstr /c:"%DEVICE_ID%	device" >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Connection to %SAVED_IP%:5555 failed [Device is offline or refusing port 5555].
+    echo Xiaomi/MIUI closes Port 5555 when USB cable is unplugged.
+    echo Please plug phone into USB cable or toggle Wireless Debugging on phone.
+    echo.
+    pause
+    goto handle_lost_connection
+)
+call :apply_device_optimizations
+goto debugrun
+
+:handle_recon_3
+echo Restarting ADB server...
+"%ADB%" kill-server >nul 2>&1
+timeout /t 1 /nobreak >nul
+"%ADB%" start-server >nul 2>&1
+if "%SAVED_IP%"=="" goto connection_menu
+echo Reconnecting to %SAVED_IP%:5555...
+"%ADB%" connect %SAVED_IP%:5555
+set "DEVICE_ID=%SAVED_IP%:5555"
+timeout /t 1 /nobreak >nul
+"%ADB%" -s %DEVICE_ID% get-state >nul 2>&1
+if not errorlevel 1 (
+    call :apply_device_optimizations
+    goto debugrun
+)
+echo Connection failed. Returning to menu...
+pause
+goto connection_menu
 
 :uninstall
 echo.
-echo Uninstalling app...
+echo Uninstalling app from %DEVICE_ID%...
 "%ADB%" -s %DEVICE_ID% uninstall %PACKAGE%
 echo App uninstalled!
 echo.
 goto menu
 
-:release_share
+:buildweb
 echo.
 echo ========================================
-echo   Clean, Build Release, Install, Launch, and Open Folder
+echo   Build Web Release
 echo ========================================
 echo.
-echo Cleaning project and preparing release build...
-call flutter clean
-call flutter pub get
-
-pushd "%ANDROID_DIR%"
-call "%GRADLEW%" --no-daemon assembleRelease
-set "GRADLE_STATUS=%ERRORLEVEL%"
-popd
-if not "%GRADLE_STATUS%"=="0" (
-	echo.
-	echo [ERROR] Release build failed!
-	echo.
-	goto menu
-)
-
-if not exist "%RELEASE_APK%" (
-	echo.
-	echo [ERROR] Release APK not found at:
-	echo   %RELEASE_APK%
-	echo.
-	goto menu
-)
-
-echo Installing release APK to device (%DEVICE_ID%)...
-"%ADB%" -s %DEVICE_ID% install -r -t "%RELEASE_APK%"
+echo Building web release...
+call flutter build web --release
 if errorlevel 1 (
-	echo.
-	echo [ERROR] Release APK install failed! Check phone screen for USB Install permission.
-	echo.
-	goto menu
+    echo.
+    echo [ERROR] Build failed!
+    echo.
+    goto web_menu
 )
-
-echo Launching app on device...
-"%ADB%" -s %DEVICE_ID% shell am start -n %PACKAGE%/.MainActivity
-
-echo Opening release APK folder for sharing...
-explorer "android\app\build\outputs\apk\release"
 echo.
-goto menu
+echo ========================================
+echo   Web bundle built successfully!
+echo   Opening folder...
+echo ========================================
+echo.
+if exist "build\web" (
+    explorer "build\web"
+) else (
+    echo [ERROR] Web output directory not found.
+)
+echo.
+goto web_menu
 
 :disconnect
 echo.
-echo Disconnecting all wireless devices...
-"%ADB%" disconnect
-echo.
-echo Disconnected. Returning to connection menu...
+call :stop_keepalive
+if "%IS_WEB%"=="0" (
+    if not "%DEVICE_ID%"=="" (
+        "%ADB%" -s %DEVICE_ID% shell svc power stayon false >nul 2>&1
+    )
+    echo Disconnecting wireless devices...
+    "%ADB%" disconnect
+    echo.
+)
+echo Resetting target. Returning to selection menu...
 echo.
 set "DEVICE_ID="
+set "IS_WEB=0"
 goto connection_menu
 
 :ensure_pub
 if not exist ".dart_tool\package_config.json" (
     echo.
     echo [INFO] Running flutter pub get...
-    flutter pub get
+    call flutter pub get
     if errorlevel 1 (
         echo.
         echo [ERROR] flutter pub get failed.
@@ -431,671 +1242,49 @@ if not exist ".dart_tool\package_config.json" (
     )
 )
 exit /b 0
-		call android\gradlew.bat assembleRelease
-	"code": {
-		"value": "unused_local_variable",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/unused_local_variable",
-			"scheme": "https",
-			"authority": "dart.dev"
-		if not exist "%RELEASE_APK%" (
-			echo.
-			echo [ERROR] Release APK not found at:
-			echo   %RELEASE_APK%
-			echo.
-			goto menu
-		)
 
-		}
-	},
-	"severity": 4,
-	"message": "The value of the local variable 'state' isn't used.\nTry removing the variable or using it.",
-	"source": "dart",
-	"startLineNumber": 53,
-		explorer "android\app\build\outputs\apk\release"
-	"endLineNumber": 53,
-	"endColumn": 31,
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 11,
-	"startColumn": 72,
-	"endLineNumber": 11,
-	"endColumn": 83,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 15,
-	"startColumn": 56,
-	"endLineNumber": 15,
-	"endColumn": 67,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 19,
-	"startColumn": 56,
-	"endLineNumber": 19,
-	"endColumn": 67,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 23,
-	"startColumn": 68,
-	"endLineNumber": 23,
-	"endColumn": 79,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'StateNotifierProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 28,
-	"startColumn": 4,
-	"endLineNumber": 28,
-	"endColumn": 28,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 37,
-	"startColumn": 56,
-	"endLineNumber": 37,
-	"endColumn": 67,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 42,
-	"startColumn": 65,
-	"endLineNumber": 42,
-	"endColumn": 76,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-},{
-	"resource": "/c:/Users/mjhay/Desktop/Programming/Visual Studio Code/Android Application/Budget Buddy/lib/core/state/app_controller.dart",
-	"owner": "_generated_diagnostic_collection_name_#8",
-	"code": {
-		"value": "deprecated_member_use",
-		"target": {
-			"$mid": 1,
-			"path": "/diagnostics/deprecated_member_use",
-			"scheme": "https",
-			"authority": "dart.dev"
-		}
-	},
-	"severity": 2,
-	"message": "'ProviderRef' is deprecated and shouldn't be used. will be removed in 3.0.0. Use Ref instead.\nTry replacing the use of the deprecated member with the replacement.",
-	"source": "dart",
-	"startLineNumber": 52,
-	"startColumn": 73,
-	"endLineNumber": 52,
-	"endColumn": 84,
-	"tags": [
-		2
-	],
-	"origin": "extHost1"
-}]tter-apk"
-set "AAB_DIR=%PROJECT_DIR%\build\app\outputs\bundle\release"
-set "DEVICE_ID="
-set "FLUTTER_BAT="
-set "ADB_EXE="
-set "ANDROID_SDK="
-set "FLUTTER_SDK="
-set "JAVA_BIN="
-set "JAVA_VERSION="
+:verify_device_connected
+if "%IS_WEB%"=="1" exit /b 0
+if "%DEVICE_ID%"=="" exit /b 1
+"%ADB%" devices | findstr /c:"%DEVICE_ID%	device" >nul 2>&1
+if not errorlevel 1 exit /b 0
 
-call :FindProjectRoot
-if not exist "%PROJECT_DIR%\pubspec.yaml" (
-    call :Error "Unable to find pubspec.yaml. Place this script inside the BudgetBuddy project root."
-    pause
-    exit /b 1
-)
-
-call :DetectFlutter
-if errorlevel 1 (
-    pause
-    exit /b 1
-)
-
-call :DetectAndroidSdk
-if errorlevel 1 (
-    pause
-    exit /b 1
-)
-
-call :DetectJava
-if errorlevel 1 (
-    pause
-    exit /b 1
-)
-
-call :WriteLocalProperties
-call :RunPubGet
-call :AutoReconnectWireless
-call :DetectDevice
-
-:MenuLoop
-cls
-call :ShowHeader
-call :ShowSystemSpecs
-echo.
-echo Project: %PROJECT_DIR%
-echo Flutter : %FLUTTER_BAT%
-echo ADB     : %ADB_EXE%
-echo Device  : %DEVICE_ID%
-echo.
-echo  1. Launch App
-echo  2. Restart App
-echo  3. Debug Run (Hot Reload)
-echo  4. Release Run
-echo  5. Clean Rebuild
-echo  6. Build APK
-echo  7. Build App Bundle
-echo  8. Flutter Doctor
-echo  9. View Connected Devices
-echo 10. Open APK Folder
-echo 11. Uninstall App
-echo 12. Disconnect Wireless
-echo 13. Guided Wireless Pairing
-echo  0. Exit
-echo.
-set /p "CHOICE=Select an option: "
-
-if "%CHOICE%"=="1" call :LaunchDebugRun && goto MenuLoop
-if "%CHOICE%"=="2" call :RestartApp && goto MenuLoop
-if "%CHOICE%"=="3" call :StartHotReloadRun && goto MenuLoop
-if "%CHOICE%"=="4" call :StartReleaseRun && goto MenuLoop
-if "%CHOICE%"=="5" call :CleanRebuild && goto MenuLoop
-if "%CHOICE%"=="6" call :BuildApk && goto MenuLoop
-if "%CHOICE%"=="7" call :BuildAppBundle && goto MenuLoop
-if "%CHOICE%"=="8" call :FlutterDoctor && goto MenuLoop
-if "%CHOICE%"=="9" call :ShowDevices && goto MenuLoop
-if "%CHOICE%"=="10" call :OpenApkFolder && goto MenuLoop
-if "%CHOICE%"=="11" call :UninstallApp && goto MenuLoop
-if "%CHOICE%"=="12" call :DisconnectWireless && goto MenuLoop
-if "%CHOICE%"=="13" call :GuidedWirelessPairing && goto MenuLoop
-if "%CHOICE%"=="0" goto :EOF
-
-call :Warn "Invalid choice. Please select a menu option."
-timeout /t 1 /nobreak >nul
-goto MenuLoop
-
-:FindProjectRoot
-for %%P in ("%SCRIPT_DIR%." "%SCRIPT_DIR%.." "%SCRIPT_DIR%..\..") do (
-        if exist "%%~fP\pubspec.yaml" set "PROJECT_DIR=%%~fP"
-)
-goto :EOF
-
-:DetectFlutter
-if defined FLUTTER_ROOT (
-    set "FLUTTER_BAT=%FLUTTER_ROOT%\bin\flutter.bat"
-)
-if not defined FLUTTER_BAT (
-    for /f "usebackq delims=" %%F in (`where flutter 2^>nul`) do (
-        if not defined FLUTTER_BAT set "FLUTTER_BAT=%%F"
+:: If device is listed as offline, try one quick disconnect/reconnect attempt
+"%ADB%" devices | findstr /c:"%DEVICE_ID%" >nul 2>&1
+if not errorlevel 1 (
+    echo [WARNING] Device %DEVICE_ID% is listed as OFFLINE. Attempting socket refresh...
+    if not "%SAVED_IP%"=="" (
+        "%ADB%" disconnect %SAVED_IP%:5555 >nul 2>&1
+        timeout /t 1 /nobreak >nul
+        "%ADB%" connect %SAVED_IP%:5555 >nul 2>&1
+        timeout /t 1 /nobreak >nul
     )
+    "%ADB%" devices | findstr /c:"%DEVICE_ID%	device" >nul 2>&1
+    if not errorlevel 1 exit /b 0
 )
-if not defined FLUTTER_BAT (
-    if exist "%USERPROFILE%\flutter\bin\flutter.bat" set "FLUTTER_BAT=%USERPROFILE%\flutter\bin\flutter.bat"
-)
-if not exist "%FLUTTER_BAT%" (
-    call :Error "Flutter was not found. Install Flutter and make sure it is in PATH."
-    exit /b 1
-)
-for %%F in ("%FLUTTER_BAT%") do set "FLUTTER_BIN=%%~dpF"
-for %%S in ("%FLUTTER_BIN%..") do set "FLUTTER_SDK=%%~fS"
-if not exist "%FLUTTER_SDK%\packages\flutter_tools\gradle" (
-    call :Error "Computed flutter.sdk path is invalid: %FLUTTER_SDK%"
-    exit /b 1
-)
-exit /b 0
-
-:DetectJava
-set "JAVA_BIN="
-set "JAVA_HOME="
-set "JAVA_VERSION="
-set "JAVA_MAJOR="
-set "JAVA_INVALID="
-
-rem Prefer explicit supported JDK 17/21 installations first.
-for %%J in (
-    "%ProgramFiles%\Eclipse Adoptium\jdk-21*"
-    "%ProgramFiles%\Java\jdk-21*"
-    "%ProgramFiles%\Eclipse Adoptium\jdk-17*"
-    "%ProgramFiles%\Java\jdk-17*"
-) do (
-    if exist %%~J\bin\java.exe (
-        call :CheckJavaVersion "%%~J\bin\java.exe"
-        if not defined JAVA_INVALID (
-            set "JAVA_HOME=%%~J"
-            set "JAVA_BIN=%%~J\bin\java.exe"
-            goto :JavaFound
-        )
-    )
-)
-
-rem Fallback to Android Studio JBR if it is supported.
-if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" (
-    call :CheckJavaVersion "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe"
-    if not defined JAVA_INVALID (
-        set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
-        set "JAVA_BIN=%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe"
-        goto :JavaFound
-    )
-)
-
-rem Final fallback to any java on PATH if supported.
-for /f "usebackq delims=" %%J in (`where java 2^>nul`) do (
-    if not defined JAVA_BIN (
-        call :CheckJavaVersion "%%~J"
-        if not defined JAVA_INVALID (
-            set "JAVA_BIN=%%~J"
-            for %%D in ("%%~J") do for %%E in ("%%~dpD..") do set "JAVA_HOME=%%~fE"
-        )
-    )
-)
-
-if not defined JAVA_BIN (
-    call :Error "Supported Java not found. Install JDK 17 or JDK 21 and rerun this script."
-    exit /b 1
-)
-
-:JavaFound
-set "PATH=%JAVA_HOME%\bin;%PATH%"
-
-"%JAVA_BIN%" -version >nul 2>&1
-if errorlevel 1 (
-    call :Error "Java runtime check failed for %JAVA_BIN%"
-    exit /b 1
-)
-
-if defined JAVA_HOME (
-    call :Info "Using Java runtime from %JAVA_HOME%"
-) else (
-    call :Info "Using Java runtime from %JAVA_BIN%"
-)
-exit /b 0
-
-:CheckJavaVersion
-set "JAVA_INVALID="
-set "JAVA_VERSION="
-set "JAVA_MAJOR="
-for /f "usebackq tokens=2 delims=\" %%V in (`"%~1" -version 2^>^&1 ^| findstr /R /C:\"version\"`) do (
-    set "JAVA_VERSION=%%~V"
-)
-if defined JAVA_VERSION (
-    for /f "tokens=1 delims=." %%M in ("%JAVA_VERSION%") do set "JAVA_MAJOR=%%M"
-    if defined JAVA_MAJOR (
-        if %JAVA_MAJOR% gtr 21 set "JAVA_INVALID=1"
-    )
-)
-exit /b 0
-
-if defined JAVA_HOME (
-    call :Info "Using Java runtime from %JAVA_HOME%"
-) else (
-    call :Info "Using Java runtime from %JAVA_BIN%"
-)
-exit /b 0
-
-:DetectAndroidSdk
-if defined ANDROID_SDK_ROOT set "ANDROID_SDK=%ANDROID_SDK_ROOT%"
-if not defined ANDROID_SDK if defined ANDROID_HOME set "ANDROID_SDK=%ANDROID_HOME%"
-if not defined ANDROID_SDK (
-    if exist "%LOCALAPPDATA%\Android\Sdk" set "ANDROID_SDK=%LOCALAPPDATA%\Android\Sdk"
-)
-if not defined ANDROID_SDK (
-    for /f "usebackq delims=" %%A in (`where adb 2^>nul`) do (
-        if not defined ADB_EXE set "ADB_EXE=%%A"
-    )
-    if defined ADB_EXE (
-        for %%A in ("%ADB_EXE%\..") do set "ANDROID_SDK=%%~fA\.."
-    )
-)
-if not defined ANDROID_SDK (
-    call :Error "Android SDK was not found. Set ANDROID_SDK_ROOT or install platform-tools."
-    exit /b 1
-)
-if not defined ADB_EXE set "ADB_EXE=%ANDROID_SDK%\platform-tools\adb.exe"
-if not exist "%ADB_EXE%" (
-    for /f "usebackq delims=" %%A in (`where adb 2^>nul`) do (
-        if not defined ADB_EXE set "ADB_EXE=%%A"
-    )
-)
-if not exist "%ADB_EXE%" (
-    call :Error "adb was not found in the Android SDK platform-tools folder."
-    exit /b 1
-)
-exit /b 0
-
-:WriteLocalProperties
-set "ANDROID_ESC=%ANDROID_SDK:\=\\%"
-set "FLUTTER_ESC=%FLUTTER_SDK:\=\\%"
-if not exist "%PROJECT_DIR%\android" mkdir "%PROJECT_DIR%\android" >nul 2>&1
->"%PROJECT_DIR%\android\local.properties" (
-    echo sdk.dir=%ANDROID_ESC%
-    echo flutter.sdk=%FLUTTER_ESC%
-)
-exit /b 0
-
-:RunPubGet
-call :Info "Running flutter pub get..."
-pushd "%PROJECT_DIR%"
-"%FLUTTER_BAT%" pub get
-if errorlevel 1 (
-    popd
-    call :Error "flutter pub get failed."
-    exit /b 1
-)
-popd
-exit /b 0
-
-:DetectDevice
-set "DEVICE_ID="
-for /f "usebackq tokens=1" %%D in (`"%ADB_EXE%" devices ^| findstr /R "device$"`) do (
-    if not defined DEVICE_ID set "DEVICE_ID=%%D"
-)
-if not defined DEVICE_ID (
-    for /f "usebackq delims=" %%H in ("%WIRELESS_FILE%") do (
-        if not defined DEVICE_ID set "DEVICE_ID=%%H"
-    )
-)
-if defined DEVICE_ID (
-    "%ADB_EXE%" connect %DEVICE_ID% >nul 2>&1
-)
-if not defined DEVICE_ID (
-    call :Warn "No connected device detected. Use option 13 to pair a wireless device or connect USB debugging."
-)
-exit /b 0
-
-:AutoReconnectWireless
-if not exist "%WIRELESS_FILE%" exit /b 0
-for /f "usebackq delims=" %%H in ("%WIRELESS_FILE%") do (
-    call :Info "Trying to reconnect wireless device %%H..."
-    "%ADB_EXE%" connect %%H >nul 2>&1
-)
-exit /b 0
-
-:ShowHeader
-echo ============================================================
-echo  BudgetBuddy Flutter Launcher
-echo ============================================================
-exit /b 0
-
-:ShowSystemSpecs
-for /f "usebackq delims=" %%L in (`powershell -NoProfile -Command "Get-CimInstance Win32_Processor ^| Select-Object -First 1 -ExpandProperty Name"`) do set "CPU_NAME=%%L"
-for /f "usebackq delims=" %%L in (`powershell -NoProfile -Command "[Math]::Round((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize / 1MB, 1)"`) do set "RAM_GB=%%L"
-for /f "usebackq delims=" %%L in (`powershell -NoProfile -Command "Get-CimInstance Win32_VideoController ^| Select-Object -First 1 -ExpandProperty Name"`) do set "GPU_NAME=%%L"
-for /f "usebackq delims=" %%L in (`powershell -NoProfile -Command "Get-CimInstance Win32_OperatingSystem ^| Select-Object -ExpandProperty Caption"`) do set "OS_NAME=%%L"
-for /f "usebackq delims=" %%L in (`powershell -NoProfile -Command "Get-PSDrive -Name C ^| ForEach-Object { '{0:N1} GB free of {1:N1} GB' -f ($_.Free / 1GB), (($_.Free + $_.Used) / 1GB) }"`) do set "DISK_C=%%L"
-echo CPU   : %CPU_NAME%
-echo RAM   : %RAM_GB% GB
-echo GPU   : %GPU_NAME%
-echo Disk  : %DISK_C%
-echo OS    : %OS_NAME%
-exit /b 0
-
-:LaunchDebugRun
-call :EnsureDevice
-if errorlevel 1 exit /b 1
-call :StartFlutterRun debug
-exit /b 0
-
-:StartHotReloadRun
-call :EnsureDevice
-if errorlevel 1 exit /b 1
-call :StartFlutterRun debug
-exit /b 0
-
-:StartReleaseRun
-call :EnsureDevice
-if errorlevel 1 exit /b 1
-call :StartFlutterRun release
-exit /b 0
-
-:RestartApp
-call :EnsureDevice
-if errorlevel 1 exit /b 1
-call :Info "Stopping the app on the connected device..."
-"%ADB_EXE%" -s %DEVICE_ID% shell am force-stop %APP_ID% >nul 2>&1
-call :StartFlutterRun debug
-exit /b 0
-
-:StartFlutterRun
-set "MODE=%~1"
-if /i "%MODE%"=="release" (
-    start "BudgetBuddy Release" /d "%PROJECT_DIR%" cmd /k ""%FLUTTER_BAT%" run --release -d "%DEVICE_ID%""
-) else (
-    start "BudgetBuddy Debug" /d "%PROJECT_DIR%" cmd /k ""%FLUTTER_BAT%" run -d "%DEVICE_ID%""
-)
-call :Info "Flutter run (%MODE%) launched in a separate console. Use r / R inside that window for hot reload / restart."
-exit /b 0
-
-:CleanRebuild
-call :Info "Cleaning Flutter build artifacts..."
-pushd "%PROJECT_DIR%"
-"%FLUTTER_BAT%" clean
-if errorlevel 1 (
-    popd
-    call :Error "flutter clean failed."
-    exit /b 1
-)
-"%FLUTTER_BAT%" pub get
-popd
-exit /b 0
-
-:BuildApk
-call :EnsureDeviceOptional
-call :Info "Building release APK..."
-pushd "%PROJECT_DIR%"
-"%FLUTTER_BAT%" build apk --release
-if errorlevel 1 (
-    popd
-    call :Error "APK build failed."
-    exit /b 1
-)
-popd
-start "" explorer "%APK_DIR%"
-exit /b 0
-
-:BuildAppBundle
-call :Info "Building release App Bundle..."
-pushd "%PROJECT_DIR%"
-"%FLUTTER_BAT%" build appbundle --release
-if errorlevel 1 (
-    popd
-    call :Error "App Bundle build failed."
-    exit /b 1
-)
-popd
-start "" explorer "%AAB_DIR%"
-exit /b 0
-
-:FlutterDoctor
-pushd "%PROJECT_DIR%"
-"%FLUTTER_BAT%" doctor -v
-popd
-exit /b 0
-
-:ShowDevices
-echo.
-echo adb devices:
-"%ADB_EXE%" devices -l
-echo.
-echo flutter devices:
-pushd "%PROJECT_DIR%"
-"%FLUTTER_BAT%" devices
-popd
-exit /b 0
-
-:OpenApkFolder
-if not exist "%APK_DIR%" (
-    call :Warn "APK folder does not exist yet. Build the APK first."
-    exit /b 0
-)
-start "" explorer "%APK_DIR%"
-exit /b 0
-
-:UninstallApp
-call :EnsureDevice
-if errorlevel 1 exit /b 1
-call :Info "Uninstalling %APP_ID% from %DEVICE_ID%..."
-"%ADB_EXE%" -s %DEVICE_ID% uninstall %APP_ID%
-exit /b 0
-
-:DisconnectWireless
-call :Info "Disconnecting wireless adb sessions..."
-"%ADB_EXE%" disconnect >nul 2>&1
-if exist "%WIRELESS_FILE%" del "%WIRELESS_FILE%" >nul 2>&1
-exit /b 0
-
-:GuidedWirelessPairing
-echo.
-echo Follow these steps on your Android device:
-echo 1. Open Developer Options.
-echo 2. Turn on Wireless debugging.
-echo 3. Tap Pair device with pairing code.
-echo.
-set /p "PAIR_HOST=Enter pairing host:port from the pairing screen: "
-set /p "PAIR_CODE=Enter pairing code: "
-set /p "CONNECT_HOST=Enter the connect host:port from Wireless debugging: "
-if "%PAIR_HOST%"=="" goto :EOF
-if "%CONNECT_HOST%"=="" set "CONNECT_HOST=%PAIR_HOST%"
-call :Info "Running adb pair..."
-"%ADB_EXE%" pair %PAIR_HOST% %PAIR_CODE%
-call :Info "Running adb connect..."
-"%ADB_EXE%" connect %CONNECT_HOST%
->"%WIRELESS_FILE%" echo %CONNECT_HOST%
-call :DetectDevice
-exit /b 0
-
-:EnsureDevice
-call :DetectDevice
-if defined DEVICE_ID exit /b 0
-call :Warn "No device detected. Connect a USB device or use option 13 for wireless pairing."
 exit /b 1
 
-:EnsureDeviceOptional
-call :DetectDevice
-if defined DEVICE_ID exit /b 0
-call :Warn "No device detected right now. Build outputs can still be generated, but app launch will need a device later."
-exit /b 0
+:apply_device_optimizations
+if "%IS_WEB%"=="1" goto :eof
+if "%DEVICE_ID%"=="" goto :eof
+echo Keeping device awake and optimizing wireless ADB...
+"%ADB%" -s %DEVICE_ID% shell svc power stayon true >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell settings put global stay_on_while_plugged_in 7 >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell settings put global wifi_sleep_policy 2 >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell settings put global adb_wifi_enabled 1 >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell dumpsys deviceidle whitelist +%PACKAGE% >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell dumpsys deviceidle disable >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell input keyevent 224 >nul 2>&1
+"%ADB%" -s %DEVICE_ID% shell wm dismiss-keyguard >nul 2>&1
+goto :eof
 
-:Info
-echo [INFO] %~1
-exit /b 0
+:start_keepalive
+if "%IS_WEB%"=="1" goto :eof
+if "%DEVICE_ID%"=="" goto :eof
+call :stop_keepalive
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"\"%SCRIPTS_DIR%adb_keepalive.ps1\"\" -DeviceId \"%DEVICE_ID%\" -SavedIp \"%SAVED_IP%\" -AdbPath \"%ADB%\"' -WindowStyle Hidden" >nul 2>&1
+goto :eof
 
-:Warn
-echo [WARN] %~1
-exit /b 0
-
-:Error
-echo [ERROR] %~1
-exit /b 0
+:stop_keepalive
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*adb_keepalive.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+goto :eof

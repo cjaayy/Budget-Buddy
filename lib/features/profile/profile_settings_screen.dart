@@ -15,6 +15,8 @@ import '../../core/services/notification_service.dart';
 import '../../core/services/budget_service.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
+import '../../core/services/update_service.dart';
+import '../../core/widgets/update_dialog.dart';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -28,6 +30,64 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   final TextEditingController _backupRestoreController =
       TextEditingController();
   final FocusNode _backupRestoreFocusNode = FocusNode();
+  AppVersion? _appVersion;
+  bool _isCheckingUpdate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final ver = await UpdateService.instance.getCurrentVersion();
+    if (mounted) {
+      setState(() => _appVersion = ver);
+    }
+  }
+
+  Future<void> _checkForAppUpdate() async {
+    if (_isCheckingUpdate) return;
+    setState(() => _isCheckingUpdate = true);
+
+    try {
+      final info = await UpdateService.instance.checkForUpdate();
+      if (!mounted) return;
+
+      if (info != null && info.isUpdateAvailable) {
+        showDialog<void>(
+          context: context,
+          barrierDismissible: !info.mandatory,
+          builder: (BuildContext dialogContext) => UpdateDialog(
+            updateInfo: info,
+            currentVersion: _appVersion,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Budget Buddy is up to date! (v${_appVersion?.version ?? "1.0.0"})',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to check for updates: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingUpdate = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -131,6 +191,65 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     );
                               },
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'ABOUT & UPDATES',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.system_update_rounded,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 22,
+                              ),
+                            ),
+                            title: const Text('App Updates'),
+                            subtitle: Text(
+                              _appVersion != null
+                                  ? 'Version ${_appVersion!.version} (Build ${_appVersion!.buildNumber})'
+                                  : 'Budget Buddy v1.0.0',
+                            ),
+                            trailing: _isCheckingUpdate
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : FilledButton.tonal(
+                                    onPressed: _checkForAppUpdate,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    child: const Text('Check'),
+                                  ),
+                            onTap: _checkForAppUpdate,
                           ),
                         ],
                       ),

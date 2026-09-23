@@ -4,6 +4,34 @@ plugins {
     id 'dev.flutter.flutter-gradle-plugin'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = file("${rootProject.projectDir}/local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { stream ->
+        localProperties.load(stream)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0.0'
+}
+
+def flutterSdkPath = localProperties.getProperty('flutter.sdk')
+
+def flutterEngineVersion = '1.0.0-42d3d75a56efe1a2e9902f52dc8006099c45d937'
+if (flutterSdkPath != null) {
+    def engineStampFile = file("${flutterSdkPath}/bin/cache/engine.stamp")
+    if (engineStampFile.exists()) {
+        flutterEngineVersion = "1.0.0-${engineStampFile.text.trim()}"
+    }
+}
+
 android {
     namespace 'com.budgetbuddy.app'
     compileSdk flutter.compileSdkVersion
@@ -23,8 +51,8 @@ android {
         applicationId 'com.budgetbuddy.app'
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
-        versionCode 1
-        versionName '1.0.0'
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
         multiDexEnabled true
     }
 
@@ -40,21 +68,6 @@ android {
 
     lint {
         disable 'MissingDimensionActivityClassName'
-    }
-}
-
-def localProperties = new Properties()
-file("${rootProject.projectDir}/local.properties").withInputStream { stream ->
-    localProperties.load(stream)
-}
-
-def flutterSdkPath = localProperties.getProperty('flutter.sdk')
-
-def flutterEngineVersion = '1.0.0-42d3d75a56efe1a2e9902f52dc8006099c45d937'
-if (flutterSdkPath != null) {
-    def engineStampFile = file("${flutterSdkPath}/bin/cache/engine.stamp")
-    if (engineStampFile.exists()) {
-        flutterEngineVersion = "1.0.0-${engineStampFile.text.trim()}"
     }
 }
 

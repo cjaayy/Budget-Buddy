@@ -1,4 +1,4 @@
-name: budgetbuddy
+﻿name: budgetbuddy
 description: BudgetBuddy is a modern Flutter budgeting assistant for Android.
 publish_to: "none"
 
@@ -42,3 +42,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  assets:
+    - version.json
+    - assets/
+
