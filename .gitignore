@@ -41,3 +41,8 @@ Desktop.ini
 
 # Project-local helper artifacts
 .budgetbuddy_wireless
+.device_ip
+.temp_devices
+scripts/.ota_env.bat
+scripts/.release_notes.txt
+scripts/.custom_notes.txt

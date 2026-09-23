@@ -82,13 +82,9 @@ if ($Action -eq "scan") {
         $nextBuild = $totalCommitCount
         if ($totalCommitCount -ge 100) {
             $major = 1
-            $minor = [math]::Floor($totalCommitCount / 50)  # e.g. 2
-            $patch = $totalCommitCount % 50                # e.g. 25 or 5
-            if ($totalCommitCount -eq 125) {
-                $nextVer = "1.2.5"
-            } else {
-                $nextVer = "$major.$minor.$patch"
-            }
+            $minor = [math]::Floor(($totalCommitCount - 100) / 10)
+            $patch = ($totalCommitCount - 100) % 10
+            $nextVer = "$major.$minor.$patch"
         } elseif ($totalCommitCount -ge 20) {
             $nextVer = "1.1.0"
         } else {

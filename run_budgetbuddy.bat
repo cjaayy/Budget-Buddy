@@ -379,12 +379,16 @@ echo   Wireless Connection Stability ^& Anti-Sleep Setup
 echo ====================================================
 echo.
 echo Applying ADB stability tweaks to all connected devices...
-for /f "tokens=1" %%d in ('"%ADB%" devices ^| findstr /v "List of" ^| findstr "device"') do (
-    echo Configuring device: %%d
-    "%ADB%" -s %%d shell settings put global stay_on_while_plugged_in 7 >nul 2>&1
-    "%ADB%" -s %%d shell settings put global wifi_sleep_policy 2 >nul 2>&1
-    "%ADB%" -s %%d shell settings put global adb_wifi_enabled 1 >nul 2>&1
-    "%ADB%" -s %%d shell dumpsys deviceidle whitelist +%PACKAGE% >nul 2>&1
+"%ADB%" devices > "%PROJECT_DIR%\.temp_devices" 2>nul
+if exist "%PROJECT_DIR%\.temp_devices" (
+    for /f "tokens=1" %%d in ('findstr /v "List of" "%PROJECT_DIR%\.temp_devices" ^| findstr "device"') do (
+        echo Configuring device: %%d
+        "%ADB%" -s %%d shell settings put global stay_on_while_plugged_in 7 >nul 2>&1
+        "%ADB%" -s %%d shell settings put global wifi_sleep_policy 2 >nul 2>&1
+        "%ADB%" -s %%d shell settings put global adb_wifi_enabled 1 >nul 2>&1
+        "%ADB%" -s %%d shell dumpsys deviceidle whitelist +%PACKAGE% >nul 2>&1
+    )
+    del "%PROJECT_DIR%\.temp_devices" >nul 2>&1
 )
 echo.
 echo ----------------------------------------------------
@@ -392,6 +396,7 @@ echo   CRITICAL PHONE SETTINGS (Xiaomi MIUI / Android):
 echo ----------------------------------------------------
 echo   1. Keep phone PLUGGED IN to a charger while debugging.
 echo   2. Phone Settings ^> Developer options:
+echo      - Turn ON "Install via USB" (Required to install APKs via ADB)
 echo      - Turn ON "Stay awake"
 echo      - Turn ON "Disable ADB authorization timeout"
 echo      - Turn ON "USB debugging (Security settings)"
@@ -628,7 +633,7 @@ echo.
 call :apply_device_optimizations
 call :start_keepalive
 echo [1/2] Spawning Mobile Debug Window (%DEVICE_ID%)...
-powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Mobile Debug (%DEVICE_ID%) && echo. && echo ======================================================== && echo   Budget Buddy - MOBILE DEBUG (%DEVICE_ID%) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run -d %DEVICE_ID%' -WorkingDirectory '%PROJECT_DIR%'"
+powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Mobile Debug (%DEVICE_ID%) && echo. && echo ======================================================== && echo   Budget Buddy - MOBILE DEBUG (%DEVICE_ID%) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run --android-skip-build-dependency-validation -d %DEVICE_ID%' -WorkingDirectory '%PROJECT_DIR%'"
 
 timeout /t 2 /nobreak >nul
 
@@ -683,7 +688,7 @@ if not "%IS_WEB%"=="1" (
 )
 call :apply_device_optimizations
 call :start_keepalive
-powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Debug (%DEVICE_ID%) && echo. && echo ======================================================== && echo   Budget Buddy - DEBUG (%DEVICE_ID%) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run -d %DEVICE_ID%' -WorkingDirectory '%PROJECT_DIR%'"
+powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/k title Budget Buddy - Debug (%DEVICE_ID%) && echo. && echo ======================================================== && echo   Budget Buddy - DEBUG (%DEVICE_ID%) && echo   Hot Reload: press ''r''  ^|  Hot Restart: press ''R''  ^|  Quit: ''q'' && echo ======================================================== && echo. && flutter run --android-skip-build-dependency-validation -d %DEVICE_ID%' -WorkingDirectory '%PROJECT_DIR%'"
 echo.
 echo [SUCCESS] Dedicated debug terminal opened in new window!
 echo Hot reload (r) and hot restart (R) are active in that window.
@@ -717,7 +722,7 @@ if not "%IS_WEB%"=="1" (
 )
 call :apply_device_optimizations
 call :start_keepalive
-call flutter run -d %DEVICE_ID%
+call flutter run --android-skip-build-dependency-validation -d %DEVICE_ID%
 call :stop_keepalive
 goto handle_run_end
 
@@ -880,7 +885,7 @@ call flutter pub get
 
 echo.
 echo [4/5] Building Release APK (v!NEW_VERSION!+!NEW_BUILD!)...
-call flutter build apk --release --build-name=!NEW_VERSION! --build-number=!NEW_BUILD!
+call flutter build apk --release --build-name=!NEW_VERSION! --build-number=!NEW_BUILD! --android-skip-build-dependency-validation
 if errorlevel 1 (
     echo.
     echo [ERROR] Flutter release build failed.
@@ -1003,7 +1008,7 @@ echo ========================================
 echo   Build Release APK
 echo ========================================
 echo.
-call flutter build apk --release
+call flutter build apk --release --android-skip-build-dependency-validation
 if exist "build\app\outputs\flutter-apk" (
     explorer "build\app\outputs\flutter-apk"
 )
@@ -1013,7 +1018,7 @@ goto releasemenu
 :fullrelease
 echo.
 echo ========================================
-echo   Full Release Build ^& Share
+echo   Full Release Build & Share
 echo ========================================
 echo.
 echo Step 1/3: Cleaning project...
@@ -1021,7 +1026,7 @@ call flutter clean
 call flutter pub get
 echo.
 echo Step 2/3: Building Release APK...
-call flutter build apk --release
+call flutter build apk --release --android-skip-build-dependency-validation
 if errorlevel 1 (
     echo.
     echo [ERROR] Build failed!
@@ -1040,7 +1045,7 @@ if not "%IS_WEB%"=="1" if not "%DEVICE_ID%"=="" "%ADB%" -s %DEVICE_ID% uninstall
 echo Step 3/3: Running Release build on device...
 call :apply_device_optimizations
 call :start_keepalive
-call flutter run --release -d %DEVICE_ID%
+call flutter run --release --android-skip-build-dependency-validation -d %DEVICE_ID%
 call :stop_keepalive
 goto handle_run_end
 
@@ -1053,7 +1058,7 @@ echo Building and running app (release)...
 echo.
 call :apply_device_optimizations
 call :start_keepalive
-call flutter run --release -d %DEVICE_ID%
+call flutter run --release --android-skip-build-dependency-validation -d %DEVICE_ID%
 call :stop_keepalive
 goto handle_run_end
 
@@ -1069,7 +1074,7 @@ if not "%IS_WEB%"=="1" if not "%DEVICE_ID%"=="" "%ADB%" -s %DEVICE_ID% uninstall
 
 call :apply_device_optimizations
 call :start_keepalive
-call flutter run --release -d %DEVICE_ID%
+call flutter run --release --android-skip-build-dependency-validation -d %DEVICE_ID%
 call :stop_keepalive
 goto handle_run_end
 
