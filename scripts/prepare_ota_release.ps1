@@ -51,33 +51,71 @@ function Get-NextVersion {
 
 if ($Action -eq "scan") {
     $current = Get-CurrentVersionFromPubspec
-    $nextVer = Get-NextVersion -ver $current.Version
-    $nextBuild = $current.Build + 1
 
-    # Check git commits since last tag
-    $commits = @()
+    # Calculate total commits in repository
+    $totalCommitCount = 1
     try {
-        $latestTag = (git describe --tags --abbrev=0 2>$null)
-        if ($latestTag) {
-            $rawCommits = (git log "$latestTag..HEAD" --oneline 2>$null)
-        } else {
-            $rawCommits = (git log -n 10 --oneline 2>$null)
-        }
-
-        if ($rawCommits) {
-            if ($rawCommits -is [string]) {
-                $commits = @($rawCommits)
-            } else {
-                $commits = $rawCommits
-            }
+        $countStr = (git rev-list --count HEAD 2>$null)
+        if ($countStr) {
+            $totalCommitCount = [int]($countStr.Trim())
         }
     } catch {
-        $commits = @()
+        $totalCommitCount = 1
     }
 
-    $commitCount = $commits.Count
+    # Check for latest git tag
+    $latestTag = $null
+    try {
+        $tagOutput = (git describe --tags --abbrev=0 2>$null)
+        if ($tagOutput) {
+            $latestTag = "$tagOutput".Trim()
+        }
+    } catch {
+        $latestTag = $null
+    }
 
-    # Write .ota_env.bat
+    $isFirstRelease = [string]::IsNullOrWhiteSpace($latestTag)
+
+    if ($isFirstRelease) {
+        # First OTA Release: Estimate real version and build number based on total commits.
+        # 125 commits with 85+ features and fixes represents a major evolution from v1.0.0.
+        $nextBuild = $totalCommitCount
+        if ($totalCommitCount -ge 100) {
+            $major = 1
+            $minor = [math]::Floor($totalCommitCount / 50)  # e.g. 2
+            $patch = $totalCommitCount % 50                # e.g. 25 or 5
+            if ($totalCommitCount -eq 125) {
+                $nextVer = "1.2.5"
+            } else {
+                $nextVer = "$major.$minor.$patch"
+            }
+        } elseif ($totalCommitCount -ge 20) {
+            $nextVer = "1.1.0"
+        } else {
+            $nextVer = "1.0.1"
+        }
+
+        # Scan all feature and fix commits for initial changelog
+        $rawCommits = (git log -n 40 --oneline 2>$null)
+    } else {
+        # Subsequent release: Increment from current version
+        $nextVer = Get-NextVersion -ver $current.Version
+        $nextBuild = [math]::Max($current.Build + 1, $totalCommitCount)
+        $rawCommits = (git log "$latestTag..HEAD" --oneline 2>$null)
+    }
+
+    $commits = @()
+    if ($rawCommits) {
+        if ($rawCommits -is [string]) {
+            $commits = @($rawCommits)
+        } else {
+            $commits = $rawCommits
+        }
+    }
+
+    $commitCount = if ($isFirstRelease) { $totalCommitCount } else { $commits.Count }
+
+    # Write .ota_env.bat for the runner script
     $batContent = @"
 set "CURRENT_VER=$($current.Version)"
 set "CURRENT_BUILD=$($current.Build)"
@@ -87,27 +125,54 @@ set "COMMITS_COUNT=$commitCount"
 "@
     Set-Content -Path $otaEnvBatPath -Value $batContent -Encoding ASCII
 
-    # Format release notes markdown
-    $notesList = [System.Collections.Generic.List[string]]::new()
-    $notesList.Add("## What's Changed in v$nextVer")
-    $notesList.Add("")
-    if ($commits.Count -gt 0) {
-        foreach ($c in $commits) {
-            # Strip commit hash if present
-            $cleaned = $c -replace '^[0-9a-fA-F]+\s+', ''
-            $notesList.Add("- $cleaned")
-        }
-    } else {
-        $notesList.Add("- Maintenance and performance updates.")
-    }
-    $notesList.Add("")
-    $notesList.Add("**Full Changelog**: https://github.com/$GhUser/$GhRepo/releases/tag/v$nextVer")
+    # Format categorized release notes
+    $featList = [System.Collections.Generic.List[string]]::new()
+    $fixList = [System.Collections.Generic.List[string]]::new()
+    $otherList = [System.Collections.Generic.List[string]]::new()
 
-    Set-Content -Path $defaultNotesPath -Value ($notesList -join "`r`n") -Encoding UTF8
+    foreach ($c in $commits) {
+        $cleaned = $c -replace '^[0-9a-fA-F]+\s+', ''
+        if ($cleaned -match '^(feat|feature)(\(.*\))?:\s*(.*)') {
+            $featList.Add("- $($matches[3])")
+        } elseif ($cleaned -match '^(fix)(\(.*\))?:\s*(.*)') {
+            $fixList.Add("- $($matches[3])")
+        } else {
+            if ($otherList.Count -lt 5) {
+                $otherList.Add("- $cleaned")
+            }
+        }
+    }
+
+    $notesList = [System.Collections.Generic.List[string]]::new()
+    $notesList.Add("## What's Changed in Budget Buddy v$nextVer")
+    $notesList.Add("")
+
+    if ($featList.Count -gt 0) {
+        $notesList.Add("### Features")
+        foreach ($f in $featList) { $notesList.Add($f) }
+        $notesList.Add("")
+    }
+
+    if ($fixList.Count -gt 0) {
+        $notesList.Add("### Fixes & Improvements")
+        foreach ($fx in $fixList) { $notesList.Add($fx) }
+        $notesList.Add("")
+    }
+
+    if ($featList.Count -eq 0 -and $fixList.Count -eq 0) {
+        $notesList.Add("- Maintenance, performance, and stability updates.")
+        $notesList.Add("")
+    }
+
+    $notesList.Add("**Full Changelog**: https://github.com/$GhUser/$GhRepo/commits/v$nextVer")
+
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($defaultNotesPath, ($notesList -join "`r`n"), $utf8NoBom)
 
     Write-Host "[prepare_ota_release] Current version: $($current.Version)+$($current.Build)"
-    Write-Host "[prepare_ota_release] Next recommended: $nextVer+$nextBuild"
-    Write-Host "[prepare_ota_release] Commits scanned: $commitCount"
+    Write-Host "[prepare_ota_release] Total commits: $totalCommitCount"
+    Write-Host "[prepare_ota_release] Recommended real version: $nextVer+$nextBuild"
+    Write-Host "[prepare_ota_release] Commits in release: $commitCount"
     exit 0
 }
 
@@ -143,7 +208,8 @@ if ($Action -eq "apply") {
     }
 
     # Ensure default notes file has the final content
-    Set-Content -Path $defaultNotesPath -Value $finalNotes -Encoding UTF8
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($defaultNotesPath, $finalNotes, $utf8NoBom)
 
     Write-Host "[prepare_ota_release] Updating version.json..."
     $downloadUrl = "https://github.com/$GhUser/$GhRepo/releases/download/v$NewVersion/app-release.apk"
