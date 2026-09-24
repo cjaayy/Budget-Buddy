@@ -40,8 +40,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ),
     const BudgetPlannerScreen(),
     const SpendScreen(),
-    const SavingsScreen(),
     const ExpenseTrackerScreen(),
+    const SavingsScreen(),
     const TogetherScreen(),
     const ProfileSettingsScreen(),
   ];
@@ -97,11 +97,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               label: 'Spend',
             ),
             const NavigationDestination(
-              icon: Icon(Icons.savings_outlined),
-              selectedIcon: Icon(Icons.savings_rounded),
-              label: 'Savings',
-            ),
-            const NavigationDestination(
               icon: SizedBox.square(
                 dimension: 24,
                 child: Icon(Icons.receipt_long_outlined),
@@ -111,6 +106,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 child: Icon(Icons.receipt_long_rounded),
               ),
               label: 'Expenses',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.savings_outlined),
+              selectedIcon: Icon(Icons.savings_rounded),
+              label: 'Savings',
             ),
             const NavigationDestination(
               icon: Icon(Icons.groups_outlined),

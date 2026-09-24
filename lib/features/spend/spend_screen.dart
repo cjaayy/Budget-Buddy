@@ -183,16 +183,22 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               textAlign: TextAlign.center,
             ),
             actions: <Widget>[
-              FilledButton(
+              FilledButton.icon(
                 onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.arrow_back_rounded,
+                    size: 14, color: Colors.white),
+                label: const Text('Back',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.white)),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF991B1B),
                   foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text('Cancel'),
               ),
               FilledButton(
                 onPressed: () {

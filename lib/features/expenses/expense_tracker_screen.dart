@@ -159,12 +159,22 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               textAlign: TextAlign.center,
             ),
             actions: <Widget>[
-              TextButton(
+              FilledButton.icon(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: palette.darkRed,
+                icon: const Icon(Icons.arrow_back_rounded,
+                    size: 14, color: Colors.white),
+                label: const Text('Back',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.white)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.darkRed,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                child: const Text('Cancel'),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(
@@ -1554,21 +1564,23 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        FilledButton.tonalIcon(
+                        FilledButton.icon(
                           onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              size: 16, color: Colors.white),
                           label: const Text(
                             'Back',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: palette.darkGreenBg,
-                            foregroundColor: palette.darkGreen,
+                            backgroundColor: palette.darkGreen,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: 14, vertical: 8),
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -1895,21 +1907,23 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        FilledButton.tonalIcon(
+                        FilledButton.icon(
                           onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              size: 16, color: Colors.white),
                           label: const Text(
                             'Back',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: palette.darkGreenBg,
-                            foregroundColor: palette.darkGreen,
+                            backgroundColor: palette.darkGreen,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: 14, vertical: 8),
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -2125,21 +2139,23 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        FilledButton.tonalIcon(
+                        FilledButton.icon(
                           onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              size: 16, color: Colors.white),
                           label: const Text(
                             'Back',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: palette.darkGreenBg,
-                            foregroundColor: palette.darkGreen,
+                            backgroundColor: palette.darkGreen,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: 14, vertical: 8),
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -2364,22 +2380,23 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    FilledButton.tonalIcon(
+                    FilledButton.icon(
                       onPressed: () => Navigator.of(sheetContext).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          size: 16, color: Colors.white),
                       label: const Text(
                         'Back',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
+                          color: Colors.white,
                         ),
                       ),
                       style: FilledButton.styleFrom(
-                        backgroundColor: palette.darkGreenBg,
-                        foregroundColor: palette.darkGreen,
-                        side: BorderSide(color: palette.darkGreenBorder),
+                        backgroundColor: palette.darkGreen,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                            horizontal: 14, vertical: 8),
                         visualDensity: VisualDensity.compact,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -2391,10 +2408,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.of(sheetContext).pop(),
                     ),
                   ],
                 ),
@@ -2758,23 +2771,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: palette.darkGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        child: const Text('Done',
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -2840,23 +2836,39 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           title: const Text('Delete expense?'),
           content: const Text('This expense will be removed permanently.'),
           actions: <Widget>[
-            TextButton(
+            FilledButton.icon(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              style: TextButton.styleFrom(
-                foregroundColor: palette.darkRed,
-              ),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.arrow_back_rounded,
+                  size: 14, color: Colors.white),
+              label: const Text('Back',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: Colors.white)),
               style: FilledButton.styleFrom(
-                backgroundColor: palette.darkRed,
+                backgroundColor: palette.darkGreen,
                 foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text('Delete'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 14, color: Colors.white),
+              label: const Text('Delete',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: Colors.white)),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.darkRed,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ],
         );

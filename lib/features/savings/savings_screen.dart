@@ -767,21 +767,23 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        FilledButton.tonalIcon(
+                        FilledButton.icon(
                           onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              size: 16, color: Colors.white),
                           label: const Text(
                             'Back',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: palette.darkGreenBg,
-                            foregroundColor: palette.darkGreen,
+                            backgroundColor: palette.darkGreen,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: 14, vertical: 8),
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -1027,21 +1029,23 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        FilledButton.tonalIcon(
+                        FilledButton.icon(
                           onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              size: 16, color: Colors.white),
                           label: const Text(
                             'Back',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: palette.darkGreenBg,
-                            foregroundColor: palette.darkGreen,
+                            backgroundColor: palette.darkGreen,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: 14, vertical: 8),
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),

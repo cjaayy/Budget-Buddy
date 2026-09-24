@@ -1170,12 +1170,17 @@ class _CountdownConfirmationDialogState
         ],
       ),
       actions: <Widget>[
-        // Solid Red Cancel Button
-        FilledButton(
+        // Solid Red Back Button
+        FilledButton.icon(
           onPressed: () {
             _timer?.cancel();
             Navigator.of(context).pop(false);
           },
+          icon: const Icon(Icons.arrow_back_rounded,
+              size: 14, color: Colors.white),
+          label: const Text('Back',
+              style:
+                  TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF991B1B),
             foregroundColor: Colors.white,
@@ -1183,7 +1188,6 @@ class _CountdownConfirmationDialogState
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          child: const Text('Cancel'),
         ),
         // Solid Confirm Button
         FilledButton.icon(
