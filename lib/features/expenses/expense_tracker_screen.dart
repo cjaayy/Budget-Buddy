@@ -1370,9 +1370,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ),
                   onPressed: onEdit,
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const <Widget>[
+                    children: <Widget>[
                       Icon(Icons.edit_rounded, size: 13, color: Colors.white),
                       SizedBox(width: 4),
                       Text('Edit',
@@ -1397,9 +1397,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ),
                   onPressed: onDelete,
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const <Widget>[
+                    children: <Widget>[
                       Icon(Icons.delete_outline_rounded,
                           size: 13, color: Colors.white),
                       SizedBox(width: 4),
@@ -1425,9 +1425,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ),
                   onPressed: onDetails,
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const <Widget>[
+                    children: <Widget>[
                       Icon(Icons.info_outline_rounded,
                           size: 13, color: Colors.white),
                       SizedBox(width: 4),
@@ -2492,13 +2492,16 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                         ],
                                       ),
                                     ),
-                                    if (!_isCategoryDuplicate(expense.title,
-                                        expense.category, expense.spendCategory))
+                                    if (!_isCategoryDuplicate(
+                                        expense.title,
+                                        expense.category,
+                                        expense.spendCategory))
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 7, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: iconColor.withValues(alpha: 0.14),
+                                          color:
+                                              iconColor.withValues(alpha: 0.14),
                                           borderRadius:
                                               BorderRadius.circular(6),
                                         ),
@@ -2731,9 +2734,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           Navigator.of(sheetContext).pop();
                           _showExpenseDialog(ref, existing: expense);
                         },
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const <Widget>[
+                          children: <Widget>[
                             Icon(Icons.edit_rounded,
                                 size: 14, color: Colors.white),
                             SizedBox(width: 4),
@@ -2766,9 +2769,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                               .read(budgetBuddyControllerProvider.notifier)
                               .deleteExpense(expense.id);
                         },
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const <Widget>[
+                          children: <Widget>[
                             Icon(Icons.delete_outline_rounded,
                                 size: 14, color: Colors.white),
                             SizedBox(width: 4),
@@ -2921,11 +2924,10 @@ String _formatDayLabel(DateTime dateTime) {
 }
 
 IconData _expenseIconForExpense(ExpenseEntry expense) {
-  final String key = (expense.spendCategory.isNotEmpty
-          ? expense.spendCategory
-          : expense.title)
-      .trim()
-      .toLowerCase();
+  final String key =
+      (expense.spendCategory.isNotEmpty ? expense.spendCategory : expense.title)
+          .trim()
+          .toLowerCase();
 
   if (key.contains('transport')) {
     return Icons.directions_bus_rounded;
@@ -2955,11 +2957,10 @@ IconData _expenseIconForExpense(ExpenseEntry expense) {
 }
 
 Color _expenseColorForExpense(ExpenseEntry expense) {
-  final String key = (expense.spendCategory.isNotEmpty
-          ? expense.spendCategory
-          : expense.title)
-      .trim()
-      .toLowerCase();
+  final String key =
+      (expense.spendCategory.isNotEmpty ? expense.spendCategory : expense.title)
+          .trim()
+          .toLowerCase();
 
   if (key.contains('transport')) {
     return const Color(0xFF0F766E); // Dark Green (Spend screen Transport)
@@ -3115,4 +3116,3 @@ IconData _sourceIcon(String source) {
     _ => Icons.edit_note_rounded,
   };
 }
-
