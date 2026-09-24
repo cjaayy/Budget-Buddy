@@ -237,9 +237,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       enableDrag: false,
       isDismissible: false,
       builder: (BuildContext sheetContext) {
+        final bool isZeroActivity = record.isZeroActivity;
         final bool isOverspent = record.savings < 0;
-        final Color accent =
-            isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
+        final Color accent = isZeroActivity
+            ? const Color(0xFFD97706)
+            : (isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706));
         final List<MapEntry<String, double>> categories = record
             .categoryTotals.entries
             .toList()
@@ -264,6 +266,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         onPressed: () => Navigator.of(sheetContext).pop(),
                         icon: const Icon(Icons.arrow_back_rounded),
                         label: const Text('Back'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF991B1B),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -280,9 +285,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    isOverspent
-                        ? 'Overspent ${formatPeso(record.savings.abs())} on this day.'
-                        : 'Saved ${formatPeso(record.savings)} on this day.',
+                    isZeroActivity
+                        ? 'No budget and expenses today'
+                        : (isOverspent
+                            ? 'Overspent ${formatPeso(record.savings.abs())} on this day.'
+                            : 'Saved ${formatPeso(record.savings)} on this day.'),
                     style:
                         Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(sheetContext)
@@ -303,7 +310,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          isOverspent ? 'Overspent' : 'Saved',
+                          isZeroActivity
+                              ? 'Status'
+                              : (isOverspent ? 'Overspent' : 'Saved'),
                           style: Theme.of(sheetContext)
                               .textTheme
                               .labelLarge
@@ -314,7 +323,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          formatPeso(record.savings.abs()),
+                          isZeroActivity
+                              ? 'No budget and expenses today'
+                              : formatPeso(record.savings.abs()),
                           style: Theme.of(sheetContext)
                               .textTheme
                               .headlineSmall
@@ -322,7 +333,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)}',
+                          isZeroActivity
+                              ? 'Budget ₱0 • Spent ₱0 • ₱0 balance'
+                              : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)}',
                           style: Theme.of(sheetContext).textTheme.bodyMedium,
                         ),
                       ],
@@ -337,8 +350,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 12),
-                  if (categories.isEmpty)
-                    const Text('No category data for this day.')
+                  if (categories.isEmpty || isZeroActivity)
+                    const Text('No budget and expenses today.')
                   else
                     Expanded(
                       child: ListView.separated(
@@ -498,6 +511,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (BuildContext context, int index) {
                           final DailyRecord record = records[index];
+                          final bool isZero = record.isZeroActivity;
                           return Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -509,14 +523,44 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             child: Row(
                               children: <Widget>[
                                 Expanded(
-                                  child: Text(
-                                    _formatDayLabel(record.date),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        _formatDayLabel(record.date),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (isZero)
+                                        Text(
+                                          'No budget and expenses today',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                Text(formatPeso(record.savings)),
+                                Text(
+                                  isZero
+                                      ? '₱0 balance'
+                                      : formatPeso(record.savings),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: isZero
+                                        ? const Color(0xFFD97706)
+                                        : (record.savings < 0
+                                            ? const Color(0xFF991B1B)
+                                            : const Color(0xFFD97706)),
+                                  ),
+                                ),
                               ],
                             ),
                           );
@@ -534,6 +578,24 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
   List<DailyRecord> _getRecords(BudgetBuddyState state) {
     if (!widget.isTogetherOnly) {
+      if (state.dailyRecords.isEmpty) {
+        final DateTime now = DateTime.now();
+        final DateTime today = DateTime(now.year, now.month, now.day);
+        return <DailyRecord>[
+          DailyRecord(
+            date: today,
+            budget: 0.0,
+            totalSpent: 0.0,
+            remainingBalance: 0.0,
+            savings: 0.0,
+            biggestExpenseCategory: BudgetCategory.miscellaneous.label,
+            categoryTotals: <String, double>{
+              for (final BudgetCategory category in BudgetCategory.values)
+                category.label: 0.0,
+            },
+          ),
+        ];
+      }
       return _sortedRecords(state.dailyRecords);
     }
 
@@ -578,6 +640,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       records.add(
         DailyRecord(
           date: date,
+          budget: togetherBudget,
           totalSpent: totalSpent,
           remainingBalance: savings,
           savings: savings,
@@ -658,9 +721,26 @@ class _SavingsDateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isZeroActivity = record.isZeroActivity;
     final bool isOverspent = record.savings < 0;
-    final Color accent =
-        isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
+    final Color accent = isZeroActivity
+        ? const Color(0xFFD97706)
+        : (isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706));
+
+    final IconData icon = isZeroActivity
+        ? Icons.calendar_today_rounded
+        : (isOverspent
+            ? Icons.trending_down_rounded
+            : Icons.trending_up_rounded);
+
+    final String statusText = isZeroActivity
+        ? 'No budget and expenses today'
+        : (isOverspent
+            ? 'Overspent by ${formatPeso(record.savings.abs())}'
+            : 'Saved ${formatPeso(record.savings)}');
+
+    final String trailingText =
+        isZeroActivity ? '₱0 balance' : formatPeso(record.savings);
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -681,9 +761,7 @@ class _SavingsDateTile extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isOverspent
-                    ? Icons.trending_down_rounded
-                    : Icons.trending_up_rounded,
+                icon,
                 color: accent,
               ),
             ),
@@ -698,9 +776,7 @@ class _SavingsDateTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    isOverspent
-                        ? 'Overspent by ${formatPeso(record.savings.abs())}'
-                        : 'Saved ${formatPeso(record.savings)}',
+                    statusText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -709,7 +785,7 @@ class _SavingsDateTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              formatPeso(record.savings),
+              trailingText,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 color: accent,

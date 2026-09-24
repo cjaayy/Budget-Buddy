@@ -294,5 +294,82 @@ void main() {
 
       controller.dispose();
     });
+
+    test('Zero-Activity Days (Empty State): records Budget = 0.0, Expenses = 0.0, and preserves date in history logs', () async {
+      final DateTime now = DateTime.now();
+      final DateTime twoDaysAgo = now.subtract(const Duration(days: 2));
+      final DateTime twoDaysAgoDate =
+          DateTime(twoDaysAgo.year, twoDaysAgo.month, twoDaysAgo.day);
+
+      // Stored state has a record from 2 days ago with budget and expense, but yesterday had zero activity
+      repo.storedState = BudgetBuddyState.initial().copyWith(
+        dailyPeriodStart: twoDaysAgoDate,
+        dailyRecords: <DailyRecord>[
+          DailyRecord(
+            date: twoDaysAgoDate,
+            budget: 400,
+            totalSpent: 250,
+            remainingBalance: 150,
+            savings: 150,
+            biggestExpenseCategory: BudgetCategory.food.label,
+            categoryTotals: <String, double>{
+              BudgetCategory.food.label: 250,
+            },
+          ),
+        ],
+      );
+
+      final controller = BudgetBuddyController(
+        repository: repo,
+        service: service,
+        notificationService: notificationService,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // Yesterday had no budget and no expenses logged
+      final DateTime yesterday = now.subtract(const Duration(days: 1));
+      final DateTime yesterdayDate =
+          DateTime(yesterday.year, yesterday.month, yesterday.day);
+
+      final DailyRecord? yesterdayRecord = controller.state.dailyRecords
+          .cast<DailyRecord?>()
+          .firstWhere(
+            (DailyRecord? r) =>
+                r != null &&
+                r.date.year == yesterdayDate.year &&
+                r.date.month == yesterdayDate.month &&
+                r.date.day == yesterdayDate.day,
+            orElse: () => null,
+          );
+
+      expect(yesterdayRecord, isNotNull, reason: 'Zero-activity date must be in history logs');
+      expect(yesterdayRecord!.budget, equals(0.0));
+      expect(yesterdayRecord.totalSpent, equals(0.0));
+      expect(yesterdayRecord.remainingBalance, equals(0.0));
+      expect(yesterdayRecord.savings, equals(0.0));
+      expect(yesterdayRecord.isZeroActivity, isTrue);
+
+      // Also check today's record when no budget and no expenses logged
+      final DateTime todayDate = DateTime(now.year, now.month, now.day);
+      final DailyRecord? todayRecord = controller.state.dailyRecords
+          .cast<DailyRecord?>()
+          .firstWhere(
+            (DailyRecord? r) =>
+                r != null &&
+                r.date.year == todayDate.year &&
+                r.date.month == todayDate.month &&
+                r.date.day == todayDate.day,
+            orElse: () => null,
+          );
+
+      expect(todayRecord, isNotNull, reason: 'Today zero-activity date must be in history logs');
+      expect(todayRecord!.budget, equals(0.0));
+      expect(todayRecord.totalSpent, equals(0.0));
+      expect(todayRecord.remainingBalance, equals(0.0));
+      expect(todayRecord.savings, equals(0.0));
+      expect(todayRecord.isZeroActivity, isTrue);
+
+      controller.dispose();
+    });
   });
 }

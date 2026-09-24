@@ -393,7 +393,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                     Text(
                                       isLocked
                                           ? 'Your active budget is locked. Unlock to change amount.'
-                                          : 'Enter your target allowance for today',
+                                          : (!hasBudget && currentSpent == 0
+                                              ? 'No budget and expenses today (₱0 balance)'
+                                              : 'Enter your target allowance for today'),
                                       style:
                                           Theme.of(context).textTheme.bodySmall,
                                     ),
@@ -708,7 +710,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 Expanded(
                                   child: _StatMetricBox(
                                     label: remaining < 0 ? 'Over' : 'Remaining (Savings)',
-                                    value: formatPeso(remaining.abs()),
+                                    value: (!hasBudget && currentSpent == 0)
+                                        ? '₱0 balance'
+                                        : formatPeso(remaining.abs()),
                                     color: remaining < 0
                                         ? const Color(0xFF991B1B)
                                         : const Color(0xFFD97706),
@@ -720,7 +724,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             Text(
                               hasBudget
                                   ? dailySummary.warningMessage
-                                  : 'Budget is not set. Expenses will count as untracked.',
+                                  : (!hasBudget && currentSpent == 0
+                                      ? 'No budget and expenses today'
+                                      : 'Budget is not set. Expenses will count as untracked.'),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],

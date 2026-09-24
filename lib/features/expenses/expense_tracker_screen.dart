@@ -1021,7 +1021,7 @@ class _DailySection extends StatelessWidget {
             Text(
                 isTogetherOnly
                     ? 'No Budget Together expenses yet for today.'
-                    : 'No expenses yet for today.',
+                    : 'No budget and expenses today',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant))
           else

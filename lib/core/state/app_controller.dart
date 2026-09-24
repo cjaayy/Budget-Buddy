@@ -617,9 +617,22 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final DateTime currentNow = now;
     final bool isToday = _isSameDay(dayStart, currentNow);
 
+    final BudgetEntry? entry = state.budgetEntries
+        .cast<BudgetEntry?>()
+        .firstWhere(
+          (BudgetEntry? e) => e != null && _isSameDay(e.date, dayStart),
+          orElse: () => null,
+        );
+
+    double dayBudget = entry?.amount ?? 0.0;
+    if (dayBudget <= 0 && isToday) {
+      dayBudget = state.settings.dailyLimit ?? 0.0;
+    }
+
     if (isToday && todaySummary != null) {
       return DailyRecord(
         date: dayStart,
+        budget: dayBudget,
         totalSpent: todaySummary.totalSpent,
         remainingBalance: todaySummary.remainingBalance,
         savings: todaySummary.savings,
@@ -656,26 +669,16 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
             .category
             .label;
 
-    final BudgetEntry? entry = state.budgetEntries
-        .cast<BudgetEntry?>()
-        .firstWhere(
-          (BudgetEntry? e) => e != null && _isSameDay(e.date, dayStart),
-          orElse: () => null,
-        );
-
-    double dayBudget = entry?.amount ?? 0.0;
-    if (dayBudget <= 0 && isToday) {
-      dayBudget = state.settings.dailyLimit ?? 0.0;
-    }
-
-    final double remainingBalance =
-        dayBudget > 0 ? (dayBudget - totalSpent) : -totalSpent;
+    final double remainingBalance = dayBudget > 0
+        ? (dayBudget - totalSpent)
+        : (totalSpent > 0 ? -totalSpent : 0.0);
     final double savings = dayBudget > 0
         ? (dayBudget - totalSpent)
         : (totalSpent > 0 ? -totalSpent : 0.0);
 
     return DailyRecord(
       date: dayStart,
+      budget: dayBudget,
       totalSpent: totalSpent,
       remainingBalance: remainingBalance,
       savings: savings,

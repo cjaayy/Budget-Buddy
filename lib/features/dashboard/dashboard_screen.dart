@@ -83,10 +83,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     child: _DashboardEmptyState(
                       title: hasConfiguredBudget
                           ? 'No expenses logged yet.'
-                          : 'Set a budget to get started.',
+                          : 'No budget and expenses today',
                       body: hasConfiguredBudget
                           ? 'Log your first expense and the dashboard will start showing your ring, insights, and recent transactions.'
-                          : 'Add a budget so the dashboard can track your ring, countdown banner, and spending breakdown.',
+                          : 'You have no budget and no expenses logged today (0 balance). Set a budget to track your daily allowance and spending.',
                       buttonLabel:
                           hasConfiguredBudget ? 'Go to Spend' : 'Go to Budget',
                       icon: hasConfiguredBudget

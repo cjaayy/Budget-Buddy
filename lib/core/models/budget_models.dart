@@ -772,6 +772,7 @@ class ActivitySuggestion {
 class DailyRecord {
   const DailyRecord({
     required this.date,
+    this.budget = 0.0,
     required this.totalSpent,
     required this.remainingBalance,
     required this.savings,
@@ -780,15 +781,41 @@ class DailyRecord {
   });
 
   final DateTime date;
+  final double budget;
   final double totalSpent;
   final double remainingBalance;
   final double savings;
   final String biggestExpenseCategory;
   final Map<String, double> categoryTotals;
 
+  bool get isZeroActivity =>
+      budget <= 0.0 && totalSpent <= 0.0 && savings == 0.0;
+
+  DailyRecord copyWith({
+    DateTime? date,
+    double? budget,
+    double? totalSpent,
+    double? remainingBalance,
+    double? savings,
+    String? biggestExpenseCategory,
+    Map<String, double>? categoryTotals,
+  }) {
+    return DailyRecord(
+      date: date ?? this.date,
+      budget: budget ?? this.budget,
+      totalSpent: totalSpent ?? this.totalSpent,
+      remainingBalance: remainingBalance ?? this.remainingBalance,
+      savings: savings ?? this.savings,
+      biggestExpenseCategory:
+          biggestExpenseCategory ?? this.biggestExpenseCategory,
+      categoryTotals: categoryTotals ?? this.categoryTotals,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'date': date.toIso8601String(),
+      'budget': budget,
       'totalSpent': totalSpent,
       'remainingBalance': remainingBalance,
       'savings': savings,
@@ -804,10 +831,17 @@ class DailyRecord {
     for (final MapEntry<String, dynamic> entry in rawTotals.entries) {
       totals[entry.key] = (entry.value as num?)?.toDouble() ?? 0;
     }
+    final double totalSpent = (json['totalSpent'] as num?)?.toDouble() ?? 0;
+    final double remainingBalance =
+        (json['remainingBalance'] as num?)?.toDouble() ?? 0;
+    final double budget = (json['budget'] as num?)?.toDouble() ??
+        (totalSpent + remainingBalance);
+
     return DailyRecord(
       date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
-      totalSpent: (json['totalSpent'] as num?)?.toDouble() ?? 0,
-      remainingBalance: (json['remainingBalance'] as num?)?.toDouble() ?? 0,
+      budget: budget,
+      totalSpent: totalSpent,
+      remainingBalance: remainingBalance,
       savings: (json['savings'] as num?)?.toDouble() ?? 0,
       biggestExpenseCategory: json['biggestExpenseCategory'] as String? ??
           BudgetCategory.miscellaneous.label,
