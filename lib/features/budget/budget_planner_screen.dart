@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -17,28 +20,175 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
 
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   late final TextEditingController _dailyController;
-  FocusNode? _dailyFocusNode;
-  bool _seededFromState = false;
+  final FocusNode _focusNode = FocusNode();
+  final List<double> _quickPresets = const <double>[200, 300, 500, 1000, 1500];
+  bool _isUnlockedForEditing = false;
 
   @override
   void initState() {
     super.initState();
     _dailyController = TextEditingController();
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double initialDaily = state.settings.dailyLimit ?? 0;
+    if (initialDaily > 0) {
+      _dailyController.text = initialDaily.toStringAsFixed(0);
+    }
   }
 
   @override
   void dispose() {
     _dailyController.dispose();
-    _dailyFocusNode?.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  FocusNode get _dailyFocusNodeOrCreate => _dailyFocusNode ??= FocusNode();
+  void _saveBudget() {
+    final String text = _dailyController.text.trim();
+    final double? amount = double.tryParse(text);
+
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid budget amount greater than ₱0.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    _focusNode.unfocus();
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .recordDailyBudget(amount: amount);
+
+    setState(() {
+      _isUnlockedForEditing = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Today\'s budget set to ${formatPeso(amount)}! Input locked.'),
+        backgroundColor: const Color(0xFF0F766E),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmAndUpdateBudget(double currentBudget) async {
+    final String text = _dailyController.text.trim();
+    final double? newAmount = double.tryParse(text);
+
+    if (newAmount == null || newAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid budget amount greater than ₱0.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    _focusNode.unfocus();
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) => _CountdownConfirmationDialog(
+        title: 'Confirm Budget Update',
+        message:
+            'Update today\'s budget from ${formatPeso(currentBudget)} to ${formatPeso(newAmount)}?',
+        confirmLabel: 'Update Now',
+        confirmColor: const Color(0xFF0F766E),
+        icon: Icons.sync_rounded,
+      ),
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .recordDailyBudget(amount: newAmount);
+
+    setState(() {
+      _isUnlockedForEditing = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Today\'s budget updated to ${formatPeso(newAmount)}! Input locked.',
+        ),
+        backgroundColor: const Color(0xFF0F766E),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmAndResetBudget() async {
+    _focusNode.unfocus();
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) => const _CountdownConfirmationDialog(
+        title: 'Confirm Budget Reset',
+        message:
+            'This will reset today\'s active budget and spending back to ₱0 so you can start a fresh new day.',
+        confirmLabel: 'Reset Now',
+        confirmColor: Color(0xFFDC2626),
+        icon: Icons.restart_alt_rounded,
+      ),
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    _dailyController.clear();
+    ref.read(budgetBuddyControllerProvider.notifier).clearDailyBudget();
+
+    setState(() {
+      _isUnlockedForEditing = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Today\'s budget and spending have been reset to ₱0.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _applyPreset(double amount) {
+    _dailyController.text = amount.toStringAsFixed(0);
+    setState(() {});
+  }
+
+  void _unlockForEditing() {
+    setState(() {
+      _isUnlockedForEditing = true;
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _cancelEditing(double currentBudget) {
+    _focusNode.unfocus();
+    setState(() {
+      _isUnlockedForEditing = false;
+      _dailyController.text =
+          currentBudget > 0 ? currentBudget.toStringAsFixed(0) : '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
+    final devController = ref.read(budgetBuddyControllerProvider.notifier);
+    final DateTime currentClock = devController.currentEffectiveTime;
+
     final BudgetPeriodSummary dailySummary =
         summary.periodSummaries[BudgetPeriod.daily] ??
             const BudgetPeriodSummary(
@@ -46,6 +196,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               limit: 0,
               spent: 0,
             );
+
     final BudgetPeriodSummary monthlySummary =
         summary.periodSummaries[BudgetPeriod.monthly] ??
             const BudgetPeriodSummary(
@@ -54,104 +205,536 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               spent: 0,
             );
 
+    final bool hasBudget = (state.settings.dailyLimit ?? 0) > 0;
+    final double currentBudget = state.settings.dailyLimit ?? 0;
+    final double currentSpent = state.dailySpent;
+    final double remaining = currentBudget - currentSpent;
+
+    final bool isLocked = hasBudget && !_isUnlockedForEditing;
+
+    // Listen to external resets (e.g. 12 AM midnight reset) and update the text field
     ref.listen<BudgetBuddyState>(budgetBuddyControllerProvider,
-        (BudgetBuddyState? previous, BudgetBuddyState next) {
-      final double nextDaily = next.settings.totalDailyBudget;
-      final double prevDaily = previous?.settings.totalDailyBudget ?? -1;
-      if (nextDaily != prevDaily) {
-        final String newText =
-            nextDaily > 0 ? nextDaily.toStringAsFixed(0) : '';
-        if (_dailyController.text != newText) {
-          _dailyController.text = newText;
+        (BudgetBuddyState? prev, BudgetBuddyState next) {
+      final double? nextLimit = next.settings.dailyLimit;
+      final double? prevLimit = prev?.settings.dailyLimit;
+      if (nextLimit != prevLimit) {
+        if (nextLimit == null || nextLimit <= 0) {
+          if (_dailyController.text.isNotEmpty) {
+            _dailyController.clear();
+          }
+          setState(() {
+            _isUnlockedForEditing = false;
+          });
+        } else {
+          final String newText = nextLimit.toStringAsFixed(0);
+          if (_dailyController.text != newText) {
+            _dailyController.text = newText;
+          }
         }
       }
     });
 
-    if (!_seededFromState && !state.isBootstrapping) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _seedFromState(state);
-        }
-      });
-    }
+    final Color statusColor = dailySummary.isOverspent
+        ? const Color(0xFFDC2626)
+        : dailySummary.isWarning
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF0F766E);
+
+    final double progressValue = currentBudget > 0
+        ? (currentSpent / currentBudget).clamp(0.0, 1.0)
+        : 0.0;
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SectionTitle(
-                title: 'Budget',
+                title: 'Daily Budget',
                 subtitle:
-                    'Set a daily budget. Each saved day rolls into the current month total.',
+                    'Set your spending limit and track your daily allowance.',
+              ),
+              const SizedBox(height: 8),
+              // Clean Date & Status Pill
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.today_rounded,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Today • ${DateFormat('EEE, MMM d').format(currentClock)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: hasBudget
+                          ? (isLocked
+                              ? const Color(0xFF0F766E).withValues(alpha: 0.12)
+                              : Colors.amber.withValues(alpha: 0.15))
+                          : Colors.grey.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          isLocked
+                              ? Icons.lock_rounded
+                              : hasBudget
+                                  ? Icons.lock_open_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                          size: 13,
+                          color: hasBudget
+                              ? (isLocked
+                                  ? const Color(0xFF0F766E)
+                                  : Colors.amber.shade800)
+                              : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isLocked
+                              ? 'Locked'
+                              : hasBudget
+                                  ? 'Editing'
+                                  : 'No Budget Set',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: hasBudget
+                                ? (isLocked
+                                    ? const Color(0xFF0F766E)
+                                    : Colors.amber.shade800)
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
-                    BudgetMetricCard(
-                      label: 'This Month',
-                      value: formatPeso(monthlySummary.limit),
-                      subtitle: 'Sum of saved daily budget entries',
-                      icon: Icons.calendar_month_rounded,
-                      color: const Color(0xFF0F766E),
-                    ),
-                    const SizedBox(height: 16),
-                    _LimitEditorCard(
-                      title: 'Daily Budget',
-                      helper: 'Saved as today\'s budget entry',
-                      controller: _dailyController,
-                      focusNode: _dailyFocusNodeOrCreate,
-                      icon: Icons.calendar_today_rounded,
-                      periodSummary: dailySummary,
-                      onEdit: () => _startEditingLimit(
-                        _dailyFocusNodeOrCreate,
-                        _dailyController,
-                      ),
-                      onSave: () => _saveLimit(
-                        controller: _dailyController,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    // 1. Redesigned Clean Budget Set / Lock Card
                     SectionCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            'Live Period Status',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                          Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: (isLocked
+                                          ? const Color(0xFF0F766E)
+                                          : Colors.amber.shade800)
+                                      .withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isLocked
+                                      ? Icons.lock_rounded
+                                      : Icons.account_balance_wallet_rounded,
+                                  color: isLocked
+                                      ? const Color(0xFF0F766E)
+                                      : Colors.amber.shade800,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      isLocked
+                                          ? 'Daily Budget (Locked)'
+                                          : hasBudget
+                                              ? 'Edit Today\'s Budget'
+                                              : 'Set Today\'s Budget',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w800),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      isLocked
+                                          ? 'Your active budget is locked. Unlock to change amount.'
+                                          : 'Enter your target allowance for today',
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Each daily budget entry is added to the month total automatically.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          const SizedBox(height: 16),
+                          // Big Currency Input Box (locked when isLocked == true)
+                          TextField(
+                            controller: _dailyController,
+                            focusNode: _focusNode,
+                            readOnly: isLocked,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: isLocked
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : const Color(0xFF0F766E),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                            onSubmitted: (_) {
+                              if (!isLocked) {
+                                if (hasBudget) {
+                                  _confirmAndUpdateBudget(currentBudget);
+                                } else {
+                                  _saveBudget();
+                                }
+                              }
+                            },
+                            decoration: InputDecoration(
+                              filled: isLocked,
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.4),
+                              prefixIcon: Container(
+                                padding: const EdgeInsets.only(
+                                  left: 16,
+                                  right: 8,
+                                ),
+                                alignment: Alignment.centerLeft,
+                                width: 44,
+                                child: Text(
+                                  '₱',
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    color: isLocked
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant
+                                        : const Color(0xFF0F766E),
+                                  ),
+                                ),
+                              ),
+                              hintText: '0',
+                              hintStyle: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).hintColor,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              suffixIcon: isLocked
+                                  ? const Padding(
+                                      padding: EdgeInsets.only(right: 14),
+                                      child: Icon(Icons.lock_outline_rounded,
+                                          size: 20),
+                                    )
+                                  : (_dailyController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear_rounded),
+                                          onPressed: () {
+                                            _dailyController.clear();
+                                            setState(() {});
+                                          },
+                                        )
+                                      : null),
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          ...<BudgetPeriod>[BudgetPeriod.daily]
-                              .map((BudgetPeriod period) {
-                            final BudgetPeriodSummary? periodSummary =
-                                summary.periodSummaries[period];
-                            if (periodSummary == null ||
-                                !periodSummary.isActive) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _InactivePeriodRow(period: period),
-                              );
-                            }
+                          // Quick Preset Chips (Only visible when unlocked for editing)
+                          if (!isLocked) ...<Widget>[
+                            const SizedBox(height: 12),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: _quickPresets.map((double preset) {
+                                  final bool isSelected =
+                                      _dailyController.text.trim() ==
+                                          preset.toStringAsFixed(0);
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      selected: isSelected,
+                                      label:
+                                          Text('₱${preset.toStringAsFixed(0)}'),
+                                      onSelected: (_) => _applyPreset(preset),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      selectedColor: const Color(0xFF0F766E)
+                                          .withValues(alpha: 0.2),
+                                      showCheckmark: false,
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
 
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _ActivePeriodRow(summary: periodSummary),
-                            );
-                          }),
+                          // Action Buttons
+                          if (isLocked) ...<Widget>[
+                            // Locked State: Show Unlock button and Reset button
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: _unlockForEditing,
+                                    icon: const Icon(Icons.lock_open_rounded,
+                                        size: 18),
+                                    label: const Text('Unlock to Edit'),
+                                    style: FilledButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(48),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _confirmAndResetBudget,
+                                    icon: const Icon(Icons.refresh_rounded,
+                                        size: 18, color: Color(0xFFDC2626)),
+                                    label: const Text(
+                                      'Reset Budget',
+                                      style: TextStyle(color: Color(0xFFDC2626)),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(48),
+                                      side: BorderSide(
+                                        color: const Color(0xFFDC2626)
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else if (hasBudget) ...<Widget>[
+                            // Unlocked Editing State: Show Update (with 5s timer confirmation) and Cancel
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _cancelEditing(currentBudget),
+                                    icon: const Icon(Icons.close_rounded,
+                                        size: 18),
+                                    label: const Text('Cancel'),
+                                    style: OutlinedButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(48),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: _dailyController.text
+                                            .trim()
+                                            .isNotEmpty
+                                        ? () => _confirmAndUpdateBudget(
+                                            currentBudget)
+                                        : null,
+                                    icon: const Icon(Icons.sync_rounded,
+                                        size: 18),
+                                    label: const Text('Update Budget'),
+                                    style: FilledButton.styleFrom(
+                                      minimumSize: const Size.fromHeight(48),
+                                      backgroundColor: const Color(0xFF0F766E),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...<Widget>[
+                            // First-time set state: Save button (locks immediately upon save)
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed:
+                                    _dailyController.text.trim().isNotEmpty
+                                        ? _saveBudget
+                                        : null,
+                                icon: const Icon(Icons.check_circle_rounded,
+                                    size: 18),
+                                label: const Text('Save & Lock Today\'s Budget'),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                  backgroundColor: const Color(0xFF0F766E),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 2. Today's Live Status & Spending Tracker Card
+                    if (hasBudget || currentSpent > 0) ...<Widget>[
+                      SectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  'Today\'s Progress',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    hasBudget
+                                        ? '${(progressValue * 100).toStringAsFixed(0)}% Used'
+                                        : 'Budget Unset',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Progress bar
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: LinearProgressIndicator(
+                                value: progressValue,
+                                minHeight: 10,
+                                backgroundColor:
+                                    statusColor.withValues(alpha: 0.14),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    statusColor),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            // 3 Clean Metric Columns
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: _StatMetricBox(
+                                    label: 'Budget',
+                                    value: formatPeso(currentBudget),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _StatMetricBox(
+                                    label: 'Spent',
+                                    value: formatPeso(currentSpent),
+                                    color: currentSpent > 0
+                                        ? const Color(0xFFDC2626)
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _StatMetricBox(
+                                    label: remaining < 0 ? 'Over' : 'Remaining',
+                                    value: formatPeso(remaining.abs()),
+                                    color: remaining < 0
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              hasBudget
+                                  ? dailySummary.warningMessage
+                                  : 'Budget is not set. Expenses will count as untracked.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // 3. Month Summary Card
+                    BudgetMetricCard(
+                      label: 'This Month\'s Total Budget',
+                      value: formatPeso(monthlySummary.limit),
+                      subtitle:
+                          'Sum of daily budgets recorded in ${DateFormat('MMMM yyyy').format(currentClock)}',
+                      icon: Icons.calendar_month_rounded,
+                      color: const Color(0xFF0F766E),
                     ),
                   ],
                 ),
@@ -162,409 +745,200 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       ),
     );
   }
-
-  void _seedFromState(BudgetBuddyState state) {
-    if (_seededFromState) {
-      return;
-    }
-
-    _dailyController.text = state.settings.totalDailyBudget > 0
-        ? state.settings.totalDailyBudget.toStringAsFixed(0)
-        : '';
-
-    setState(() {
-      _seededFromState = true;
-    });
-  }
-
-  void _startEditingLimit(
-      FocusNode focusNode, TextEditingController controller) {
-    FocusScope.of(context).requestFocus(focusNode);
-    controller.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: controller.text.length,
-    );
-  }
-
-  Future<void> _saveLimit({
-    required TextEditingController controller,
-  }) {
-    final double limit = double.tryParse(controller.text.trim()) ?? 0;
-    ref
-        .read(budgetBuddyControllerProvider.notifier)
-        .recordDailyBudget(amount: limit > 0 ? limit : 0);
-
-    return _showSavedModal(BudgetPeriod.daily);
-  }
-
-  Future<void> _showSavedModal(BudgetPeriod period) {
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          icon: const Icon(Icons.check_circle_rounded),
-          title: const Text('Limit Saved'),
-          content: Text('${period.label} Limit Saved Successfully.'),
-          actions: <Widget>[
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
-class _LimitEditorCard extends StatefulWidget {
-  const _LimitEditorCard({
-    required this.title,
-    required this.helper,
-    required this.controller,
-    required this.focusNode,
-    required this.icon,
-    required this.periodSummary,
-    required this.onEdit,
-    required this.onSave,
+class _StatMetricBox extends StatelessWidget {
+  const _StatMetricBox({
+    required this.label,
+    required this.value,
+    required this.color,
   });
 
-  final String title;
-  final String helper;
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final IconData icon;
-  final BudgetPeriodSummary? periodSummary;
-  final VoidCallback onEdit;
-  final VoidCallback onSave;
-
-  @override
-  State<_LimitEditorCard> createState() => _LimitEditorCardState();
-}
-
-class _LimitEditorCardState extends State<_LimitEditorCard> {
-  bool _isEditing = false;
-  String? _editingSnapshot;
-
-  bool get _canEdit => _isEditing || !(widget.periodSummary?.isActive ?? false);
-
-  @override
-  Widget build(BuildContext context) {
-    final BudgetPeriodSummary? summary = widget.periodSummary;
-    final Color statusColor = summary == null
-        ? const Color(0xFF64748B)
-        : summary.isOverspent
-            ? const Color(0xFFDC2626)
-            : summary.isWarning
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFF16A34A);
-    final bool hasBudget = summary?.isActive ?? false;
-    final bool hasText = widget.controller.text.trim().isNotEmpty;
-    final bool hasChanges = _isEditing &&
-        hasText &&
-        widget.controller.text != (_editingSnapshot ?? '');
-
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(widget.icon, color: statusColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      widget.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(widget.helper),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: widget.controller,
-            focusNode: widget.focusNode,
-            readOnly: !_canEdit,
-            keyboardType: TextInputType.number,
-            onChanged: (_) {
-              if (mounted) {
-                setState(() {});
-              }
-            },
-            onSubmitted: (_) {
-              if (_canEdit && hasText) {
-                _doSave();
-              }
-            },
-            decoration: InputDecoration(
-              labelText: widget.title,
-              prefixText: '₱ ',
-              hintText: 'Enter daily budget amount',
-              helperText: summary == null
-                  ? 'Enter an amount to set budget.'
-                  : summary.warningMessage,
-            ),
-          ),
-          if (summary != null && hasBudget) ...<Widget>[
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: summary.limit <= 0
-                  ? 0
-                  : (summary.spent / summary.limit).clamp(0.0, 1.0),
-              minHeight: 10,
-              backgroundColor: statusColor.withValues(alpha: 0.14),
-              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${formatPeso(summary.spent)} spent • ${formatPeso(summary.remaining.abs())} ${summary.isOverspent ? 'over' : 'left'} • ${summary.resetLabel}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-          const SizedBox(height: 12),
-          if (!hasBudget && !_isEditing) ...<Widget>[
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: hasText ? _doSave : null,
-                icon: const Icon(Icons.check_circle_rounded),
-                label: const Text('Save Budget'),
-              ),
-            ),
-          ] else if (hasBudget && !_isEditing) ...<Widget>[
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _beginEditing,
-                icon: const Icon(Icons.edit_rounded),
-                label: const Text('Edit Budget'),
-              ),
-            ),
-          ] else if (_isEditing) ...<Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _cancelEdit,
-                    icon: const Icon(Icons.close_rounded),
-                    label: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: hasChanges ? _confirmSave : null,
-                    icon: const Icon(Icons.save_rounded),
-                    label: const Text('Save'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  void _doSave() {
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _isEditing = false;
-      _editingSnapshot = widget.controller.text;
-    });
-    widget.onSave();
-  }
-
-  void _beginEditing() {
-    if (!_isEditing) {
-      _editingSnapshot = widget.controller.text;
-    }
-
-    setState(() {
-      _isEditing = true;
-    });
-
-    widget.onEdit();
-  }
-
-  void _cancelEdit() {
-    if (_editingSnapshot != null) {
-      widget.controller.text = _editingSnapshot!;
-    }
-
-    FocusScope.of(context).unfocus();
-
-    setState(() {
-      _isEditing = false;
-    });
-  }
-
-  Future<void> _confirmSave() async {
-    final bool? shouldSave = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Save changes?'),
-          content: const Text('Do You Want To Save This Budget Limit Now?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted || shouldSave != true) {
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isEditing = false;
-        _editingSnapshot = widget.controller.text;
-      });
-    }
-
-    widget.onSave();
-  }
-}
-
-class _ActivePeriodRow extends StatelessWidget {
-  const _ActivePeriodRow({required this.summary});
-
-  final BudgetPeriodSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color = summary.isOverspent
-        ? const Color(0xFFDC2626)
-        : summary.isWarning
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF16A34A);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              summary.isOverspent
-                  ? Icons.warning_rounded
-                  : summary.isWarning
-                      ? Icons.info_rounded
-                      : Icons.check_circle_rounded,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  '${summary.period.label} limit',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 2),
-                Text(summary.warningMessage),
-                const SizedBox(height: 4),
-                Text(
-                  '${formatPeso(summary.spent)} spent of ${formatPeso(summary.limit)} • ${summary.resetLabel}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          SoftPill(
-            text: summary.statusLabel,
-            color: color,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InactivePeriodRow extends StatelessWidget {
-  const _InactivePeriodRow({required this.period});
-
-  final BudgetPeriod period;
+  final String label;
+  final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: Theme.of(context)
             .colorScheme
             .surfaceContainerHighest
-            .withValues(alpha: 0.28),
-        borderRadius: BorderRadius.circular(20),
+            .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(Icons.radio_button_unchecked_rounded,
-              color: Color(0xFF64748B)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  '${period.label} limit is inactive',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 2),
-                Text(period.resetLabel),
-              ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SoftPill(
-            text: 'Disabled',
-            color: Color(0xFF64748B),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: color,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A modal confirmation dialog featuring a 5-second countdown timer.
+/// The user can confirm immediately, cancel immediately, or wait 5s for auto-confirmation.
+class _CountdownConfirmationDialog extends StatefulWidget {
+  const _CountdownConfirmationDialog({
+    required this.title,
+    required this.message,
+    required this.confirmLabel,
+    required this.confirmColor,
+    required this.icon,
+  });
+
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final Color confirmColor;
+  final IconData icon;
+
+  @override
+  State<_CountdownConfirmationDialog> createState() =>
+      _CountdownConfirmationDialogState();
+}
+
+class _CountdownConfirmationDialogState
+    extends State<_CountdownConfirmationDialog> {
+  static const int _totalSeconds = 5;
+  int _secondsRemaining = _totalSeconds;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        Navigator.of(context).pop(true);
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double progress = _secondsRemaining / _totalSeconds;
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      title: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: widget.confirmColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(widget.icon, color: widget.confirmColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              widget.title,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            widget.message,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          // 5-second countdown progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(widget.confirmColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text(
+                'Auto-confirming in $_secondsRemaining s...',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: widget.confirmColor,
+                ),
+              ),
+              Icon(Icons.timer_outlined, size: 14, color: widget.confirmColor),
+            ],
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () {
+            _timer?.cancel();
+            Navigator.of(context).pop(false);
+          },
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () {
+            _timer?.cancel();
+            Navigator.of(context).pop(true);
+          },
+          icon: Icon(widget.icon, size: 16),
+          label: Text(widget.confirmLabel),
+          style: FilledButton.styleFrom(
+            backgroundColor: widget.confirmColor,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

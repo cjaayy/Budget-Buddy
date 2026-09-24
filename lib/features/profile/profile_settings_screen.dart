@@ -3,11 +3,13 @@
 import 'dart:io';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -253,6 +255,310 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    if (kDebugMode) ...<Widget>[
+                      SectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Row(
+                              children: <Widget>[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade900
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'DEBUG ONLY',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.amber.shade800,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'DEV MODE & TESTING',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Test midnight 12:00 AM auto-reset, clock simulation, and past day backfills.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 12),
+                            Builder(
+                              builder: (BuildContext ctx) {
+                                final devController = ref.read(
+                                    budgetBuddyControllerProvider.notifier);
+                                final bool isTimeSimulated =
+                                    devController.isTimeSimulated;
+                                final DateTime currentEffectiveTime =
+                                    devController.currentEffectiveTime;
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    children: <Widget>[
+                                      Icon(
+                                        isTimeSimulated
+                                            ? Icons.schedule_rounded
+                                            : Icons.access_time_rounded,
+                                        color: isTimeSimulated
+                                            ? Colors.amber.shade700
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Text(
+                                              isTimeSimulated
+                                                  ? 'Simulated App Clock'
+                                                  : 'Device Real Time',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13),
+                                            ),
+                                            Text(
+                                              DateFormat(
+                                                      'EEE, MMM d, yyyy • h:mm:ss a')
+                                                  .format(currentEffectiveTime),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isTimeSimulated)
+                                        TextButton(
+                                          onPressed: () async {
+                                            await devController
+                                                .resetSimulatedTime();
+                                            setState(() {});
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Reverted to device real time.'),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          child: const Text('Reset'),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.6),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant
+                                      .withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: <Widget>[
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        'Today\'s Budget Limit',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        state.settings.dailyLimit != null
+                                            ? '₱${state.settings.dailyLimit!.toStringAsFixed(0)}'
+                                            : '₱0 (Reset / Unset)',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: state.settings.dailyLimit != null
+                                              ? const Color(0xFF0F766E)
+                                              : Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: <Widget>[
+                                      Text(
+                                        'Today\'s Spent',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '₱${state.dailySpent.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              onPressed: () async {
+                                await ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .simulateMidnightReset();
+                                setState(() {});
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Simulated 12:00 AM! Today\'s active budget & expenses have reset.',
+                                      ),
+                                      backgroundColor: Color(0xFF0F766E),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.nightlight_round,
+                                  size: 18),
+                              label: const Text('Click 12:00 AM Midnight Reset'),
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size.fromHeight(44),
+                                backgroundColor: const Color(0xFF0F766E),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _pickDevTimeOnly(context),
+                                    icon: const Icon(Icons.access_time_rounded,
+                                        size: 16),
+                                    label: const Text('Set Time (12 AM)'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _pickDevSimulatedTime(context),
+                                    icon: const Icon(
+                                        Icons.edit_calendar_rounded,
+                                        size: 16),
+                                    label: const Text('Set Date & Time'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await ref
+                                          .read(budgetBuddyControllerProvider
+                                              .notifier)
+                                          .setSimulatedTimeTo1159PM();
+                                      setState(() {});
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Time set to 11:59 PM (1 min before midnight).'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.bedtime_outlined,
+                                        size: 16),
+                                    label: const Text('Set 11:59 PM'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await ref
+                                          .read(budgetBuddyControllerProvider
+                                              .notifier)
+                                          .fastForwardOneDay();
+                                      setState(() {});
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Fast-forwarded +1 day past midnight.'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(
+                                        Icons.fast_forward_rounded,
+                                        size: 16),
+                                    label: const Text('+1 Day (12 AM)'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     SectionCard(
                       child: Column(
                         children: <Widget>[
@@ -274,6 +580,128 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickDevTimeOnly(BuildContext context) async {
+    final devController = ref.read(budgetBuddyControllerProvider.notifier);
+    final DateTime initialDate = devController.currentEffectiveTime;
+    final TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
+
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: 'Select Simulated Time (e.g. 12:00 AM)',
+    );
+
+    if (pickedTime == null || !context.mounted) {
+      return;
+    }
+
+    final int hour = pickedTime.hour;
+    final int minute = pickedTime.minute;
+
+    DateTime newSimulatedTime = DateTime(
+      initialDate.year,
+      initialDate.month,
+      initialDate.day,
+      hour,
+      minute,
+    );
+
+    // If 12:00 AM midnight is selected, advance date to next day's 12:00 AM
+    // so it tests the midnight rollover that resets today's budget.
+    if (hour == 0 && minute == 0) {
+      newSimulatedTime = DateTime(
+        initialDate.year,
+        initialDate.month,
+        initialDate.day + 1,
+        0,
+        0,
+      );
+    }
+
+    await devController.setSimulatedDateTime(newSimulatedTime);
+    setState(() {});
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            hour == 0 && minute == 0
+                ? 'Time set to 12:00 AM midnight! Today\'s active budget has reset.'
+                : 'Simulated time set to: ${DateFormat('h:mm a').format(newSimulatedTime)}',
+          ),
+          backgroundColor: const Color(0xFF0F766E),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickDevSimulatedTime(BuildContext context) async {
+    final devController = ref.read(budgetBuddyControllerProvider.notifier);
+    final DateTime initialDate = devController.currentEffectiveTime;
+
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      helpText: 'Select Simulated Date',
+    );
+
+    if (pickedDate == null || !context.mounted) {
+      return;
+    }
+
+    final TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: 'Select Simulated Time (e.g. 12:00 AM)',
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    final int hour = pickedTime?.hour ?? 0;
+    final int minute = pickedTime?.minute ?? 0;
+
+    DateTime newSimulatedTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      hour,
+      minute,
+    );
+
+    final bool isCurrentDay = pickedDate.year == initialDate.year &&
+        pickedDate.month == initialDate.month &&
+        pickedDate.day == initialDate.day;
+
+    if (isCurrentDay && hour == 0 && minute == 0) {
+      newSimulatedTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day + 1,
+        0,
+        0,
+      );
+    }
+
+    await devController.setSimulatedDateTime(newSimulatedTime);
+    setState(() {});
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Simulated time set to: ${DateFormat('MMM d, yyyy • h:mm a').format(newSimulatedTime)}',
+          ),
+          backgroundColor: const Color(0xFF0F766E),
+        ),
+      );
+    }
   }
 
   void _showPreferencesSheet(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -115,6 +116,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         _service = service,
         _notificationService = notificationService,
         super(BudgetBuddyState.initial()) {
+    _startMidnightCheckTimer();
     _bootstrap();
   }
 
@@ -122,6 +124,62 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   final BudgetService _service;
   final NotificationService _notificationService;
   final Uuid _uuid = const Uuid();
+  Timer? _midnightCheckTimer;
+  DateTime? _simulatedDateTime;
+
+  DateTime get now => _simulatedDateTime ?? DateTime.now();
+  bool get isTimeSimulated => _simulatedDateTime != null;
+  DateTime get currentEffectiveTime => now;
+
+  Future<void> setSimulatedDateTime(DateTime dateTime) async {
+    final DateTime currentNow = now;
+    final DateTime currentTodayStart =
+        DateTime(currentNow.year, currentNow.month, currentNow.day);
+    final DateTime newTodayStart =
+        DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    final bool is12AM = dateTime.hour == 0 && dateTime.minute == 0;
+    final bool isNewDay = newTodayStart.isAfter(currentTodayStart);
+    final bool shouldForce = is12AM || isNewDay;
+
+    _simulatedDateTime = dateTime;
+    await syncDateAndCheckMidnightReset(forceReset: shouldForce);
+  }
+
+  Future<void> simulateMidnightReset() async {
+    final DateTime current = now;
+    final DateTime nextDayMidnight =
+        DateTime(current.year, current.month, current.day + 1, 0, 0, 0);
+    _simulatedDateTime = nextDayMidnight;
+    await syncDateAndCheckMidnightReset(forceReset: true);
+  }
+
+  Future<void> fastForwardOneDay() async {
+    final DateTime current = now;
+    final DateTime nextDay = DateTime(
+      current.year,
+      current.month,
+      current.day + 1,
+      current.hour,
+      current.minute,
+      current.second,
+    );
+    _simulatedDateTime = nextDay;
+    await syncDateAndCheckMidnightReset();
+  }
+
+  Future<void> setSimulatedTimeTo1159PM() async {
+    final DateTime current = now;
+    final DateTime tonite1159 =
+        DateTime(current.year, current.month, current.day, 23, 59, 0);
+    _simulatedDateTime = tonite1159;
+    await syncDateAndCheckMidnightReset();
+  }
+
+  Future<void> resetSimulatedTime() async {
+    _simulatedDateTime = null;
+    await syncDateAndCheckMidnightReset();
+  }
 
   BudgetSummary get summary => _service.computeSummary(
         state.copyWith(
@@ -129,6 +187,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
               .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
               .toList(),
         ),
+        now: now,
       );
 
   List<MealSuggestion> mealsFor(
@@ -152,26 +211,43 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     );
   }
 
+  void _startMidnightCheckTimer() {
+    _midnightCheckTimer?.cancel();
+    _midnightCheckTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final DateTime currentNow = now;
+      final DateTime todayStart =
+          DateTime(currentNow.year, currentNow.month, currentNow.day);
+      if (state.dailyPeriodStart != null &&
+          state.dailyPeriodStart!.isBefore(todayStart)) {
+        syncDateAndCheckMidnightReset();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _midnightCheckTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _bootstrap() async {
     final BudgetBuddyState loaded = await _repository.loadState();
     state = loaded.copyWith(isBootstrapping: false);
     _renewBudgetIfNeeded();
-    _refreshPeriodTracking();
-    await _syncDailyRecord();
-    await _repository.saveState(state);
+    await syncDateAndCheckMidnightReset();
   }
 
   Future<void> _persist() async {
     _renewBudgetIfNeeded();
     _refreshPeriodTracking();
-    await _syncDailyRecord();
+    _backfillMissingDays();
     await _repository.saveState(state);
   }
 
   void _refreshPeriodTracking() {
-    final DateTime now = DateTime.now();
-    _archiveElapsedPeriods(now);
-    _recalculatePeriodSpending(now);
+    final DateTime currentNow = now;
+    _archiveElapsedPeriods(currentNow);
+    _recalculatePeriodSpending(currentNow);
   }
 
   void _archiveElapsedPeriods(DateTime now) {
@@ -248,7 +324,25 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     required DateTime start,
     required DateTime endExclusive,
   }) {
-    final double? limit = _periodLimit(period);
+    final bool alreadyArchived = reports.any(
+      (PeriodReport r) => r.period == period && _isSameDay(r.startDate, start),
+    );
+    if (alreadyArchived) {
+      return;
+    }
+
+    double? limit = _periodLimit(period);
+    if (period == BudgetPeriod.daily) {
+      final BudgetEntry? entry = state.budgetEntries
+          .cast<BudgetEntry?>()
+          .firstWhere(
+            (BudgetEntry? e) => e != null && _isSameDay(e.date, start),
+            orElse: () => null,
+          );
+      if (entry != null && entry.amount > 0) {
+        limit = entry.amount;
+      }
+    }
     if (limit == null || limit <= 0) {
       return;
     }
@@ -337,12 +431,12 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       return;
     }
 
-    if (!_isBudgetExpired(settings, DateTime.now())) {
+    if (!_isBudgetExpired(settings, now)) {
       return;
     }
 
     state = state.copyWith(
-      settings: settings.copyWith(budgetCreatedAt: DateTime.now()),
+      settings: settings.copyWith(budgetCreatedAt: now),
     );
   }
 
@@ -360,47 +454,238 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     return !createdAt.add(cycle).isAfter(now);
   }
 
-  Future<void> _syncDailyRecord() async {
+  Future<void> syncDateAndCheckMidnightReset({bool forceReset = false}) async {
+    final DateTime currentNow = now;
+    final DateTime todayStart =
+        DateTime(currentNow.year, currentNow.month, currentNow.day);
+    final DateTime? lastDailyStart = state.dailyPeriodStart;
+
+    if (lastDailyStart == null && !forceReset) {
+      state = state.copyWith(dailyPeriodStart: todayStart);
+      _recalculatePeriodSpending(now);
+      _backfillMissingDays(currentDate: now);
+      await _repository.saveState(state);
+      return;
+    }
+
+    if (forceReset || (lastDailyStart != null && lastDailyStart.isBefore(todayStart))) {
+      // 1. Archive elapsed periods up to today before clearing
+      _archiveElapsedPeriods(now);
+
+      // 2. Backfill records up to yesterday (or now if same-day force)
+      final DateTime backfillCutoff =
+          (lastDailyStart != null && lastDailyStart.isBefore(todayStart))
+              ? todayStart.subtract(const Duration(seconds: 1))
+              : now;
+      _backfillMissingDays(currentDate: backfillCutoff);
+
+      // 3. Reset today's active budget and expense entry
+      final List<ExpenseEntry> pastExpenses = state.expenses
+          .where((ExpenseEntry expense) =>
+              expense.dateTime.isBefore(todayStart))
+          .toList();
+      final List<BudgetEntry> pastBudgetEntries = state.budgetEntries
+          .where((BudgetEntry entry) => !_isSameDay(entry.date, todayStart))
+          .toList();
+
+      state = state.copyWith(
+        expenses: pastExpenses,
+        budgetEntries: pastBudgetEntries,
+        dailySpent: 0,
+        lastExpenseCategory: null,
+        dailyPeriodStart: todayStart,
+        settings: state.settings.copyWith(
+          dailyLimit: null,
+          hasConfiguredBudget: state.settings.weeklyLimit != null ||
+              state.settings.monthlyLimit != null,
+        ),
+      );
+
+      // 4. Notify if notifyOnDailyReset is enabled
+      if (state.settings.notifyOnDailyReset) {
+        _notificationService.showBudgetReminder(
+          title: 'Daily Budget Reset',
+          body:
+              'A new day has started! Your daily budget and today\'s entries have reset.',
+        );
+      }
+
+      // 5. Recalculate spending and backfill through today
+      _recalculatePeriodSpending(now);
+      _backfillMissingDays(currentDate: now);
+      await _repository.saveState(state);
+    } else {
+      // Same day: ensure missing days are backfilled and save
+      _refreshPeriodTracking();
+      _backfillMissingDays(currentDate: now);
+      await _repository.saveState(state);
+    }
+  }
+
+  void _backfillMissingDays({DateTime? currentDate}) {
+    final DateTime currentNow = currentDate ?? now;
+    final DateTime today =
+        DateTime(currentNow.year, currentNow.month, currentNow.day);
+
     final List<ExpenseEntry> mainExpenses = state.expenses
         .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
         .toList();
     final BudgetSummary currentSummary =
         _service.computeSummary(state.copyWith(expenses: mainExpenses));
-    final DateTime now = DateTime.now();
+
+    final Set<DateTime> knownDateSet = <DateTime>{};
+
+    for (final DailyRecord record in state.dailyRecords) {
+      knownDateSet
+          .add(DateTime(record.date.year, record.date.month, record.date.day));
+    }
+    for (final ExpenseEntry expense in state.expenses) {
+      if (expense.source != 'togetherSpend') {
+        knownDateSet.add(DateTime(
+          expense.dateTime.year,
+          expense.dateTime.month,
+          expense.dateTime.day,
+        ));
+      }
+    }
+    for (final BudgetEntry entry in state.budgetEntries) {
+      knownDateSet.add(DateTime(
+        entry.date.year,
+        entry.date.month,
+        entry.date.day,
+      ));
+    }
+    if (state.dailyPeriodStart != null) {
+      final DateTime pStart = state.dailyPeriodStart!;
+      knownDateSet.add(DateTime(pStart.year, pStart.month, pStart.day));
+    }
+    if (state.settings.budgetCreatedAt != null) {
+      final DateTime cDate = state.settings.budgetCreatedAt!;
+      knownDateSet.add(DateTime(cDate.year, cDate.month, cDate.day));
+    }
+
+    knownDateSet.add(today);
+
+    final List<DateTime> sortedKnownDates = knownDateSet.toList()
+      ..sort((DateTime a, DateTime b) => a.compareTo(b));
+
+    DateTime earliest = sortedKnownDates.first;
+    final DateTime maxPast = today.subtract(const Duration(days: 365));
+    if (earliest.isBefore(maxPast)) {
+      earliest = maxPast;
+    }
+
     final List<DailyRecord> updatedRecords = <DailyRecord>[
       ...state.dailyRecords
     ];
-    final int existingIndex = updatedRecords
-        .indexWhere((DailyRecord record) => _isSameDay(record.date, now));
 
-    // Do not count or create a savings date if no budget amount was set and no spending logged.
-    if (currentSummary.totalBudget <= 0 && currentSummary.totalSpent <= 0) {
-      if (existingIndex >= 0) {
-        updatedRecords.removeAt(existingIndex);
-        state = state.copyWith(dailyRecords: updatedRecords);
+    DateTime cursor = earliest;
+    while (!cursor.isAfter(today)) {
+      final int existingIndex = updatedRecords.indexWhere(
+        (DailyRecord r) => _isSameDay(r.date, cursor),
+      );
+
+      if (existingIndex < 0) {
+        // Missing day! Backfill record
+        updatedRecords.add(_buildDailyRecordForDate(cursor));
+      } else if (_isSameDay(cursor, today)) {
+        // Update today's record with active data
+        updatedRecords[existingIndex] = _buildDailyRecordForDate(
+          today,
+          todaySummary: currentSummary,
+        );
       }
-      return;
-    }
-    final DailyRecord record = DailyRecord(
-      date: now,
-      totalSpent: currentSummary.totalSpent,
-      remainingBalance: currentSummary.remainingBalance,
-      savings: currentSummary.savings,
-      biggestExpenseCategory: currentSummary.biggestExpenseCategory,
-      categoryTotals: currentSummary.categoryTotals,
-    );
 
-    if (existingIndex >= 0) {
-      updatedRecords[existingIndex] = record;
-    } else {
-      updatedRecords.add(record);
+      cursor = DateTime(cursor.year, cursor.month, cursor.day + 1);
     }
 
-    while (updatedRecords.length > 30) {
+    updatedRecords
+        .sort((DailyRecord a, DailyRecord b) => a.date.compareTo(b.date));
+
+    while (updatedRecords.length > 365) {
       updatedRecords.removeAt(0);
     }
 
     state = state.copyWith(dailyRecords: updatedRecords);
+  }
+
+  DailyRecord _buildDailyRecordForDate(
+    DateTime date, {
+    BudgetSummary? todaySummary,
+  }) {
+    final DateTime dayStart = DateTime(date.year, date.month, date.day);
+    final DateTime currentNow = now;
+    final bool isToday = _isSameDay(dayStart, currentNow);
+
+    if (isToday && todaySummary != null) {
+      return DailyRecord(
+        date: dayStart,
+        totalSpent: todaySummary.totalSpent,
+        remainingBalance: todaySummary.remainingBalance,
+        savings: todaySummary.savings,
+        biggestExpenseCategory: todaySummary.biggestExpenseCategory,
+        categoryTotals: todaySummary.categoryTotals,
+      );
+    }
+
+    final List<ExpenseEntry> dayExpenses = state.expenses
+        .where((ExpenseEntry expense) =>
+            expense.source != 'togetherSpend' &&
+            _isSameDay(expense.dateTime, dayStart))
+        .toList();
+
+    final double totalSpent = dayExpenses.fold(
+      0.0,
+      (double sum, ExpenseEntry expense) => sum + expense.amount,
+    );
+
+    final Map<String, double> categoryTotals = <String, double>{
+      for (final BudgetCategory category in BudgetCategory.values)
+        category.label: 0.0,
+    };
+    for (final ExpenseEntry expense in dayExpenses) {
+      categoryTotals[expense.category.label] =
+          (categoryTotals[expense.category.label] ?? 0.0) + expense.amount;
+    }
+
+    final String biggestExpenseCategory = dayExpenses.isEmpty
+        ? BudgetCategory.miscellaneous.label
+        : dayExpenses
+            .reduce((ExpenseEntry a, ExpenseEntry b) =>
+                a.amount >= b.amount ? a : b)
+            .category
+            .label;
+
+    final BudgetEntry? entry = state.budgetEntries
+        .cast<BudgetEntry?>()
+        .firstWhere(
+          (BudgetEntry? e) => e != null && _isSameDay(e.date, dayStart),
+          orElse: () => null,
+        );
+
+    double dayBudget = entry?.amount ?? 0.0;
+    if (dayBudget <= 0 && isToday) {
+      dayBudget = state.settings.dailyLimit ?? 0.0;
+    }
+
+    final double remainingBalance =
+        dayBudget > 0 ? (dayBudget - totalSpent) : -totalSpent;
+    final double savings = dayBudget > 0
+        ? (dayBudget - totalSpent)
+        : (totalSpent > 0 ? -totalSpent : 0.0);
+
+    return DailyRecord(
+      date: dayStart,
+      totalSpent: totalSpent,
+      remainingBalance: remainingBalance,
+      savings: savings,
+      biggestExpenseCategory: biggestExpenseCategory,
+      categoryTotals: categoryTotals,
+    );
+  }
+
+  Future<void> _syncDailyRecord() async {
+    _backfillMissingDays();
   }
 
   bool _isSameDay(DateTime left, DateTime right) {
@@ -565,7 +850,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       title: title,
       amount: amount,
       category: category,
-      dateTime: dateTime ?? DateTime.now(),
+      dateTime: dateTime ?? now,
       note: note,
       source: source,
       spendCategory: spendCategory,
@@ -582,27 +867,35 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     DateTime? date,
   }) {
     final DateTime budgetDate = DateTime(
-      (date ?? DateTime.now()).year,
-      (date ?? DateTime.now()).month,
-      (date ?? DateTime.now()).day,
+      (date ?? now).year,
+      (date ?? now).month,
+      (date ?? now).day,
     );
     final List<BudgetEntry> updatedEntries = <BudgetEntry>[
       ...state.budgetEntries.where(
         (BudgetEntry entry) => !_isSameDay(entry.date, budgetDate),
       ),
-      BudgetEntry(date: budgetDate, amount: amount),
+      if (amount > 0) BudgetEntry(date: budgetDate, amount: amount),
     ]..sort((BudgetEntry left, BudgetEntry right) {
         return left.date.compareTo(right.date);
       });
 
     state = state.copyWith(
       budgetEntries: updatedEntries,
+      dailyPeriodStart: budgetDate,
       settings: state.settings.copyWith(
         dailyLimit: amount > 0 ? amount : null,
-        hasConfiguredBudget: amount > 0,
+        hasConfiguredBudget: amount > 0 ||
+            state.settings.weeklyLimit != null ||
+            state.settings.monthlyLimit != null,
+        budgetCreatedAt: now,
       ),
     );
     _persist();
+  }
+
+  void clearDailyBudget({DateTime? date}) {
+    recordDailyBudget(amount: 0, date: date);
   }
 
   void updateExpense(ExpenseEntry expense) {
@@ -698,27 +991,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void resetForNextDay() {
-    final DateTime now = DateTime.now();
-    final DateTime todayStart = DateTime(now.year, now.month, now.day);
-    final List<ExpenseEntry> remainingExpenses = state.expenses
-        .where((ExpenseEntry expense) => expense.dateTime.isBefore(todayStart))
-        .toList();
-    final List<BudgetEntry> remainingBudgetEntries = state.budgetEntries
-        .where((BudgetEntry entry) => !_isSameDay(entry.date, todayStart))
-        .toList();
-
-    state = state.copyWith(
-      expenses: remainingExpenses,
-      budgetEntries: remainingBudgetEntries,
-      dailySpent: 0,
-      dailyPeriodStart: todayStart,
-      settings: state.settings.copyWith(
-        dailyLimit: null,
-        hasConfiguredBudget: state.settings.weeklyLimit != null ||
-            state.settings.monthlyLimit != null,
-      ),
-    );
-    _persist();
+    syncDateAndCheckMidnightReset(forceReset: true);
   }
 
   Future<void> resetApp() async {

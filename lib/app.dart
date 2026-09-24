@@ -9,11 +9,38 @@ import 'features/onboarding/onboarding_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/home/home_shell.dart';
 
-class BudgetBuddyApp extends ConsumerWidget {
+class BudgetBuddyApp extends ConsumerStatefulWidget {
   const BudgetBuddyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BudgetBuddyApp> createState() => _BudgetBuddyAppState();
+}
+
+class _BudgetBuddyAppState extends ConsumerState<BudgetBuddyApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.resumed) {
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .syncDateAndCheckMidnightReset();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
 
     return MaterialApp(

@@ -38,6 +38,27 @@ class TestController extends StateNotifier<BudgetBuddyState>
     );
   }
 
+  @override
+  bool get isTimeSimulated => false;
+
+  @override
+  DateTime get currentEffectiveTime => DateTime.now();
+
+  @override
+  Future<void> simulateMidnightReset() async {}
+
+  @override
+  Future<void> setSimulatedDateTime(DateTime dateTime) async {}
+
+  @override
+  Future<void> fastForwardOneDay() async {}
+
+  @override
+  Future<void> setSimulatedTimeTo1159PM() async {}
+
+  @override
+  Future<void> resetSimulatedTime() async {}
+
   // The rest of BudgetBuddyController interface methods are not needed here.
   @override
   Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
