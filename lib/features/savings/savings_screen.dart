@@ -89,7 +89,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       icon: Icons.savings_rounded,
                       color: widget.isTogetherOnly
                           ? const Color(0xFF0F766E)
-                          : const Color(0xFFD4AF37),
+                          : const Color(0xFFD97706),
                       centerContent: true,
                     ),
                     const SizedBox(height: 16),
@@ -239,7 +239,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       builder: (BuildContext sheetContext) {
         final bool isOverspent = record.savings < 0;
         final Color accent =
-            isOverspent ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+            isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
         final List<MapEntry<String, double>> categories = record
             .categoryTotals.entries
             .toList()
@@ -399,7 +399,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         );
         final bool isOverspent = monthSavings < 0;
         final Color accent =
-            isOverspent ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+            isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
 
         return SafeArea(
           child: ConstrainedBox(
@@ -660,7 +660,7 @@ class _SavingsDateTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isOverspent = record.savings < 0;
     final Color accent =
-        isOverspent ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+        isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -739,7 +739,7 @@ class _SavingsMonthTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isOverspent = savings < 0;
     final Color accent =
-        isOverspent ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+        isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),

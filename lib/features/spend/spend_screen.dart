@@ -49,6 +49,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF991B1B),
+                ),
                 child: const Text('Cancel'),
               ),
               FilledButton(

@@ -100,6 +100,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         confirmLabel: 'Update Now',
         confirmColor: const Color(0xFF0F766E),
         icon: Icons.sync_rounded,
+        autoConfirm: true,
       ),
     );
 
@@ -137,8 +138,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         message:
             'This will reset today\'s active budget and spending back to ₱0 so you can start a fresh new day.',
         confirmLabel: 'Reset Now',
-        confirmColor: Color(0xFFDC2626),
+        confirmColor: Color(0xFF991B1B),
         icon: Icons.restart_alt_rounded,
+        autoConfirm: false,
       ),
     );
 
@@ -297,7 +299,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                       color: hasBudget
                           ? (isLocked
                               ? const Color(0xFF0F766E).withValues(alpha: 0.12)
-                              : Colors.amber.withValues(alpha: 0.15))
+                              : const Color(0xFFD97706).withValues(alpha: 0.15))
                           : Colors.grey.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -314,7 +316,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           color: hasBudget
                               ? (isLocked
                                   ? const Color(0xFF0F766E)
-                                  : Colors.amber.shade800)
+                                  : const Color(0xFFD97706))
                               : Colors.grey.shade600,
                         ),
                         const SizedBox(width: 4),
@@ -330,7 +332,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             color: hasBudget
                                 ? (isLocked
                                     ? const Color(0xFF0F766E)
-                                    : Colors.amber.shade800)
+                                    : const Color(0xFFD97706))
                                 : Colors.grey.shade600,
                           ),
                         ),
@@ -356,7 +358,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 decoration: BoxDecoration(
                                   color: (isLocked
                                           ? const Color(0xFF0F766E)
-                                          : Colors.amber.shade800)
+                                          : const Color(0xFFD97706))
                                       .withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                 ),
@@ -366,7 +368,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                       : Icons.account_balance_wallet_rounded,
                                   color: isLocked
                                       ? const Color(0xFF0F766E)
-                                      : Colors.amber.shade800,
+                                      : const Color(0xFFD97706),
                                   size: 22,
                                 ),
                               ),
@@ -409,13 +411,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
-                              color: isLocked
-                                  ? Theme.of(context).colorScheme.onSurface
-                                  : const Color(0xFF0F766E),
+                              color: Color(0xFFD97706),
                             ),
                             onChanged: (_) => setState(() {}),
                             onSubmitted: (_) {
@@ -440,16 +440,12 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 ),
                                 alignment: Alignment.centerLeft,
                                 width: 44,
-                                child: Text(
+                                child: const Text(
                                   '₱',
                                   style: TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w800,
-                                    color: isLocked
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant
-                                        : const Color(0xFF0F766E),
+                                    color: Color(0xFFD97706),
                                   ),
                                 ),
                               ),
@@ -474,7 +470,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                     )
                                   : (_dailyController.text.isNotEmpty
                                       ? IconButton(
-                                          icon: const Icon(Icons.clear_rounded),
+                                          icon: const Icon(Icons.clear_rounded,
+                                              color: Color(0xFF991B1B)),
                                           onPressed: () {
                                             _dailyController.clear();
                                             setState(() {});
@@ -499,12 +496,20 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                       selected: isSelected,
                                       label:
                                           Text('₱${preset.toStringAsFixed(0)}'),
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? const Color(0xFFD97706)
+                                            : null,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                      ),
                                       onSelected: (_) => _applyPreset(preset),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      selectedColor: const Color(0xFF0F766E)
-                                          .withValues(alpha: 0.2),
+                                      selectedColor: const Color(0xFFD97706)
+                                          .withValues(alpha: 0.18),
                                       showCheckmark: false,
                                     ),
                                   );
@@ -514,19 +519,21 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           ],
                           const SizedBox(height: 16),
 
-                          // Action Buttons
+                          // Action Buttons (Solid Material Colors - No Border Only)
                           if (isLocked) ...<Widget>[
-                            // Locked State: Show Unlock button and Reset button
+                            // Locked State: Show Unlock button (Solid Dark Green) and Reset button (Solid Dark Red)
                             Row(
                               children: <Widget>[
                                 Expanded(
-                                  child: FilledButton.tonalIcon(
+                                  child: FilledButton.icon(
                                     onPressed: _unlockForEditing,
                                     icon: const Icon(Icons.lock_open_rounded,
                                         size: 18),
                                     label: const Text('Unlock to Edit'),
                                     style: FilledButton.styleFrom(
                                       minimumSize: const Size.fromHeight(48),
+                                      backgroundColor: const Color(0xFF0F766E),
+                                      foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
                                       ),
@@ -535,20 +542,15 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: OutlinedButton.icon(
+                                  child: FilledButton.icon(
                                     onPressed: _confirmAndResetBudget,
-                                    icon: const Icon(Icons.refresh_rounded,
-                                        size: 18, color: Color(0xFFDC2626)),
-                                    label: const Text(
-                                      'Reset Budget',
-                                      style: TextStyle(color: Color(0xFFDC2626)),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
+                                    icon: const Icon(Icons.restart_alt_rounded,
+                                        size: 18),
+                                    label: const Text('Reset Budget'),
+                                    style: FilledButton.styleFrom(
                                       minimumSize: const Size.fromHeight(48),
-                                      side: BorderSide(
-                                        color: const Color(0xFFDC2626)
-                                            .withValues(alpha: 0.5),
-                                      ),
+                                      backgroundColor: const Color(0xFF991B1B),
+                                      foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
                                       ),
@@ -558,18 +560,20 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               ],
                             ),
                           ] else if (hasBudget) ...<Widget>[
-                            // Unlocked Editing State: Show Update (with 5s timer confirmation) and Cancel
+                            // Unlocked Editing State: Show Cancel (Solid Red) and Update (Solid Dark Green)
                             Row(
                               children: <Widget>[
                                 Expanded(
-                                  child: OutlinedButton.icon(
+                                  child: FilledButton.icon(
                                     onPressed: () =>
                                         _cancelEditing(currentBudget),
                                     icon: const Icon(Icons.close_rounded,
                                         size: 18),
                                     label: const Text('Cancel'),
-                                    style: OutlinedButton.styleFrom(
+                                    style: FilledButton.styleFrom(
                                       minimumSize: const Size.fromHeight(48),
+                                      backgroundColor: const Color(0xFF991B1B),
+                                      foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
                                       ),
@@ -601,7 +605,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               ],
                             ),
                           ] else ...<Widget>[
-                            // First-time set state: Save button (locks immediately upon save)
+                            // First-time set state: Save button (Solid Dark Green)
                             SizedBox(
                               width: double.infinity,
                               child: FilledButton.icon(
@@ -678,16 +682,14 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            // 3 Clean Metric Columns
+                            // 3 Clean Metric Columns (Gold for Savings & Budget)
                             Row(
                               children: <Widget>[
                                 Expanded(
                                   child: _StatMetricBox(
                                     label: 'Budget',
                                     value: formatPeso(currentBudget),
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface,
+                                    color: const Color(0xFFD97706),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -696,7 +698,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                     label: 'Spent',
                                     value: formatPeso(currentSpent),
                                     color: currentSpent > 0
-                                        ? const Color(0xFFDC2626)
+                                        ? const Color(0xFF991B1B)
                                         : Theme.of(context)
                                             .colorScheme
                                             .onSurface,
@@ -705,11 +707,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: _StatMetricBox(
-                                    label: remaining < 0 ? 'Over' : 'Remaining',
+                                    label: remaining < 0 ? 'Over' : 'Remaining (Savings)',
                                     value: formatPeso(remaining.abs()),
                                     color: remaining < 0
-                                        ? const Color(0xFFDC2626)
-                                        : const Color(0xFF16A34A),
+                                        ? const Color(0xFF991B1B)
+                                        : const Color(0xFFD97706),
                                   ),
                                 ),
                               ],
@@ -727,14 +729,14 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    // 3. Month Summary Card
+                    // 3. Month Summary Card (Gold Accent)
                     BudgetMetricCard(
                       label: 'This Month\'s Total Budget',
                       value: formatPeso(monthlySummary.limit),
                       subtitle:
                           'Sum of daily budgets recorded in ${DateFormat('MMMM yyyy').format(currentClock)}',
-                      icon: Icons.calendar_month_rounded,
-                      color: const Color(0xFF0F766E),
+                      icon: Icons.savings_rounded,
+                      color: const Color(0xFFD97706),
                     ),
                   ],
                 ),
@@ -796,8 +798,9 @@ class _StatMetricBox extends StatelessWidget {
   }
 }
 
-/// A modal confirmation dialog featuring a 5-second countdown timer.
-/// The user can confirm immediately, cancel immediately, or wait 5s for auto-confirmation.
+/// A modal confirmation dialog.
+/// For update: features a 5-second countdown with optional auto-confirmation.
+/// For reset: auto-confirmation is removed, requiring an explicit manual tap.
 class _CountdownConfirmationDialog extends StatefulWidget {
   const _CountdownConfirmationDialog({
     required this.title,
@@ -805,6 +808,7 @@ class _CountdownConfirmationDialog extends StatefulWidget {
     required this.confirmLabel,
     required this.confirmColor,
     required this.icon,
+    this.autoConfirm = false,
   });
 
   final String title;
@@ -812,6 +816,7 @@ class _CountdownConfirmationDialog extends StatefulWidget {
   final String confirmLabel;
   final Color confirmColor;
   final IconData icon;
+  final bool autoConfirm;
 
   @override
   State<_CountdownConfirmationDialog> createState() =>
@@ -838,7 +843,12 @@ class _CountdownConfirmationDialogState
       }
       if (_secondsRemaining <= 1) {
         timer.cancel();
-        Navigator.of(context).pop(true);
+        setState(() {
+          _secondsRemaining = 0;
+        });
+        if (widget.autoConfirm) {
+          Navigator.of(context).pop(true);
+        }
       } else {
         setState(() {
           _secondsRemaining--;
@@ -890,7 +900,7 @@ class _CountdownConfirmationDialogState
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
-          // 5-second countdown progress bar
+          // Countdown progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
@@ -902,30 +912,68 @@ class _CountdownConfirmationDialogState
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Text(
-                'Auto-confirming in $_secondsRemaining s...',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+          if (widget.autoConfirm) ...<Widget>[
+            // Auto-confirming countdown for update
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(
+                  'Auto-confirming in $_secondsRemaining s...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: widget.confirmColor,
+                  ),
+                ),
+                Icon(Icons.timer_outlined, size: 14, color: widget.confirmColor),
+              ],
+            ),
+          ] else ...<Widget>[
+            // Timer for reset, but does NOT auto-confirm when done!
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    _secondsRemaining > 0
+                        ? 'Timer: $_secondsRemaining s (tap "${widget.confirmLabel}" to confirm)'
+                        : 'Timer done. Tap "${widget.confirmLabel}" to confirm.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: widget.confirmColor,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _secondsRemaining > 0
+                      ? Icons.timer_outlined
+                      : Icons.touch_app_rounded,
+                  size: 14,
                   color: widget.confirmColor,
                 ),
-              ),
-              Icon(Icons.timer_outlined, size: 14, color: widget.confirmColor),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
       actions: <Widget>[
-        TextButton(
+        // Solid Red Cancel Button
+        FilledButton(
           onPressed: () {
             _timer?.cancel();
             Navigator.of(context).pop(false);
           },
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF991B1B),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
           child: const Text('Cancel'),
         ),
+        // Solid Confirm Button
         FilledButton.icon(
           onPressed: () {
             _timer?.cancel();
@@ -936,6 +984,9 @@ class _CountdownConfirmationDialogState
           style: FilledButton.styleFrom(
             backgroundColor: widget.confirmColor,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ],

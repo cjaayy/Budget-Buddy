@@ -150,7 +150,7 @@ void main() {
     expect(tf.readOnly, isTrue);
   });
 
-  testWidgets('reset budget shows 5s confirmation dialog and auto-confirms reset',
+  testWidgets('reset budget confirmation does NOT auto-confirm, requires manual tap',
       (WidgetTester tester) async {
     repo.storedState = BudgetBuddyState.initial().copyWith(
       settings: BudgetSettings.defaults().copyWith(
@@ -171,14 +171,16 @@ void main() {
     await tester.pumpWidget(buildTestWidget(controller));
     await tester.pumpAndSettle();
 
-    // Tap Reset Budget
+    // Tap Reset Budget (solid dark red button)
     await tester.tap(find.text('Reset Budget'));
     await tester.pumpAndSettle();
 
-    // Confirmation dialog appears with 5s countdown
+    // Confirmation dialog appears with countdown timer
     expect(find.text('Confirm Budget Reset'), findsOneWidget);
+    expect(find.textContaining('Timer:'), findsOneWidget);
 
-    // Let 5 seconds pass to test auto-confirmation!
+    // Let 6 seconds pass: timer finishes, but budget MUST NOT auto-confirm!
+    await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
@@ -186,10 +188,87 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
 
-    // Budget is reset, daily limit is null, and input is unlocked for new day
+    // Timer is done, but dialog is STILL open and budget is not reset
+    expect(find.textContaining('Timer done'), findsOneWidget);
+    expect(controller.state.settings.dailyLimit, equals(500));
+    expect(find.text('Confirm Budget Reset'), findsOneWidget);
+
+    // Tap Reset Now to manually confirm
+    await tester.tap(find.text('Reset Now'));
+    await tester.pumpAndSettle();
+
+    // Budget is now reset, daily limit is null, spending is reset to 0, and input is unlocked for new day
     expect(controller.state.settings.dailyLimit, isNull);
     expect(controller.state.settings.hasConfiguredBudget, isFalse);
+    expect(controller.state.dailySpent, equals(0));
     final TextField tf = tester.widget<TextField>(find.byType(TextField));
     expect(tf.readOnly, isFalse);
+  });
+
+  testWidgets('verifies MD solid buttons (green current, dark red reset, no border only) and gold money',
+      (WidgetTester tester) async {
+    repo.storedState = BudgetBuddyState.initial().copyWith(
+      settings: BudgetSettings.defaults().copyWith(
+        dailyLimit: 600,
+        hasConfiguredBudget: true,
+      ),
+      budgetEntries: [
+        BudgetEntry(date: DateTime.now(), amount: 600),
+      ],
+      dailySpent: 100,
+    );
+
+    final controller = BudgetBuddyController(
+      repository: repo,
+      service: service,
+      notificationService: notificationService,
+    );
+    await tester.pumpWidget(buildTestWidget(controller));
+    await tester.pumpAndSettle();
+
+    // Verify there are NO OutlinedButtons (no border-only buttons)
+    expect(find.byType(OutlinedButton), findsNothing);
+
+    // Verify Unlock button is FilledButton with solid dark green (Color(0xFF0F766E))
+    final Finder unlockBtnFinder = find.widgetWithText(FilledButton, 'Unlock to Edit');
+    expect(unlockBtnFinder, findsOneWidget);
+    final FilledButton unlockBtn = tester.widget<FilledButton>(unlockBtnFinder);
+    expect(
+      unlockBtn.style?.backgroundColor?.resolve({}),
+      equals(const Color(0xFF0F766E)),
+    );
+
+    // Verify Reset button is FilledButton with solid dark red (Color(0xFF991B1B))
+    final Finder resetBtnFinder = find.widgetWithText(FilledButton, 'Reset Budget');
+    expect(resetBtnFinder, findsOneWidget);
+    final FilledButton resetBtn = tester.widget<FilledButton>(resetBtnFinder);
+    expect(
+      resetBtn.style?.backgroundColor?.resolve({}),
+      equals(const Color(0xFF991B1B)),
+    );
+
+    // Tap Unlock to check Cancel button color
+    await tester.tap(unlockBtnFinder);
+    await tester.pumpAndSettle();
+
+    // Verify Cancel button is red (Color(0xFF991B1B))
+    final Finder cancelBtnFinder = find.widgetWithText(FilledButton, 'Cancel');
+    expect(cancelBtnFinder, findsOneWidget);
+    final FilledButton cancelBtn = tester.widget<FilledButton>(cancelBtnFinder);
+    expect(
+      cancelBtn.style?.backgroundColor?.resolve({}),
+      equals(const Color(0xFF991B1B)),
+    );
+
+    // Verify currency prefix is gold (Color(0xFFD97706))
+    final Finder pesoFinder = find.text('₱');
+    expect(pesoFinder, findsOneWidget);
+    final Text pesoText = tester.widget<Text>(pesoFinder);
+    expect(pesoText.style?.color, equals(const Color(0xFFD97706)));
+
+    // Verify budget number in TextField is gold (Color(0xFFD97706))
+    final Finder tfFinder = find.byType(TextField);
+    final TextField tfWidget = tester.widget<TextField>(tfFinder);
+    expect(tfWidget.style?.color, equals(const Color(0xFFD97706)));
   });
 }

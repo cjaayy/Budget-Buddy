@@ -895,7 +895,34 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void clearDailyBudget({DateTime? date}) {
-    recordDailyBudget(amount: 0, date: date);
+    final DateTime targetDate = DateTime(
+      (date ?? now).year,
+      (date ?? now).month,
+      (date ?? now).day,
+    );
+
+    final List<BudgetEntry> updatedEntries = state.budgetEntries
+        .where((BudgetEntry entry) => !_isSameDay(entry.date, targetDate))
+        .toList();
+
+    // When budget is reset, also reset today's spend because there is no budget to spend
+    final List<ExpenseEntry> remainingExpenses = state.expenses
+        .where((ExpenseEntry entry) => !_isSameDay(entry.dateTime, targetDate))
+        .toList();
+
+    state = state.copyWith(
+      expenses: remainingExpenses,
+      budgetEntries: updatedEntries,
+      dailySpent: 0,
+      dailyPeriodStart: targetDate,
+      settings: state.settings.copyWith(
+        dailyLimit: null,
+        hasConfiguredBudget: state.settings.weeklyLimit != null ||
+            state.settings.monthlyLimit != null,
+        budgetCreatedAt: now,
+      ),
+    );
+    _persist();
   }
 
   void updateExpense(ExpenseEntry expense) {

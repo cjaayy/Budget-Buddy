@@ -51,6 +51,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF991B1B),
+                ),
                 child: const Text('Cancel'),
               ),
               FilledButton(
@@ -626,6 +629,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 const SizedBox(height: 8),
                 TextButton(
                     onPressed: () => Navigator.of(sheetContext).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF991B1B),
+                    ),
                     child: const Text('Cancel')),
               ],
             ),
@@ -864,6 +870,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () => Navigator.of(sheetContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF991B1B),
+                    foregroundColor: Colors.white,
+                  ),
                   child: const Text('Close'),
                 ),
               ),
@@ -884,6 +894,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           actions: <Widget>[
             TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF991B1B),
+                ),
                 child: const Text('Cancel')),
             FilledButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),

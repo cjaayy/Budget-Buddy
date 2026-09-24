@@ -199,7 +199,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                             Row(
                               children: <Widget>[
                                 Expanded(
-                                  child: OutlinedButton.icon(
+                                  child: FilledButton.icon(
                                     onPressed: () {
                                       FocusScope.of(context).unfocus();
                                       setState(() {
@@ -211,6 +211,10 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                                     },
                                     icon: const Icon(Icons.close_rounded),
                                     label: const Text('Cancel'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF991B1B),
+                                      foregroundColor: Colors.white,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
