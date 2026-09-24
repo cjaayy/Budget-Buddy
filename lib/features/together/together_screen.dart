@@ -213,8 +213,6 @@ class TogetherScreen extends ConsumerWidget {
                       accentColor: palette.gold,
                       accentBg: palette.goldBg,
                       accentBorder: palette.goldBorder,
-                      actionLabel: hasBudget ? 'Edit' : 'Set',
-                      actionBg: palette.gold,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -235,8 +233,6 @@ class TogetherScreen extends ConsumerWidget {
                       accentColor: palette.darkGreen,
                       accentBg: palette.darkGreenBg,
                       accentBorder: palette.darkGreenBorder,
-                      actionLabel: 'Spend',
-                      actionBg: palette.darkGreen,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -257,8 +253,6 @@ class TogetherScreen extends ConsumerWidget {
                       accentColor: palette.darkRed,
                       accentBg: palette.darkRedBg,
                       accentBorder: palette.darkRedBorder,
-                      actionLabel: 'View',
-                      actionBg: palette.darkRed,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -281,8 +275,6 @@ class TogetherScreen extends ConsumerWidget {
                       accentColor: palette.gold,
                       accentBg: palette.goldBg,
                       accentBorder: palette.goldBorder,
-                      actionLabel: 'Savings',
-                      actionBg: palette.gold,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -562,8 +554,6 @@ class TogetherScreen extends ConsumerWidget {
     required Color accentColor,
     required Color accentBg,
     required Color accentBorder,
-    required String actionLabel,
-    required Color actionBg,
     required VoidCallback onTap,
   }) {
     final ThemeData theme = Theme.of(context);
@@ -616,28 +606,10 @@ class TogetherScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: actionBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    actionLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 16, color: Colors.white),
-                ],
-              ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 22,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ],
         ),

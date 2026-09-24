@@ -296,24 +296,30 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // Back Button (If pushed on top of another screen)
+              // Back Button (When opened from Together Hub)
               if (Navigator.of(context).canPop()) ...<Widget>[
-                FilledButton.tonalIcon(
+                FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      size: 16, color: Colors.white),
                   label: const Text(
-                    'Back to Menu',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                    'Back',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: palette.darkGreenBg,
-                    foregroundColor: palette.darkGreen,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor: palette.darkGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 0,
                   ),
                 ),
                 const SizedBox(height: 8),

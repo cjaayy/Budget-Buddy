@@ -279,25 +279,30 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // Back Button (If pushed on top of another screen)
-              if (Navigator.of(context).canPop()) ...<Widget>[
-                FilledButton.tonalIcon(
+              // Back Button (When opened from Budget Together)
+              if (widget.isTogetherOnly && Navigator.of(context).canPop()) ...<Widget>[
+                FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                  label: Text(
-                    widget.isTogetherOnly ? 'Back to Budget Together' : 'Back',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 12),
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      size: 16, color: Colors.white),
+                  label: const Text(
+                    'Back',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: palette.darkGreenBg,
-                    foregroundColor: palette.darkGreen,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor: palette.darkGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 0,
                   ),
                 ),
                 const SizedBox(height: 8),

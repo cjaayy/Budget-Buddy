@@ -287,25 +287,30 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // Back Button (If pushed from another screen)
-              if (Navigator.of(context).canPop()) ...<Widget>[
-                FilledButton.tonalIcon(
+              // Back Button (When opened from Budget Together)
+              if (widget.isTogetherOnly && Navigator.of(context).canPop()) ...<Widget>[
+                FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                  label: Text(
-                    widget.isTogetherOnly ? 'Back to Budget Together' : 'Back',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 12),
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      size: 16, color: Colors.white),
+                  label: const Text(
+                    'Back',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: palette.darkGreenBg,
-                    foregroundColor: palette.darkGreen,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor: palette.darkGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 0,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -673,71 +678,16 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         children: <Widget>[
           // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.today_rounded, size: 16, color: palette.darkGreen),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Today\'s Expenses',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: <Widget>[
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: palette.goldBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: palette.goldBorder),
-                    ),
-                    child: Text(
-                      '${todayExpenses.length} logged',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: palette.gold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => _showExpenseDialog(ref),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: palette.darkGreenBg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: palette.darkGreenBorder),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(Icons.add_rounded,
-                              size: 14, color: palette.darkGreen),
-                          const SizedBox(width: 2),
-                          Text(
-                            'Add',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: palette.darkGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(Icons.today_rounded, size: 16, color: palette.darkGreen),
+              const SizedBox(width: 6),
+              Text(
+                'Today\'s Expenses',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ],
           ),
@@ -2344,147 +2294,213 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Hero Card: Title, Amount, Badges
+                // Clean Simple Details Card (Focus on Price, with Notes inside)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: palette.darkRedBg,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: palette.darkRedBorder),
+                    color: theme.cardTheme.color ?? theme.cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Price (Hero Centerpiece)
+                      Text(
+                        formatPeso(expense.amount),
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1,
+                          color: palette.darkRed,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Title
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Category & Source Pills
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.center,
                         children: <Widget>[
                           Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: iconColor.withValues(alpha: 0.16),
-                              shape: BoxShape.circle,
+                              color: iconColor.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
-                              iconData,
-                              color: iconColor,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
+                                Icon(iconData, size: 13, color: iconColor),
+                                const SizedBox(width: 5),
                                 Text(
-                                  title,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
+                                  expense.category.label,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: iconColor,
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 4,
-                                  children: <Widget>[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: palette.goldBg,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                            color: palette.goldBorder),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: <Widget>[
-                                          Icon(sourceIcon,
-                                              size: 11, color: palette.gold),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            sourceLabel,
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                              color: palette.gold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (!_isCategoryDuplicate(
-                                        expense.title,
-                                        expense.category,
-                                        expense.spendCategory))
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 7, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              iconColor.withValues(alpha: 0.14),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          expense.category.label,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: iconColor,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: <Widget>[
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Amount Spent',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onSurfaceVariant,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: palette.goldBg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: palette.goldBorder),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Icon(sourceIcon,
+                                    size: 12, color: palette.gold),
+                                const SizedBox(width: 5),
+                                Text(
+                                  sourceLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.gold,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                formatPeso(expense.amount),
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                  color: palette.darkRed,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                          if (percentOfDaily != null)
+                          if (expense.spendCategory.trim().isNotEmpty &&
+                              !_isCategoryDuplicate(
+                                  expense.title,
+                                  expense.category,
+                                  expense.spendCategory))
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                                  horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: palette.darkRedBg,
+                                color: palette.darkGreenBg,
                                 borderRadius: BorderRadius.circular(8),
-                                border:
-                                    Border.all(color: palette.darkRedBorder),
+                                border: Border.all(
+                                    color: palette.darkGreenBorder),
                               ),
                               child: Text(
-                                '${percentOfDaily.toStringAsFixed(1)}% of daily',
+                                expense.spendCategory.trim(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.darkGreen,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Divider(
+                        height: 1,
+                        color: theme.colorScheme.outlineVariant
+                            .withValues(alpha: 0.25),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Date & Time row
+                      Row(
+                        children: <Widget>[
+                          Icon(Icons.calendar_today_rounded,
+                              size: 14, color: palette.gold),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Date & Time',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            DateFormat('MMM d, yyyy • h:mm a')
+                                .format(expense.dateTime),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (categoryLimit > 0) ...<Widget>[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: <Widget>[
+                            Icon(Icons.pie_chart_outline_rounded,
+                                size: 14, color: palette.gold),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Category Budget',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              formatPeso(categoryLimit),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: palette.gold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      if (percentOfDaily != null) ...<Widget>[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: <Widget>[
+                            Icon(Icons.speed_rounded,
+                                size: 14, color: palette.darkRed),
+                            const SizedBox(width: 8),
+                            Text(
+                              '% of Daily Budget',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: palette.darkRedBg,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: palette.darkRedBorder),
+                              ),
+                              child: Text(
+                                '${percentOfDaily.toStringAsFixed(1)}%',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
@@ -2492,146 +2508,62 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Organized Details Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.cardTheme.color ?? theme.cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Icon(Icons.format_list_bulleted_rounded,
-                              size: 15, color: palette.gold),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Transaction Information',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Divider(height: 1),
-                      _buildDetailRow(
-                        theme: theme,
-                        icon: Icons.calendar_today_rounded,
-                        iconColor: palette.gold,
-                        label: 'Date',
-                        value: DateFormat('EEEE, MMM d, yyyy')
-                            .format(expense.dateTime),
-                      ),
-                      const Divider(height: 1),
-                      _buildDetailRow(
-                        theme: theme,
-                        icon: Icons.access_time_rounded,
-                        iconColor: palette.gold,
-                        label: 'Time',
-                        value: DateFormat('h:mm a').format(expense.dateTime),
-                      ),
-                      const Divider(height: 1),
-                      _buildDetailRow(
-                        theme: theme,
-                        icon: iconData,
-                        iconColor: iconColor,
-                        label: 'Category',
-                        value: expense.category.label,
-                        valueColor: iconColor,
-                      ),
-                      if (expense.spendCategory.trim().isNotEmpty) ...<Widget>[
-                        const Divider(height: 1),
-                        _buildDetailRow(
-                          theme: theme,
-                          icon: _expenseIconForExpense(expense),
-                          iconColor: palette.darkGreen,
-                          label: 'Spend Tag',
-                          value: expense.spendCategory.trim(),
+                          ],
                         ),
                       ],
-                      if (categoryLimit > 0) ...<Widget>[
-                        const Divider(height: 1),
-                        _buildDetailRow(
-                          theme: theme,
-                          icon: Icons.pie_chart_outline_rounded,
-                          iconColor: palette.gold,
-                          label: 'Category Budget',
-                          value: formatPeso(categoryLimit),
-                        ),
-                      ],
-                      const Divider(height: 1),
-                      _buildDetailRow(
-                        theme: theme,
-                        icon: sourceIcon,
-                        iconColor: palette.darkGreen,
-                        label: 'Logged Via',
-                        value: sourceLabel,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
 
-                // Note / Remarks Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.cardTheme.color ?? theme.cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Icon(Icons.notes_rounded,
-                              size: 15, color: palette.gold),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Remarks / Note',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: theme.colorScheme.onSurface,
-                            ),
+                      const SizedBox(height: 14),
+
+                      // Notes Container directly inside the card ("the notes is in there")
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant
+                                .withValues(alpha: 0.25),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        displayNote.isNotEmpty
-                            ? displayNote
-                            : 'No remarks added for this expense.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontStyle: displayNote.isEmpty
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                          color: displayNote.isNotEmpty
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Row(
+                              children: <Widget>[
+                                Icon(Icons.notes_rounded,
+                                    size: 14, color: palette.gold),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Notes',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.gold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              displayNote.isNotEmpty
+                                  ? displayNote
+                                  : 'No notes added for this expense.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                height: 1.35,
+                                fontStyle: displayNote.isEmpty
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
+                                color: displayNote.isNotEmpty
+                                    ? theme.colorScheme.onSurface
+                                    : theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -2716,49 +2648,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
-  Widget _buildDetailRow({
-    required ThemeData theme,
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    Color? valueColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 13, color: iconColor),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: valueColor ?? theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<bool> _confirmDeleteExpense(
     BuildContext context,
