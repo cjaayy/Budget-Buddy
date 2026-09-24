@@ -270,13 +270,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // 1. Compact Header: Single line title + date + status pill
+              // 1. Compact Header: Single line title + date
               _buildHeader(
                 context,
                 currentClock: currentClock,
-                hasBudget: hasBudget,
-                isLocked: isLocked,
-                palette: palette,
               ),
               const SizedBox(height: 12),
 
@@ -332,71 +329,24 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   Widget _buildHeader(
     BuildContext context, {
     required DateTime currentClock,
-    required bool hasBudget,
-    required bool isLocked,
-    required _BudgetPalette palette,
   }) {
-    final Color statusColor =
-        isLocked ? Colors.white : (hasBudget ? palette.gold : palette.darkRed);
-    final Color statusBg = isLocked
-        ? palette.darkGreen
-        : (hasBudget ? palette.goldBg : palette.darkRedBg);
-    final Color statusBorder = isLocked
-        ? palette.darkGreen
-        : (hasBudget ? palette.goldBorder : palette.darkRedBorder);
-    final IconData statusIcon = isLocked
-        ? Icons.check_circle_rounded
-        : (hasBudget
-            ? Icons.edit_rounded
-            : Icons.radio_button_unchecked_rounded);
-    final String statusLabel =
-        isLocked ? 'Active' : (hasBudget ? 'Editing' : 'No Budget Set');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Daily Budget',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, MMM d').format(currentClock),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(statusIcon, size: 12, color: statusColor),
-              const SizedBox(width: 5),
-              Text(
-                statusLabel,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+        Text(
+          'Daily Budget',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
@@ -680,20 +630,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final Color barColor = isOver
         ? palette.darkRed
         : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    const Color badgeColor = Colors.white;
-    final Color badgeBg = isOver
-        ? palette.darkRed
-        : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBorder = isOver
-        ? palette.darkRed
-        : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-
-    final String badgeLabel = !hasBudget
-        ? 'Unset'
-        : isOver
-            ? 'Over by ${formatPeso(remaining.abs())}'
-            : '${(progressValue * 100).toInt()}% Used';
-
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints _) {
         return Container(
@@ -710,38 +646,16 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 children: <Widget>[
                   // Header Row
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Icon(Icons.analytics_rounded,
-                              size: 16, color: palette.darkGreen),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Daily Spending',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: badgeBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: badgeBorder),
-                        ),
-                        child: Text(
-                          badgeLabel,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: badgeColor,
-                          ),
+                      Icon(Icons.analytics_rounded,
+                          size: 16, color: palette.darkGreen),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Daily Spending',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                     ],

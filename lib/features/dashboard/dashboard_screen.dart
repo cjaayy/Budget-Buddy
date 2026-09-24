@@ -53,13 +53,6 @@ class _CompactMetricTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: bgColor.withValues(alpha: 0.32),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,11 +204,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? (spentAdjusted / totalBudget).clamp(0.0, 1.0)
         : 0.0;
 
-    final List<ExpenseEntry> recentExpenses = state.expenses
-        .where((ExpenseEntry e) => e.source != 'togetherSpend')
-        .toList()
-      ..sort((ExpenseEntry a, ExpenseEntry b) =>
-          b.dateTime.compareTo(a.dateTime));
+    final DateTime now = currentClock;
+    final List<ExpenseEntry> periodExpenses =
+        state.expenses.where((ExpenseEntry e) {
+      if (e.source == 'togetherSpend') return false;
+      if (isDaily) {
+        return e.dateTime.year == now.year &&
+            e.dateTime.month == now.month &&
+            e.dateTime.day == now.day;
+      } else {
+        return e.dateTime.year == now.year && e.dateTime.month == now.month;
+      }
+    }).toList();
 
     return Scaffold(
       body: GestureDetector(
@@ -227,15 +227,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // 1. Compact Header (matching Daily Budget & Spend screens)
+                // 1. Compact Header (Clean Greeting + Date)
                 _buildHeader(
                   context,
                   displayName: state.profile.displayName,
                   currentClock: currentClock,
-                  isOver: isOver,
-                  hasBudget: hasBudget,
-                  isWarning: isWarning,
-                  palette: palette,
                 ),
                 const SizedBox(height: 12),
 
@@ -251,20 +247,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         totalBudget: totalBudget,
                         spent: spentAdjusted,
                         remaining: remainingAdjusted,
-                        progressValue: progressValue,
-                        hasBudget: hasBudget,
                         isOver: isOver,
-                        isWarning: isWarning,
                         palette: palette,
                       ),
                       const SizedBox(height: 12),
 
                       // Sleek Daily / Monthly Toggle
                       _buildPeriodToggle(context, palette),
-                      const SizedBox(height: 12),
-
-                      // Quick Action Buttons (Log Spend & Set Budget)
-                      _buildQuickActions(context, palette),
                       const SizedBox(height: 12),
 
                       if (!hasConfiguredBudget || !hasExpenses) ...<Widget>[
@@ -274,22 +263,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           palette: palette,
                         ),
                       ] else ...<Widget>[
-                        // Spending Breakdown Pie Chart Card
+                        // Enlarged Spending Breakdown Card
                         _buildSpendingBreakdownCard(
                           context,
+                          isDaily: isDaily,
                           spent: spentAdjusted,
                           remaining: remainingAdjusted,
                           totalBudget: totalBudget,
+                          periodExpenses: periodExpenses,
                           palette: palette,
                         ),
                         const SizedBox(height: 12),
-
-                        // Recent Activity Card
-                        _buildRecentActivityCard(
-                          context,
-                          recentExpenses: recentExpenses,
-                          palette: palette,
-                        ),
                       ],
                     ],
                   ),
@@ -302,112 +286,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// Compact Header matching Daily Budget & Spend screens
+  /// Compact Header without redundant status badge
   Widget _buildHeader(
     BuildContext context, {
     required String displayName,
     required DateTime currentClock,
-    required bool isOver,
-    required bool hasBudget,
-    required bool isWarning,
-    required _DashboardPalette palette,
   }) {
-    const Color statusColor = Colors.white;
-    final Color statusBg = !hasBudget
-        ? palette.gold
-        : isOver
-            ? palette.darkRed
-            : (isWarning ? palette.gold : palette.darkGreen);
-    final Color statusBorder = statusBg;
-    final IconData statusIcon = !hasBudget
-        ? Icons.info_outline_rounded
-        : isOver
-            ? Icons.warning_amber_rounded
-            : (isWarning
-                ? Icons.trending_up_rounded
-                : Icons.check_circle_rounded);
-    final String statusLabel = !hasBudget
-        ? 'Budget Unset'
-        : isOver
-            ? 'Over Budget'
-            : (isWarning ? 'Near Limit' : 'On Track');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              displayName.trim().isNotEmpty ? 'Hi, $displayName' : 'Home',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, MMM d').format(currentClock),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(statusIcon, size: 12, color: statusColor),
-              const SizedBox(width: 5),
-              Text(
-                statusLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+        Text(
+          displayName.trim().isNotEmpty ? 'Hi, $displayName' : 'Home',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
   }
 
-  /// Compact Overview Card with the 3 Solid Metric Tiles
+  /// Clean Overview Card with the 3 Solid Metric Tiles (no duplicate progress bar/pill)
   Widget _buildOverviewCard(
     BuildContext context, {
     required bool isDaily,
     required double totalBudget,
     required double spent,
     required double remaining,
-    required double progressValue,
-    required bool hasBudget,
     required bool isOver,
-    required bool isWarning,
     required _DashboardPalette palette,
   }) {
     final ThemeData theme = Theme.of(context);
-
-    final Color barColor = isOver
-        ? palette.darkRed
-        : (isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBg = isOver
-        ? palette.darkRed
-        : (isWarning ? palette.gold : palette.darkGreen);
-    final String badgeLabel = !hasBudget
-        ? 'Unset'
-        : isOver
-            ? 'Over by ${formatPeso(remaining.abs())}'
-            : '${(progressValue * 100).toInt()}% Used';
+    final bool isWarning =
+        !isOver && totalBudget > 0 && spent >= (totalBudget * 0.8);
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -419,98 +338,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Positioned.fill(
-            child: ColoredBox(
-              color: (isOver ? palette.darkRed : palette.darkGreen)
-                  .withValues(alpha: 0.12),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // Header Row
+          Row(
             children: <Widget>[
-              // Header Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.analytics_rounded,
-                        size: 16,
-                        color: palette.darkGreen,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        isDaily ? 'Daily Overview' : 'Monthly Overview',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      badgeLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.analytics_rounded,
+                size: 16,
+                color: palette.darkGreen,
               ),
-              const SizedBox(height: 10),
-
-              // Linear progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progressValue,
-                  minHeight: 7,
-                  backgroundColor: barColor.withValues(alpha: 0.12),
-                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              const SizedBox(width: 6),
+              Text(
+                isDaily ? 'Daily Overview' : 'Monthly Overview',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 8),
-
-              // Progress caption row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    hasBudget
-                        ? '${formatPeso(spent)} spent of ${formatPeso(totalBudget)}'
-                        : 'No budget set for this period',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    isOver
-                        ? 'Over limit'
-                        : '${formatPeso(remaining > 0 ? remaining : 0)} left',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isOver ? palette.darkRed : palette.darkGreen,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+            ],
+          ),
+          const SizedBox(height: 12),
 
               // 3 Compact Metric Tiles: Remaining, Budget, Spent
               Row(
@@ -580,8 +430,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ],
             ],
           ),
-        ],
-      ),
     );
   }
 
@@ -715,57 +563,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// Prominent Solid Action Buttons matching Design System
-  Widget _buildQuickActions(BuildContext context, _DashboardPalette palette) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: widget.onOpenSpend,
-            icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
-            label: const Text(
-              'Log Spend',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: palette.darkGreen,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(42),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: widget.onGetStarted,
-            icon: const Icon(Icons.account_balance_wallet_rounded, size: 16),
-            label: const Text(
-              'Set Budget',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: palette.gold,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(42),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Pie Chart Spending Breakdown Card
+  /// Enlarged Spending Breakdown Card (Clean, Non-Duplicate)
   Widget _buildSpendingBreakdownCard(
     BuildContext context, {
+    required bool isDaily,
     required double spent,
     required double remaining,
     required double totalBudget,
+    required List<ExpenseEntry> periodExpenses,
     required _DashboardPalette palette,
   }) {
     final ThemeData theme = Theme.of(context);
@@ -776,9 +581,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final double chartRemaining = hasAnyValue ? safeRemaining : 1.0;
     final double spentRatio =
         totalBudget <= 0 ? 0 : (safeSpent / totalBudget).clamp(0.0, 1.0);
+    final bool isOver = remaining < 0;
+    final bool isWarning =
+        !isOver && totalBudget > 0 && safeSpent >= (totalBudget * 0.8);
+
+    // Aggregate category totals for this period
+    final Map<BudgetCategory, double> categoryTotals =
+        <BudgetCategory, double>{};
+    for (final ExpenseEntry e in periodExpenses) {
+      categoryTotals[e.category] =
+          (categoryTotals[e.category] ?? 0.0) + e.amount;
+    }
+    final List<MapEntry<BudgetCategory, double>> sortedCategories =
+        categoryTotals.entries.toList()
+          ..sort((MapEntry<BudgetCategory, double> a,
+                  MapEntry<BudgetCategory, double> b) =>
+              b.value.compareTo(a.value));
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? theme.cardColor,
         borderRadius: BorderRadius.circular(18),
@@ -789,304 +610,186 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.pie_chart_rounded, size: 16, color: palette.gold),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Spending Breakdown',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: palette.gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  totalBudget > 0
-                      ? '${(spentRatio * 100).toInt()}% Used'
-                      : 'No Budget',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+              Icon(Icons.pie_chart_rounded, size: 18, color: palette.gold),
+              const SizedBox(width: 8),
+              Text(
+                'Spending Breakdown',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: <Widget>[
-              SizedBox(
-                width: 120,
-                height: 120,
-                child: PieChart(
-                  PieChartData(
-                    centerSpaceRadius: 30,
-                    sectionsSpace: 3,
-                    startDegreeOffset: -90,
-                    sections: <PieChartSectionData>[
-                      PieChartSectionData(
-                        value: chartSpent,
-                        color: palette.darkRed,
-                        radius: 22,
-                        title: '',
+          const SizedBox(height: 18),
+
+          // Enlarged Donut Pie Chart Centerpiece
+          Center(
+            child: SizedBox(
+              width: 190,
+              height: 190,
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  PieChart(
+                    PieChartData(
+                      centerSpaceRadius: 58,
+                      sectionsSpace: 3,
+                      startDegreeOffset: -90,
+                      sections: <PieChartSectionData>[
+                        PieChartSectionData(
+                          value: chartSpent,
+                          color: palette.darkRed,
+                          radius: 28,
+                          title: '',
+                        ),
+                        PieChartSectionData(
+                          value: chartRemaining,
+                          color: palette.darkGreen,
+                          radius: 28,
+                          title: '',
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '${(spentRatio * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: isOver
+                              ? palette.darkRed
+                              : (isWarning
+                                  ? palette.gold
+                                  : palette.darkGreen),
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                      PieChartSectionData(
-                        value: chartRemaining,
-                        color: palette.darkGreen,
-                        radius: 22,
-                        title: '',
+                      const SizedBox(height: 2),
+                      Text(
+                        isOver ? 'OVER' : 'USED',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    _buildLegendRow(
-                      context,
-                      color: palette.darkRed,
-                      label: 'Spent',
-                      value: formatPeso(safeSpent),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildLegendRow(
-                      context,
-                      color: palette.darkGreen,
-                      label: 'Remaining',
-                      value: formatPeso(safeRemaining),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildLegendRow(
-                      context,
-                      color: palette.gold,
-                      label: 'Budget',
-                      value: formatPeso(totalBudget),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegendRow(
-    BuildContext context, {
-    required Color color,
-    required String label,
-    required String value,
-  }) {
-    final ThemeData theme = Theme.of(context);
-    return Row(
-      children: <Widget>[
-        Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Recent Activity Card
-  Widget _buildRecentActivityCard(
-    BuildContext context, {
-    required List<ExpenseEntry> recentExpenses,
-    required _DashboardPalette palette,
-  }) {
-    final ThemeData theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.history_rounded, size: 16, color: palette.gold),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Recent Activity',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
                 ],
               ),
-              if (recentExpenses.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: palette.gold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${recentExpenses.length} logged',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+            ),
+          ),
+
+          // Categories Breakdown Section
+          if (sortedCategories.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 18),
+            Row(
+              children: <Widget>[
+                Icon(Icons.category_rounded, size: 15, color: palette.gold),
+                const SizedBox(width: 6),
+                Text(
+                  'Spending by Category',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (recentExpenses.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: Text(
-                  'No recent expenses logged yet.',
+                const Spacer(),
+                Text(
+                  '${sortedCategories.length} ${sortedCategories.length == 1 ? 'category' : 'categories'}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-            )
-          else
-            ...recentExpenses.take(4).map(
-              (ExpenseEntry expense) {
-                final IconData icon = _iconForCategory(expense.category);
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...sortedCategories.map(
+              (MapEntry<BudgetCategory, double> entry) {
+                final double catSpent = entry.value;
+                final double catRatio = safeSpent > 0
+                    ? (catSpent / safeSpent).clamp(0.0, 1.0)
+                    : 0.0;
+                final IconData icon = _iconForCategory(entry.key);
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: widget.onOpenExpenses ?? widget.onOpenSpend,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant
-                              .withValues(alpha: 0.25),
-                        ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant
+                            .withValues(alpha: 0.25),
                       ),
-                      child: Row(
-                        children: <Widget>[
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: palette.darkRedBg,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: palette.darkRedBorder),
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: palette.goldBg,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: palette.goldBorder),
+                              ),
+                              child: Icon(icon, color: palette.gold, size: 14),
                             ),
-                            child: Icon(
-                              icon,
-                              color: palette.darkRed,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  expense.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                entry.key.label,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${expense.category.label} • ${DateFormat('h:mm a • MMM d').format(expense.dateTime)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: palette.darkRedBg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: palette.darkRedBorder),
-                            ),
-                            child: Text(
-                              '-${formatPeso(expense.amount)}',
+                            Text(
+                              formatPeso(catSpent),
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: palette.darkRed,
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: catRatio,
+                            minHeight: 5,
+                            backgroundColor:
+                                palette.gold.withValues(alpha: 0.12),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(palette.gold),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               },
             ),
+          ],
         ],
       ),
     );

@@ -307,9 +307,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               _buildHeader(
                 context,
                 currentClock: currentClock,
-                hasBudget: hasBudget,
-                isOver: isOver,
-                palette: palette,
               ),
               const SizedBox(height: 12),
 
@@ -417,69 +414,24 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   Widget _buildHeader(
     BuildContext context, {
     required DateTime currentClock,
-    required bool hasBudget,
-    required bool isOver,
-    required _SpendPalette palette,
   }) {
-    final Color statusColor =
-        !hasBudget || isOver ? Colors.white : Colors.white;
-    final Color statusBg = !hasBudget
-        ? palette.darkRed
-        : (isOver ? palette.darkRed : palette.darkGreen);
-    final Color statusBorder = !hasBudget
-        ? palette.darkRed
-        : (isOver ? palette.darkRed : palette.darkGreen);
-    final IconData statusIcon = !hasBudget
-        ? Icons.radio_button_unchecked_rounded
-        : (isOver ? Icons.warning_amber_rounded : Icons.check_circle_rounded);
-    final String statusLabel =
-        !hasBudget ? 'No Budget' : (isOver ? 'Overspent' : 'Active');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              widget.isTogetherOnly ? 'Spend (Together)' : 'Spend',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, MMM d').format(currentClock),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(statusIcon, size: 12, color: statusColor),
-              const SizedBox(width: 5),
-              Text(
-                statusLabel,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+        Text(
+          widget.isTogetherOnly ? 'Spend (Together)' : 'Spend',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
@@ -502,20 +454,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final Color barColor = isOver
         ? palette.darkRed
         : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    const Color badgeColor = Colors.white;
-    final Color badgeBg = isOver
-        ? palette.darkRed
-        : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBorder = isOver
-        ? palette.darkRed
-        : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-
-    final String badgeLabel = !hasBudget
-        ? 'Unset'
-        : isOver
-            ? 'Over by ${formatPeso(remaining.abs())}'
-            : '${(progressValue * 100).toInt()}% Used';
-
     return Container(
       clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(14),
@@ -533,38 +471,16 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             children: <Widget>[
               // Header Row
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Icon(Icons.analytics_rounded,
-                          size: 16, color: palette.darkGreen),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Daily Spending',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: badgeBorder),
-                    ),
-                    child: Text(
-                      badgeLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: badgeColor,
-                      ),
+                  Icon(Icons.analytics_rounded,
+                      size: 16, color: palette.darkGreen),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Daily Spending',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ],

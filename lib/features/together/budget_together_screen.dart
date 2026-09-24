@@ -323,9 +323,6 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
               _buildHeader(
                 context,
                 currentClock: currentClock,
-                hasBudget: hasBudget,
-                isLocked: isLocked,
-                palette: palette,
               ),
               const SizedBox(height: 12),
 
@@ -372,67 +369,24 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   Widget _buildHeader(
     BuildContext context, {
     required DateTime currentClock,
-    required bool hasBudget,
-    required bool isLocked,
-    required _TogetherBudgetPalette palette,
   }) {
-    const Color statusColor = Colors.white;
-    final Color statusBg = !hasBudget
-        ? palette.gold
-        : (isLocked ? palette.darkGreen : palette.gold);
-    final Color statusBorder = statusBg;
-    final IconData statusIcon = !hasBudget
-        ? Icons.info_outline_rounded
-        : (isLocked ? Icons.lock_rounded : Icons.edit_rounded);
-    final String statusLabel = !hasBudget
-        ? 'Budget Unset'
-        : (isLocked ? 'Budget Locked' : 'Editing');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Set Budget Together',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, MMM d').format(currentClock),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(statusIcon, size: 12, color: statusColor),
-              const SizedBox(width: 5),
-              Text(
-                statusLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+        Text(
+          'Set Budget Together',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
@@ -708,15 +662,6 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     final Color barColor = isOver
         ? palette.darkRed
         : (isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBg = isOver
-        ? palette.darkRed
-        : (isWarning ? palette.gold : palette.darkGreen);
-    final String badgeLabel = !hasBudget
-        ? 'Unset'
-        : isOver
-            ? 'Over by ${formatPeso(remaining.abs())}'
-            : '${(progressValue * 100).toInt()}% Used';
-
     return Container(
       clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(14),
@@ -729,44 +674,23 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Header Row
+          Row(
             children: <Widget>[
-              // Header Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Icon(Icons.analytics_rounded,
-                          size: 16, color: palette.darkGreen),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Tab Spending Progress',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      badgeLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(Icons.analytics_rounded,
+                  size: 16, color: palette.darkGreen),
+              const SizedBox(width: 6),
+              Text(
+                'Tab Spending Progress',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
+            ],
+          ),
               const SizedBox(height: 10),
 
               // Progress Bar

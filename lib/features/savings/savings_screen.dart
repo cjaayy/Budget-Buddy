@@ -169,9 +169,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               _buildHeader(
                 context,
                 currentClock: currentClock,
-                hasDebt: state.savingsDebt > 0,
-                netSavings: netSavings,
-                palette: palette,
               ),
               const SizedBox(height: 12),
 
@@ -218,69 +215,24 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   Widget _buildHeader(
     BuildContext context, {
     required DateTime currentClock,
-    required bool hasDebt,
-    required double netSavings,
-    required _SavingsPalette palette,
   }) {
-    final bool isDeficit = netSavings < 0;
-    const Color statusColor = Colors.white;
-    final Color statusBg = hasDebt
-        ? palette.darkRed
-        : (isDeficit ? palette.darkRed : palette.darkGreen);
-    final Color statusBorder = hasDebt
-        ? palette.darkRed
-        : (isDeficit ? palette.darkRed : palette.darkGreen);
-    final IconData statusIcon = hasDebt
-        ? Icons.warning_amber_rounded
-        : (isDeficit ? Icons.trending_down_rounded : Icons.savings_rounded);
-    final String statusLabel =
-        hasDebt ? 'Debt Active' : (isDeficit ? 'Deficit' : 'Surplus');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              widget.isTogetherOnly ? 'Together Savings' : 'Savings',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, MMM d').format(currentClock),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(statusIcon, size: 12, color: statusColor),
-              const SizedBox(width: 5),
-              Text(
-                statusLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+        Text(
+          widget.isTogetherOnly ? 'Together Savings' : 'Savings',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
@@ -314,42 +266,19 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         children: <Widget>[
           // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.analytics_rounded,
-                    size: 16,
-                    color: palette.darkGreen,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Savings Overview',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.analytics_rounded,
+                size: 16,
+                color: palette.darkGreen,
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: palette.gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _activeSection == SavingsSection.daily
-                      ? '${records.length} Day${records.length == 1 ? '' : 's'}'
-                      : '${availableMonths.length} Month${availableMonths.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+              const SizedBox(width: 6),
+              Text(
+                'Savings Overview',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
@@ -599,39 +528,17 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.history_rounded, size: 16, color: palette.gold),
-                  const SizedBox(width: 6),
-                  Text(
-                    _activeSection == SavingsSection.daily
-                        ? 'Daily Records'
-                        : 'Monthly Records',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: palette.gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _activeSection == SavingsSection.daily
-                      ? '${records.length} record${records.length == 1 ? '' : 's'}'
-                      : '${availableMonths.length} record${availableMonths.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+              Icon(Icons.history_rounded, size: 16, color: palette.gold),
+              const SizedBox(width: 6),
+              Text(
+                _activeSection == SavingsSection.daily
+                    ? 'Daily Records'
+                    : 'Monthly Records',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],

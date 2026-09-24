@@ -137,10 +137,6 @@ class TogetherScreen extends ConsumerWidget {
               _buildHeader(
                 context,
                 currentClock: currentClock,
-                hasBudget: hasBudget,
-                isOver: isOver,
-                isWarning: isWarning,
-                palette: palette,
               ),
               const SizedBox(height: 12),
 
@@ -313,76 +309,24 @@ class TogetherScreen extends ConsumerWidget {
   Widget _buildHeader(
     BuildContext context, {
     required DateTime currentClock,
-    required bool hasBudget,
-    required bool isOver,
-    required bool isWarning,
-    required _TogetherPalette palette,
   }) {
-    const Color statusColor = Colors.white;
-    final Color statusBg = !hasBudget
-        ? palette.gold
-        : isOver
-            ? palette.darkRed
-            : (isWarning ? palette.gold : palette.darkGreen);
-    final Color statusBorder = statusBg;
-    final IconData statusIcon = !hasBudget
-        ? Icons.info_outline_rounded
-        : isOver
-            ? Icons.warning_amber_rounded
-            : (isWarning
-                ? Icons.trending_up_rounded
-                : Icons.check_circle_rounded);
-    final String statusLabel = !hasBudget
-        ? 'Budget Unset'
-        : isOver
-            ? 'Over Budget'
-            : (isWarning ? 'Near Limit' : 'On Track');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Budget Together',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('EEEE, MMM d').format(currentClock),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(statusIcon, size: 12, color: statusColor),
-              const SizedBox(width: 5),
-              Text(
-                statusLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+        Text(
+          'Budget Together',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ],
     );
@@ -405,15 +349,6 @@ class TogetherScreen extends ConsumerWidget {
     final Color barColor = isOver
         ? palette.darkRed
         : (isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBg = isOver
-        ? palette.darkRed
-        : (isWarning ? palette.gold : palette.darkGreen);
-    final String badgeLabel = !hasBudget
-        ? 'Unset'
-        : isOver
-            ? 'Over by ${formatPeso(remaining.abs())}'
-            : '${(progressValue * 100).toInt()}% Used';
-
     return Container(
       clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(14),
@@ -426,47 +361,26 @@ class TogetherScreen extends ConsumerWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Header Row
+          Row(
             children: <Widget>[
-              // Header Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.groups_rounded,
-                        size: 16,
-                        color: palette.darkGreen,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Together Overview',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      badgeLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.groups_rounded,
+                size: 16,
+                color: palette.darkGreen,
               ),
+              const SizedBox(width: 6),
+              Text(
+                'Together Overview',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
               const SizedBox(height: 10),
 
               // Progress Bar
