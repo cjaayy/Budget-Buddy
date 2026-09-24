@@ -88,10 +88,31 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final List<ExpenseEntry> expenses = _filteredExpenses(state);
-    final List<DateTime> availableMonths = _availableMonths(expenses);
-    final DateTime today = DateTime.now();
+    final DateTime today =
+        ref.watch(budgetBuddyControllerProvider.notifier).now;
+    final List<DateTime> availableMonths =
+        _availableMonths(state, expenses, today);
     final List<ExpenseEntry> todayExpenses =
         _sortExpenses(_expensesForDay(expenses, today));
+
+    final DateTime todayDay = DateTime(today.year, today.month, today.day);
+    final Set<DateTime> pastDaysSet = <DateTime>{};
+    for (final DailyRecord record in state.dailyRecords) {
+      final DateTime rDate =
+          DateTime(record.date.year, record.date.month, record.date.day);
+      if (rDate.isBefore(todayDay)) {
+        pastDaysSet.add(rDate);
+      }
+    }
+    for (final ExpenseEntry expense in expenses) {
+      final DateTime eDate = DateTime(expense.dateTime.year,
+          expense.dateTime.month, expense.dateTime.day);
+      if (eDate.isBefore(todayDay)) {
+        pastDaysSet.add(eDate);
+      }
+    }
+    final List<DateTime> pastDays = pastDaysSet.toList()
+      ..sort((DateTime left, DateTime right) => right.compareTo(left));
 
     return Scaffold(
       body: SafeArea(
@@ -188,7 +209,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (_activeSection == ExpenseSection.daily)
+                    if (_activeSection == ExpenseSection.daily) ...<Widget>[
                       _DailySection(
                         dayLabel: _formatDayLabel(today),
                         expenses: todayExpenses,
@@ -218,8 +239,98 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           if (!mounted) return;
                           await _showExpenseDetails(ref, e);
                         },
-                      )
-                    else
+                      ),
+                      if (pastDays.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 14),
+                        SectionCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'DAILY HISTORY',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap a date to view its expense breakdown',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                              const SizedBox(height: 12),
+                              ...pastDays.map((DateTime day) {
+                                final List<ExpenseEntry> dayExpenses =
+                                    _expensesForDay(expenses, day);
+                                final double dayTotal = dayExpenses.fold<double>(
+                                    0,
+                                    (double sum, ExpenseEntry e) =>
+                                        sum + e.amount);
+                                final bool isZero = dayExpenses.isEmpty;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 4),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outlineVariant,
+                                      ),
+                                    ),
+                                    leading: Icon(
+                                      isZero
+                                          ? Icons.calendar_today_rounded
+                                          : Icons.receipt_long_outlined,
+                                      color: isZero
+                                          ? const Color(0xFFD97706)
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                    ),
+                                    title: Text(
+                                      _formatDayLabel(day),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                    subtitle: Text(
+                                      isZero
+                                          ? 'No budget and expenses today'
+                                          : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                                    ),
+                                    trailing: Text(
+                                      isZero ? '₱0' : formatPeso(dayTotal),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: isZero
+                                            ? const Color(0xFFD97706)
+                                            : null,
+                                      ),
+                                    ),
+                                    onTap: () => _showDayExpensesSheet(
+                                      ref,
+                                      day,
+                                      expenses,
+                                      showBackButton: true,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ] else
                       _MonthlySection(
                         availableMonths: availableMonths,
                         expenses: expenses,
@@ -269,10 +380,15 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return sortedDays;
   }
 
-  List<DateTime> _availableMonths(List<ExpenseEntry> expenses) {
+  List<DateTime> _availableMonths(
+      BudgetBuddyState state, List<ExpenseEntry> expenses, DateTime today) {
     final Set<DateTime> months = <DateTime>{};
+    months.add(DateTime(today.year, today.month));
     for (final ExpenseEntry expense in expenses) {
       months.add(DateTime(expense.dateTime.year, expense.dateTime.month));
+    }
+    for (final DailyRecord record in state.dailyRecords) {
+      months.add(DateTime(record.date.year, record.date.month));
     }
     final List<DateTime> sortedMonths = months.toList()
       ..sort((DateTime left, DateTime right) => right.compareTo(left));
@@ -306,8 +422,24 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   Future<void> _showMonthDatesSheet(
       WidgetRef ref, DateTime month, List<ExpenseEntry> expenses) async {
     final BuildContext localContext = context;
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final DateTime currentNow =
+        ref.read(budgetBuddyControllerProvider.notifier).now;
     final List<ExpenseEntry> monthExpenses = _expensesForMonth(expenses, month);
-    final List<DateTime> monthDays = _availableDays(monthExpenses);
+
+    final Set<DateTime> daysSet = <DateTime>{};
+    for (final ExpenseEntry expense in monthExpenses) {
+      daysSet.add(DateTime(expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
+    }
+    for (final DailyRecord record in state.dailyRecords) {
+      if (record.date.year == month.year && record.date.month == month.month) {
+        daysSet.add(DateTime(record.date.year, record.date.month, record.date.day));
+      }
+    }
+    if (currentNow.year == month.year && currentNow.month == month.month) {
+      daysSet.add(DateTime(currentNow.year, currentNow.month, currentNow.day));
+    }
+    final List<DateTime> monthDays = daysSet.toList()..sort((a, b) => b.compareTo(a));
 
     await showModalBottomSheet<void>(
       context: localContext,
@@ -358,7 +490,48 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   .onSurfaceVariant)),
                   const SizedBox(height: 12),
                   if (monthDays.isEmpty)
-                    const Text('No expenses for this month.')
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(sheetContext)
+                            .colorScheme
+                            .surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFD97706).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            color: Color(0xFFD97706),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'No budget and expenses this month',
+                              style: Theme.of(sheetContext)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: const Color(0xFFD97706),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          const Text(
+                            '₱0',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   else
                     Expanded(
                       child: ListView.separated(
@@ -374,6 +547,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                               0,
                               (double total, ExpenseEntry expense) =>
                                   total + expense.amount);
+                          final bool isZero = dayExpenses.isEmpty;
 
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -384,15 +558,29 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .outlineVariant)),
-                            leading: const Icon(Icons.calendar_today_outlined),
+                            leading: Icon(
+                              isZero
+                                  ? Icons.calendar_today_rounded
+                                  : Icons.calendar_today_outlined,
+                              color: isZero ? const Color(0xFFD97706) : null,
+                            ),
                             title: Text(_formatDayLabel(day),
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w700)),
                             subtitle: Text(
-                                '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}'),
-                            trailing: Text(formatPeso(dayTotal)),
+                              isZero
+                                  ? 'No budget and expenses today'
+                                  : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                            ),
+                            trailing: Text(
+                              isZero ? '₱0' : formatPeso(dayTotal),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: isZero ? const Color(0xFFD97706) : null,
+                              ),
+                            ),
                             onTap: () async => await _showDayExpensesSheet(
-                                ref, day, monthExpenses,
+                                ref, day, expenses,
                                 showBackButton: true),
                           );
                         },
@@ -460,7 +648,41 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   .onSurfaceVariant)),
                   const SizedBox(height: 12),
                   if (dayExpenses.isEmpty)
-                    const Text('No expenses for this date.')
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.calendar_today_rounded,
+                              size: 44,
+                              color: Color(0xFFD97706),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No budget and expenses today',
+                              style: Theme.of(sheetContext)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '₱0 spent • ₱0 balance',
+                              style: Theme.of(sheetContext)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(sheetContext)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   else
                     Expanded(
                       child: ListView.separated(
@@ -1018,12 +1240,54 @@ class _DailySection extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 12),
           if (expenses.isEmpty)
-            Text(
-                isTogetherOnly
-                    ? 'No Budget Together expenses yet for today.'
-                    : 'No budget and expenses today',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isTogetherOnly
+                      ? Theme.of(context).colorScheme.outlineVariant
+                      : const Color(0xFFD97706).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    isTogetherOnly
+                        ? Icons.group_outlined
+                        : Icons.calendar_today_rounded,
+                    color: isTogetherOnly
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : const Color(0xFFD97706),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isTogetherOnly
+                          ? 'No Budget Together expenses yet for today.'
+                          : 'No budget and expenses today',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: isTogetherOnly
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
+                                : const Color(0xFFD97706),
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  if (!isTogetherOnly)
+                    const Text(
+                      '₱0',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFD97706),
+                      ),
+                    ),
+                ],
+              ),
+            )
           else
             ListView.separated(
               shrinkWrap: true,
@@ -1175,12 +1439,45 @@ class _MonthlySection extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           if (availableMonths.isEmpty)
-            Text(
-                isTogetherOnly
-                    ? 'No Budget Together expenses yet.'
-                    : 'No expenses yet.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFD97706).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    color: Color(0xFFD97706),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isTogetherOnly
+                          ? 'No Budget Together expenses yet.'
+                          : 'No budget and expenses this month',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xFFD97706),
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  const Text(
+                    '₱0',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
+                ],
+              ),
+            )
           else
             ...availableMonths.map((DateTime month) {
               final List<ExpenseEntry> monthExpenses = expenses
@@ -1192,6 +1489,7 @@ class _MonthlySection extends StatelessWidget {
                   0,
                   (double value, ExpenseEntry expense) =>
                       value + expense.amount);
+              final bool isZero = monthExpenses.isEmpty;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
@@ -1200,15 +1498,32 @@ class _MonthlySection extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant)),
-                  leading: const Icon(Icons.date_range_outlined),
+                          color: isZero
+                              ? const Color(0xFFD97706).withValues(alpha: 0.3)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant)),
+                  leading: Icon(
+                    isZero
+                        ? Icons.calendar_today_rounded
+                        : Icons.date_range_outlined,
+                    color: isZero
+                        ? const Color(0xFFD97706)
+                        : Theme.of(context).colorScheme.primary,
+                  ),
                   title: Text(DateFormat('MMMM yyyy').format(month),
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   subtitle: Text(
-                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates'),
-                  trailing: Text(formatPeso(total)),
+                      isZero
+                          ? 'No budget and expenses this month • Tap for daily dates'
+                          : '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates'),
+                  trailing: Text(
+                    isZero ? '₱0' : formatPeso(total),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: isZero ? const Color(0xFFD97706) : null,
+                    ),
+                  ),
                   onTap: () => onTapMonth(month),
                 ),
               );

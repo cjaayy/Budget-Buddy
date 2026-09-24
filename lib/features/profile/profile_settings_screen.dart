@@ -2359,29 +2359,50 @@ class _ResetAppDialog extends StatefulWidget {
 
 class _ResetAppDialogState extends State<_ResetAppDialog> {
   late final TextEditingController _confirmationController;
+  int _secondsRemaining = 5;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _confirmationController = TextEditingController();
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        setState(() {
+          _secondsRemaining = 0;
+        });
+        // Do not auto-confirm when timer finishes
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _confirmationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isTimerDone = _secondsRemaining == 0;
     return AlertDialog(
-      title: const Text('Reset entire app?'),
+      title: const Text('Reset entire app to 0?'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             const Text(
-              'This will clear all budgets, expenses, spending records, and daily logs. Type RESET to continue.',
+              'This will reset the entire app to zero (no one left as in zero). All budgets, expenses, spending records, savings, debts, and daily logs will be set to 0. Type RESET to continue.',
             ),
             const SizedBox(height: 12),
             TextField(
@@ -2392,8 +2413,12 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
         ),
       ),
       actions: <Widget>[
-        TextButton(
+        FilledButton(
           onPressed: () => Navigator.of(context).pop(false),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF991B1B),
+            foregroundColor: Colors.white,
+          ),
           child: const Text('Cancel'),
         ),
         FilledButton(
@@ -2407,7 +2432,11 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
             backgroundColor: const Color(0xFFDC2626),
             foregroundColor: Colors.white,
           ),
-          child: const Text('Reset'),
+          child: Text(
+            isTimerDone
+                ? 'Reset All to 0'
+                : 'Reset All to 0 (${_secondsRemaining}s)',
+          ),
         ),
       ],
     );

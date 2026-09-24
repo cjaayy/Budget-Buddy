@@ -1105,15 +1105,52 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   Future<void> resetApp() async {
-    // Reset to initial state with all data cleared and budgets at 0
+    _simulatedDateTime = null;
+    final DateTime currentRealNow = DateTime.now();
+    final DateTime currentDayStart =
+        DateTime(currentRealNow.year, currentRealNow.month, currentRealNow.day);
+
+    // Reset to absolute zero state: all budgets, expenses, spending, savings, debts, and history logs cleared
     state = BudgetBuddyState.initial().copyWith(
       isBootstrapping: false,
       loggedIn: state.loggedIn,
       onboardingComplete: state.onboardingComplete,
-      profile: state.profile,
+      profile: state.profile.copyWith(savingsStreak: 0),
       themeMode: state.themeMode,
       notificationsEnabled: state.notificationsEnabled,
+      expenses: <ExpenseEntry>[],
+      budgetEntries: <BudgetEntry>[],
+      dailyRecords: <DailyRecord>[],
+      periodReports: const <PeriodReport>[],
+      customMeals: <MealSuggestion>[],
+      favoriteMealIds: <String>[],
+      savedActivityPlans: <ActivitySuggestion>[],
+      togetherBudget: 0.0,
+      dailySpent: 0.0,
+      weeklySpent: 0.0,
+      monthlySpent: 0.0,
+      savingsDebt: 0.0,
+      totalSavings: 0.0,
+      dailyPeriodStart: currentDayStart,
+      weeklyPeriodStart: null,
+      monthlyPeriodStart: null,
+      currentExpenseFilter: null,
+      lastExpenseCategory: null,
+      settings: BudgetSettings.defaults().copyWith(
+        dailyLimit: null,
+        weeklyLimit: null,
+        monthlyLimit: null,
+        foodBudget: 0.0,
+        transportationBudget: 0.0,
+        leisureBudget: 0.0,
+        savingsGoal: 0.0,
+        savingsTargetAmount: 0.0,
+        savingsTargetDate: null,
+        hasConfiguredBudget: false,
+        budgetCreatedAt: null,
+      ),
     );
+    await _repository.clearAll();
     await _repository.saveState(state);
   }
 
