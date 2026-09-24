@@ -5,10 +5,122 @@ import 'package:intl/intl.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
 import '../budget/budget_planner_screen.dart';
 import '../together/budget_together_screen.dart';
+
+/// Palette matching Daily Budget, Spend, and Savings screens:
+/// Dark Red (#991B1B), Gold (#D97706), Dark Green (#0F766E)
+class _ExpensePalette {
+  const _ExpensePalette(this.isDark);
+
+  final bool isDark;
+
+  // Dark Red: expenses, overspent alert, delete/cancel actions
+  Color get darkRed => const Color(0xFF991B1B);
+  Color get darkRedBg =>
+      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+
+  // Gold: target budget amounts, zero-activity badges, history counts, monthly overview
+  Color get gold => const Color(0xFFD97706);
+  Color get goldBg =>
+      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
+
+  // Dark Green: remaining safe balance, on-track status, save/update actions
+  Color get darkGreen => const Color(0xFF0F766E);
+  Color get darkGreenBg =>
+      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
+}
+
+/// Compact Metric Tile for Budget, Spent, and Remaining matching other screens
+class _CompactMetricTile extends StatelessWidget {
+  const _CompactMetricTile({
+    required this.label,
+    required this.value,
+    required this.bgColor,
+    this.textColor = Colors.white,
+    this.icon,
+  });
+
+  final String label;
+  final String value;
+  final Color bgColor;
+  final Color textColor;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: bgColor.withValues(alpha: 0.32),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              if (icon != null) ...<Widget>[
+                Icon(
+                  icon,
+                  size: 12,
+                  color: textColor.withValues(alpha: 0.88),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: textColor.withValues(alpha: 0.88),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: -0.3,
+                color: textColor,
+                shadows: const <Shadow>[
+                  Shadow(
+                    color: Colors.black26,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class ExpenseTrackerScreen extends ConsumerStatefulWidget {
   const ExpenseTrackerScreen({super.key, this.isTogetherOnly = false});
@@ -23,7 +135,7 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   ExpenseSection _activeSection = ExpenseSection.daily;
 
-  bool _ensureBudgetSet(BuildContext context) {
+  bool _ensureBudgetSet(BuildContext context, _ExpensePalette palette) {
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final bool hasBudget = widget.isTogetherOnly
         ? state.togetherBudget > 0
@@ -34,9 +146,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         context: context,
         builder: (BuildContext dialogContext) {
           return AlertDialog(
-            icon: const Icon(
+            icon: Icon(
               Icons.warning_amber_rounded,
-              color: Color(0xFFDC2626),
+              color: palette.darkRed,
               size: 44,
             ),
             title: Text(widget.isTogetherOnly
@@ -52,11 +164,18 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF991B1B),
+                  foregroundColor: palette.darkRed,
                 ),
                 child: const Text('Cancel'),
               ),
               FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.darkGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   if (widget.isTogetherOnly) {
@@ -90,6 +209,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final List<ExpenseEntry> expenses = _filteredExpenses(state);
     final DateTime today =
         ref.watch(budgetBuddyControllerProvider.notifier).now;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final _ExpensePalette palette = _ExpensePalette(isDark);
+
     final List<DateTime> availableMonths =
         _availableMonths(state, expenses, today);
     final List<ExpenseEntry> todayExpenses =
@@ -114,236 +236,1170 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final List<DateTime> pastDays = pastDaysSet.toList()
       ..sort((DateTime left, DateTime right) => right.compareTo(left));
 
+    // Daily Metrics
+    final double currentBudget = widget.isTogetherOnly
+        ? state.togetherBudget
+        : (state.settings.dailyLimit ?? 0);
+    final double todayTotal = todayExpenses.fold<double>(
+        0, (double sum, ExpenseEntry e) => sum + e.amount);
+    final double dailyRemaining = currentBudget - todayTotal;
+    final bool isDailyOver = dailyRemaining < 0;
+
+    // Monthly Metrics
+    final DateTime monthStart = DateTime(today.year, today.month);
+    final DateTime nextMonthStart = DateTime(today.year, today.month + 1);
+    final List<ExpenseEntry> currentMonthExpenses =
+        _expensesForMonth(expenses, today);
+    final double monthTotal = currentMonthExpenses.fold<double>(
+        0, (double sum, ExpenseEntry e) => sum + e.amount);
+    final double trackedMonthlyBudget = widget.isTogetherOnly
+        ? state.togetherBudget
+        : state.budgetEntries
+            .where((BudgetEntry entry) =>
+                !entry.date.isBefore(monthStart) &&
+                entry.date.isBefore(nextMonthStart))
+            .fold(
+                0.0, (double total, BudgetEntry entry) => total + entry.amount);
+    final double monthlyBudget = trackedMonthlyBudget > 0
+        ? trackedMonthlyBudget
+        : ((state.settings.monthlyBudget ?? 0) > 0
+            ? (state.settings.monthlyBudget ?? 0)
+            : (currentBudget * 30));
+    final double monthlyRemaining = monthlyBudget - monthTotal;
+    final bool isMonthlyOver = monthlyRemaining < 0;
+
+    final bool hasBudget = widget.isTogetherOnly
+        ? state.togetherBudget > 0
+        : state.settings.totalDailyBudget > 0;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // Back Button (If pushed from another screen)
               if (Navigator.of(context).canPop()) ...<Widget>[
                 FilledButton.tonalIcon(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
                   label: Text(
                     widget.isTogetherOnly
-                        ? 'Back to Budget Together Menu'
-                        : 'Back to Menu',
+                        ? 'Back to Budget Together'
+                        : 'Back',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13),
+                        fontWeight: FontWeight.w700, fontSize: 12),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: widget.isTogetherOnly
-                        ? const Color(0xFF0F766E).withValues(alpha: 0.12)
-                        : Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.12),
-                    foregroundColor: widget.isTogetherOnly
-                        ? const Color(0xFF0F766E)
-                        : Theme.of(context).colorScheme.primary,
+                    backgroundColor: palette.darkGreenBg,
+                    foregroundColor: palette.darkGreen,
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
               ],
-              SectionTitle(
-                title: widget.isTogetherOnly
-                    ? 'Budget Together Expenses'
-                    : 'Expenses',
-                subtitle: widget.isTogetherOnly
-                    ? 'View and manage expenses logged for Budget Together.'
-                    : 'View and manage your logged expenses.',
+
+              // 1. Compact Header matching Daily Budget, Spend, and Savings
+              _buildHeader(
+                context,
+                currentClock: today,
+                hasBudget: hasBudget,
+                isOver: _activeSection == ExpenseSection.daily
+                    ? isDailyOver
+                    : isMonthlyOver,
+                palette: palette,
               ),
               const SizedBox(height: 12),
+
+              // 2. Main Content
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => setState(
-                                () => _activeSection = ExpenseSection.daily),
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  _activeSection == ExpenseSection.daily
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                              foregroundColor:
-                                  _activeSection == ExpenseSection.daily
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurface,
-                            ),
-                            child: const Text('Daily'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => setState(
-                                () => _activeSection = ExpenseSection.monthly),
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  _activeSection == ExpenseSection.monthly
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                              foregroundColor:
-                                  _activeSection == ExpenseSection.monthly
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurface,
-                            ),
-                            child: const Text('Monthly'),
-                          ),
-                        ),
-                      ],
+                    // Overview Card (with 3 Solid Metric Tiles: Gold, Dark Red, Dark Green)
+                    _buildOverviewCard(
+                      context,
+                      currentBudget: currentBudget,
+                      todayTotal: todayTotal,
+                      dailyRemaining: dailyRemaining,
+                      isDailyOver: isDailyOver,
+                      monthlyBudget: monthlyBudget,
+                      monthTotal: monthTotal,
+                      monthlyRemaining: monthlyRemaining,
+                      isMonthlyOver: isMonthlyOver,
+                      hasBudget: hasBudget,
+                      palette: palette,
                     ),
                     const SizedBox(height: 12),
+
+                    // Sleek Daily / Monthly Toggle
+                    _buildSectionToggle(context, palette),
+                    const SizedBox(height: 12),
+
+                    // Active Section Content
                     if (_activeSection == ExpenseSection.daily) ...<Widget>[
-                      _DailySection(
-                        dayLabel: _formatDayLabel(today),
-                        expenses: todayExpenses,
-                        isTogetherOnly: widget.isTogetherOnly,
-                        onTapDay: (DateTime day) => _showDayExpensesSheet(
-                            ref, day, expenses,
-                            showBackButton: true),
-                        onTapExpense: (ExpenseEntry e) async =>
-                            await _showExpenseActions(ref, e),
-                        onEditExpense: (ExpenseEntry e) async {
-                          if (!mounted) return;
-                          await _showExpenseDialog(ref, existing: e);
-                        },
-                        onDeleteExpense: (ExpenseEntry e) async {
-                          if (!mounted) return;
-                          final BuildContext localContext = context;
-                          final bool shouldDelete =
-                              await _confirmDeleteExpense(localContext);
-                          if (!mounted || !shouldDelete) {
-                            return;
-                          }
-                          ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .deleteExpense(e.id);
-                        },
-                        onViewExpense: (ExpenseEntry e) async {
-                          if (!mounted) return;
-                          await _showExpenseDetails(ref, e);
-                        },
+                      // Today's Expenses Card
+                      _buildTodayExpensesCard(
+                        context,
+                        todayExpenses: todayExpenses,
+                        palette: palette,
                       ),
-                      if (pastDays.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 14),
-                        SectionCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'DAILY HISTORY',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Tap a date to view its expense breakdown',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                              const SizedBox(height: 12),
-                              ...pastDays.map((DateTime day) {
-                                final List<ExpenseEntry> dayExpenses =
-                                    _expensesForDay(expenses, day);
-                                final double dayTotal =
-                                    dayExpenses.fold<double>(
-                                        0,
-                                        (double sum, ExpenseEntry e) =>
-                                            sum + e.amount);
-                                final bool isZero = dayExpenses.isEmpty;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 4),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      side: BorderSide(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .outlineVariant,
-                                      ),
-                                    ),
-                                    leading: Icon(
-                                      isZero
-                                          ? Icons.calendar_today_rounded
-                                          : Icons.receipt_long_outlined,
-                                      color: isZero
-                                          ? const Color(0xFFD97706)
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                    ),
-                                    title: Text(
-                                      _formatDayLabel(day),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700),
-                                    ),
-                                    subtitle: Text(
-                                      isZero
-                                          ? 'No budget and expenses today'
-                                          : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                                    ),
-                                    trailing: Text(
-                                      isZero ? '₱0' : formatPeso(dayTotal),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: isZero
-                                            ? const Color(0xFFD97706)
-                                            : null,
-                                      ),
-                                    ),
-                                    onTap: () => _showDayExpensesSheet(
-                                      ref,
-                                      day,
-                                      expenses,
-                                      showBackButton: true,
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ] else
-                      _MonthlySection(
+                      const SizedBox(height: 12),
+
+                      // Daily History Card
+                      _buildDailyHistoryCard(
+                        context,
+                        pastDays: pastDays,
+                        expenses: expenses,
+                        palette: palette,
+                      ),
+                    ] else ...<Widget>[
+                      // Monthly Records Card
+                      _buildMonthlyRecordsCard(
+                        context,
                         availableMonths: availableMonths,
                         expenses: expenses,
-                        isTogetherOnly: widget.isTogetherOnly,
-                        onTapMonth: (DateTime month) =>
-                            _showMonthDatesSheet(ref, month, expenses),
+                        palette: palette,
                       ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Compact header without redundant subtitles or duplicate pills
+  Widget _buildHeader(
+    BuildContext context, {
+    required DateTime currentClock,
+    required bool hasBudget,
+    required bool isOver,
+    required _ExpensePalette palette,
+  }) {
+    final Color statusColor = !hasBudget
+        ? palette.darkRed
+        : (isOver ? palette.darkRed : palette.darkGreen);
+    final Color statusBg = !hasBudget
+        ? palette.darkRedBg
+        : (isOver ? palette.darkRedBg : palette.darkGreenBg);
+    final Color statusBorder = !hasBudget
+        ? palette.darkRedBorder
+        : (isOver ? palette.darkRedBorder : palette.darkGreenBorder);
+    final IconData statusIcon = !hasBudget
+        ? Icons.warning_amber_rounded
+        : (isOver ? Icons.trending_down_rounded : Icons.check_circle_rounded);
+    final String statusLabel = !hasBudget
+        ? 'No Budget Set'
+        : (isOver ? 'Over Budget' : 'On Track');
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              widget.isTogetherOnly ? 'Together Expenses' : 'Expenses',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormat('EEEE, MMM d').format(currentClock),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: statusBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(statusIcon, size: 12, color: statusColor),
+              const SizedBox(width: 5),
+              Text(
+                statusLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Compact Overview Card with the 3 Solid Metric Tiles (Gold, Dark Red, Dark Green)
+  Widget _buildOverviewCard(
+    BuildContext context, {
+    required double currentBudget,
+    required double todayTotal,
+    required double dailyRemaining,
+    required bool isDailyOver,
+    required double monthlyBudget,
+    required double monthTotal,
+    required double monthlyRemaining,
+    required bool isMonthlyOver,
+    required bool hasBudget,
+    required _ExpensePalette palette,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    final bool isDaily = _activeSection == ExpenseSection.daily;
+
+    final double activeBudget = isDaily ? currentBudget : monthlyBudget;
+    final double activeSpent = isDaily ? todayTotal : monthTotal;
+    final double activeRemaining =
+        isDaily ? dailyRemaining : monthlyRemaining;
+    final bool isOver = isDaily ? isDailyOver : isMonthlyOver;
+
+    final double progressValue = activeBudget > 0
+        ? (activeSpent / activeBudget).clamp(0.0, 1.0)
+        : 0.0;
+
+    final Color barColor = isOver ? palette.darkRed : palette.darkGreen;
+    final Color badgeColor = isOver ? palette.darkRed : palette.darkGreen;
+    final Color badgeBg = isOver ? palette.darkRedBg : palette.darkGreenBg;
+    final Color badgeBorder =
+        isOver ? palette.darkRedBorder : palette.darkGreenBorder;
+
+    final String badgeLabel = !hasBudget
+        ? 'Unset'
+        : isOver
+            ? 'Over by ${formatPeso(activeRemaining.abs())}'
+            : '${(progressValue * 100).toInt()}% Used';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.analytics_rounded,
+                    size: 16,
+                    color: palette.darkGreen,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isDaily ? 'Daily Expense Overview' : 'Monthly Expense Overview',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: badgeBorder),
+                ),
+                child: Text(
+                  badgeLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Linear Progress Bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 7,
+              backgroundColor: barColor.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 3 Compact Metric Tiles: Budget (Gold), Spent (Dark Red), Remaining (Green/Red)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _CompactMetricTile(
+                  label: isDaily ? 'Budget' : 'Month Budget',
+                  value: formatPeso(activeBudget),
+                  bgColor: palette.gold,
+                  icon: Icons.account_balance_wallet_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CompactMetricTile(
+                  label: isDaily ? 'Spent' : 'Month Spent',
+                  value: formatPeso(activeSpent),
+                  bgColor: palette.darkRed,
+                  icon: Icons.shopping_bag_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CompactMetricTile(
+                  label: isOver ? 'Over' : 'Remaining',
+                  value: formatPeso(activeRemaining.abs()),
+                  bgColor: isOver ? palette.darkRed : palette.darkGreen,
+                  icon: isOver
+                      ? Icons.warning_amber_rounded
+                      : Icons.savings_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Sleek segmented Daily / Monthly toggle matching app style
+  Widget _buildSectionToggle(BuildContext context, _ExpensePalette palette) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                if (_activeSection != ExpenseSection.daily) {
+                  setState(() => _activeSection = ExpenseSection.daily);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _activeSection == ExpenseSection.daily
+                      ? palette.darkGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _activeSection == ExpenseSection.daily
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: palette.darkGreen.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 14,
+                      color: _activeSection == ExpenseSection.daily
+                          ? Colors.white
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Daily',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _activeSection == ExpenseSection.daily
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: _activeSection == ExpenseSection.daily
+                            ? Colors.white
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                if (_activeSection != ExpenseSection.monthly) {
+                  setState(() => _activeSection = ExpenseSection.monthly);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _activeSection == ExpenseSection.monthly
+                      ? palette.darkGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _activeSection == ExpenseSection.monthly
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: palette.darkGreen.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      size: 14,
+                      color: _activeSection == ExpenseSection.monthly
+                          ? Colors.white
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Monthly',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _activeSection == ExpenseSection.monthly
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: _activeSection == ExpenseSection.monthly
+                            ? Colors.white
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Today's Expenses card in Daily view
+  Widget _buildTodayExpensesCard(
+    BuildContext context, {
+    required List<ExpenseEntry> todayExpenses,
+    required _ExpensePalette palette,
+  }) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.today_rounded, size: 16, color: palette.darkGreen),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Today\'s Expenses',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: palette.goldBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: palette.goldBorder),
+                    ),
+                    child: Text(
+                      '${todayExpenses.length} logged',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: palette.gold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showExpenseDialog(ref),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: palette.darkGreenBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: palette.darkGreenBorder),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.add_rounded,
+                              size: 14, color: palette.darkGreen),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Add',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: palette.darkGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (todayExpenses.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: palette.goldBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: palette.goldBorder),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    widget.isTogetherOnly
+                        ? Icons.group_outlined
+                        : Icons.calendar_today_rounded,
+                    color: palette.gold,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.isTogetherOnly
+                          ? 'No Budget Together expenses logged today.'
+                          : 'No expenses logged for today yet.',
+                      style: TextStyle(
+                        color: palette.gold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '₱0',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: palette.gold,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: todayExpenses.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (BuildContext context, int index) {
+                final ExpenseEntry expense = todayExpenses[index];
+                return _buildExpenseTile(
+                  context,
+                  expense: expense,
+                  palette: palette,
+                  onEdit: () => _showExpenseDialog(ref, existing: expense),
+                  onDelete: () async {
+                    final bool shouldDelete =
+                        await _confirmDeleteExpense(context, palette);
+                    if (!mounted || !shouldDelete) return;
+                    ref
+                        .read(budgetBuddyControllerProvider.notifier)
+                        .deleteExpense(expense.id);
+                  },
+                  onDetails: () => _showExpenseDetails(ref, expense, palette),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Daily History card containing past days in Daily view
+  Widget _buildDailyHistoryCard(
+    BuildContext context, {
+    required List<DateTime> pastDays,
+    required List<ExpenseEntry> expenses,
+    required _ExpensePalette palette,
+  }) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.history_rounded, size: 16, color: palette.gold),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Daily History',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: palette.goldBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: palette.goldBorder),
+                ),
+                child: Text(
+                  '${pastDays.length} past days',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: palette.gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (pastDays.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  'No past expense history yet.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...pastDays.map((DateTime day) {
+              final List<ExpenseEntry> dayExpenses =
+                  _expensesForDay(expenses, day);
+              final double dayTotal = dayExpenses.fold<double>(
+                  0, (double sum, ExpenseEntry e) => sum + e.amount);
+              final bool isZero = dayExpenses.isEmpty;
+
+              final Color accent = isZero ? palette.gold : palette.darkRed;
+              final Color accentBg =
+                  isZero ? palette.goldBg : palette.darkRedBg;
+              final Color accentBorder =
+                  isZero ? palette.goldBorder : palette.darkRedBorder;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => _showDayExpensesSheet(
+                    ref,
+                    day,
+                    expenses,
+                    palette,
+                    showBackButton: true,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant
+                            .withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentBg,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: accentBorder),
+                          ),
+                          child: Icon(
+                            isZero
+                                ? Icons.calendar_today_rounded
+                                : Icons.receipt_long_rounded,
+                            color: accent,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                _formatDayLabel(day),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isZero
+                                    ? 'No budget and expenses'
+                                    : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accentBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: accentBorder),
+                          ),
+                          child: Text(
+                            isZero ? '₱0' : formatPeso(dayTotal),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  /// Monthly Records card in Monthly view
+  Widget _buildMonthlyRecordsCard(
+    BuildContext context, {
+    required List<DateTime> availableMonths,
+    required List<ExpenseEntry> expenses,
+    required _ExpensePalette palette,
+  }) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.calendar_month_rounded,
+                      size: 16, color: palette.gold),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Monthly Records',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: palette.goldBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: palette.goldBorder),
+                ),
+                child: Text(
+                  '${availableMonths.length} months',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: palette.gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (availableMonths.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  widget.isTogetherOnly
+                      ? 'No Budget Together expenses recorded yet.'
+                      : 'No monthly expense records yet.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...availableMonths.map((DateTime month) {
+              final List<ExpenseEntry> monthExpenses = expenses
+                  .where((ExpenseEntry expense) =>
+                      expense.dateTime.year == month.year &&
+                      expense.dateTime.month == month.month)
+                  .toList();
+              final double total = monthExpenses.fold<double>(
+                  0, (double value, ExpenseEntry expense) => value + expense.amount);
+              final bool isZero = monthExpenses.isEmpty;
+
+              final Color accent = isZero ? palette.gold : palette.darkRed;
+              final Color accentBg =
+                  isZero ? palette.goldBg : palette.darkRedBg;
+              final Color accentBorder =
+                  isZero ? palette.goldBorder : palette.darkRedBorder;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () =>
+                      _showMonthDatesSheet(ref, month, expenses, palette),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant
+                            .withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentBg,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: accentBorder),
+                          ),
+                          child: Icon(
+                            isZero
+                                ? Icons.calendar_today_rounded
+                                : Icons.date_range_rounded,
+                            color: accent,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                DateFormat('MMMM yyyy').format(month),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isZero
+                                    ? 'No expenses this month'
+                                    : '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} tracked',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accentBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: accentBorder),
+                          ),
+                          child: Text(
+                            isZero ? '₱0' : formatPeso(total),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  /// Modern expense item tile with compact Edit, Delete, Details actions
+  Widget _buildExpenseTile(
+    BuildContext context, {
+    required ExpenseEntry expense,
+    required _ExpensePalette palette,
+    required VoidCallback onEdit,
+    required VoidCallback onDelete,
+    required VoidCallback onDetails,
+  }) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: expense.category.color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _expenseIconForExpense(expense),
+                  color: expense.category.color,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      expense.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      expense.note.isNotEmpty
+                          ? '${expense.category.label} • ${expense.note}'
+                          : expense.category.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.darkRedBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: palette.darkRedBorder),
+                ),
+                child: Text(
+                  formatPeso(expense.amount),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: palette.darkRed,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Action Buttons: Edit, Delete, Details
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: onEdit,
+                  child: const Text('Edit',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: palette.darkRedBg,
+                    foregroundColor: palette.darkRed,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: onDelete,
+                  child: const Text('Delete',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: onDetails,
+                  child: const Text('Details',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -409,7 +1465,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   Future<void> _showMonthDatesSheet(
-      WidgetRef ref, DateTime month, List<ExpenseEntry> expenses) async {
+    WidgetRef ref,
+    DateTime month,
+    List<ExpenseEntry> expenses,
+    _ExpensePalette palette,
+  ) async {
     final BuildContext localContext = context;
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final List<ExpenseEntry> monthExpenses = _expensesForMonth(expenses, month);
@@ -439,175 +1499,317 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       showDragHandle: false,
       enableDrag: false,
       isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
-        final MediaQueryData mediaQuery = MediaQuery.of(sheetContext);
-        return SafeArea(
-          child: SizedBox(
-            height: mediaQuery.size.height * 0.78 - mediaQuery.padding.bottom,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('Back'),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
+        final ThemeData theme = Theme.of(sheetContext);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Header Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        FilledButton.tonalIcon(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.darkGreenBg,
+                            foregroundColor: palette.darkGreen,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        Text(
                           DateFormat('MMMM yyyy').format(month),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.right,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Month Summary Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isSaved ? palette.darkGreenBg : palette.darkRedBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSaved
+                              ? palette.darkGreenBorder
+                              : palette.darkRedBorder,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
-                      style: Theme.of(sheetContext)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
-                              color: Theme.of(sheetContext)
-                                  .colorScheme
-                                  .onSurfaceVariant)),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Theme.of(sheetContext)
-                          .colorScheme
-                          .surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSaved
-                            ? const Color(0xFF166534).withValues(alpha: 0.35)
-                            : const Color(0xFFB91C1C).withValues(alpha: 0.35),
+                      child: Column(
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'MONTH BUDGET',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: palette.gold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      formatPeso(totalMonthlyBudget),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: <Widget>[
+                                    Text(
+                                      'EXPENSES',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: palette.darkRed,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      formatPeso(totalMonthlyExpenses),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: palette.darkRed,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isSaved
+                                    ? palette.darkGreen
+                                    : palette.darkRed,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                isSaved ? 'SAVED' : 'OVER BUDGET',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Column(
+                    const SizedBox(height: 12),
+
+                    // Days List Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            Expanded(
-                              child: _MonthlyMetric(
-                                label: 'MONTHLY BUDGET',
-                                value: formatPeso(totalMonthlyBudget),
-                              ),
-                            ),
-                            Expanded(
-                              child: _MonthlyMetric(
-                                label: 'EXPENSES',
-                                value: formatPeso(totalMonthlyExpenses),
-                                alignEnd: true,
+                            Icon(Icons.calendar_today_rounded,
+                                size: 14, color: palette.gold),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Days in this Month',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSaved
-                                  ? const Color(0xFF166534)
-                                  : const Color(0xFFB91C1C),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              isSaved ? 'SAVED' : 'OVER BUDGET',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.4,
-                              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: palette.goldBg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: palette.goldBorder),
+                          ),
+                          child: Text(
+                            '${monthDays.length} days',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: palette.gold,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ClipRect(
-                      child: ListView(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        children: <Widget>[
-                          ...monthDays.map((DateTime day) {
-                            final List<ExpenseEntry> dayExpenses = monthExpenses
-                                .where((ExpenseEntry expense) =>
-                                    DateUtils.isSameDay(expense.dateTime, day))
-                                .toList();
-                            final double dayTotal = dayExpenses.fold<double>(
-                                0,
-                                (double total, ExpenseEntry expense) =>
-                                    total + expense.amount);
-                            final bool isZero = dayExpenses.isEmpty;
+                    const SizedBox(height: 8),
 
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .outlineVariant,
-                                  ),
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  leading: Icon(
-                                    isZero
-                                        ? Icons.calendar_today_rounded
-                                        : Icons.calendar_today_outlined,
-                                    color:
-                                        isZero ? const Color(0xFFD97706) : null,
-                                  ),
-                                  title: Text(_formatDayLabel(day),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
-                                  subtitle: Text(
-                                    isZero
-                                        ? 'No activity'
-                                        : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                                  ),
-                                  trailing: Text(
-                                    isZero ? '₱0' : formatPeso(dayTotal),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: isZero
-                                          ? const Color(0xFFD97706)
-                                          : null,
-                                    ),
-                                  ),
-                                  onTap: () async =>
-                                      await _showDayExpensesSheet(
-                                          ref, day, expenses,
-                                          showBackButton: true),
+                    // Days List
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: monthDays.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (BuildContext ctx, int index) {
+                          final DateTime day = monthDays[index];
+                          final List<ExpenseEntry> dayExpenses = monthExpenses
+                              .where((ExpenseEntry expense) =>
+                                  DateUtils.isSameDay(expense.dateTime, day))
+                              .toList();
+                          final double dayTotal = dayExpenses.fold<double>(
+                              0, (double total, ExpenseEntry expense) => total + expense.amount);
+                          final bool isZero = dayExpenses.isEmpty;
+
+                          final Color accent =
+                              isZero ? palette.gold : palette.darkRed;
+                          final Color accentBg =
+                              isZero ? palette.goldBg : palette.darkRedBg;
+                          final Color accentBorder =
+                              isZero ? palette.goldBorder : palette.darkRedBorder;
+
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () async => await _showDayExpensesSheet(
+                              ref,
+                              day,
+                              expenses,
+                              palette,
+                              showBackButton: true,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.25),
                                 ),
                               ),
-                            );
-                          })
-                        ],
+                              child: Row(
+                                children: <Widget>[
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: accentBg,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: accentBorder),
+                                    ),
+                                    child: Icon(
+                                      isZero
+                                          ? Icons.calendar_today_rounded
+                                          : Icons.receipt_long_rounded,
+                                      color: accent,
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          _formatDayLabel(day),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          isZero
+                                              ? 'No activity'
+                                              : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: theme
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: accentBg,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: accentBorder),
+                                    ),
+                                    child: Text(
+                                      isZero ? '₱0' : formatPeso(dayTotal),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        color: accent,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -617,224 +1819,202 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }
 
   Future<void> _showDayExpensesSheet(
-      WidgetRef ref, DateTime day, List<ExpenseEntry> expenses,
-      {bool showBackButton = false}) async {
+    WidgetRef ref,
+    DateTime day,
+    List<ExpenseEntry> expenses,
+    _ExpensePalette palette, {
+    bool showBackButton = false,
+  }) async {
     final BuildContext localContext = context;
     final List<ExpenseEntry> dayExpenses = _expensesForDay(expenses, day);
-    final ExpenseEntry? editExpense = await showModalBottomSheet<ExpenseEntry>(
+    final double dayTotal = dayExpenses.fold<double>(
+        0, (double sum, ExpenseEntry e) => sum + e.amount);
+
+    final ExpenseEntry? editExpense =
+        await showModalBottomSheet<ExpenseEntry>(
       context: localContext,
       isScrollControlled: true,
-      showDragHandle: !showBackButton,
-      enableDrag: !showBackButton,
-      isDismissible: !showBackButton,
+      showDragHandle: false,
+      enableDrag: false,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      if (showBackButton)
-                        TextButton.icon(
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            icon: const Icon(Icons.arrow_back_rounded),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF991B1B),
+        final ThemeData theme = Theme.of(sheetContext);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Header Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        FilledButton.tonalIcon(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
                             ),
-                            label: const Text('Back')),
-                      Expanded(
-                        child: Text(DateFormat('EEEE, MMM d, yyyy').format(day),
-                            style: Theme.of(sheetContext)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                            textAlign: showBackButton
-                                ? TextAlign.right
-                                : TextAlign.left),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                      '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                      style: Theme.of(sheetContext)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
-                              color: Theme.of(sheetContext)
-                                  .colorScheme
-                                  .onSurfaceVariant)),
-                  const SizedBox(height: 12),
-                  if (dayExpenses.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const Icon(
-                              Icons.calendar_today_rounded,
-                              size: 44,
-                              color: Color(0xFFD97706),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.darkGreenBg,
+                            foregroundColor: palette.darkGreen,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No budget and expenses today',
-                              style: Theme.of(sheetContext)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₱0 spent • ₱0 balance',
-                              style: Theme.of(sheetContext)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(sheetContext)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
+                          ),
                         ),
+                        Text(
+                          DateFormat('EEEE, MMM d, yyyy').format(day),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Day Total Spent Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: palette.darkRedBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: palette.darkRedBorder),
                       ),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: dayExpenses.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (BuildContext context, int index) {
-                          final ExpenseEntry expense = dayExpenses[index];
-                          return Container(
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .outlineVariant)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Row(
-                                    children: <Widget>[
-                                      CircleAvatar(
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainerLow,
-                                          child: Icon(
-                                            _expenseIconForExpense(expense),
-                                            color: expense.category.color,
-                                            size: 18,
-                                          )),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            Text(expense.title,
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w700)),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                                expense.note.isNotEmpty
-                                                    ? '${expense.category.label} • ${expense.note}'
-                                                    : expense.category.label,
-                                                maxLines: 2,
-                                                overflow:
-                                                    TextOverflow.ellipsis),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(formatPeso(expense.amount),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: <Widget>[
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          style: OutlinedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 12),
-                                          ),
-                                          onPressed: () =>
-                                              Navigator.of(sheetContext)
-                                                  .pop(expense),
-                                          child:
-                                              const Text('Edit', maxLines: 1),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          style: OutlinedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 12),
-                                          ),
-                                          onPressed: () async {
-                                            final BuildContext localContext =
-                                                context;
-                                            final bool shouldDelete =
-                                                await _confirmDeleteExpense(
-                                                    localContext);
-                                            if (!mounted ||
-                                                !sheetContext.mounted ||
-                                                !shouldDelete) {
-                                              return;
-                                            }
-                                            ref
-                                                .read(
-                                                    budgetBuddyControllerProvider
-                                                        .notifier)
-                                                .deleteExpense(expense.id);
-                                            Navigator.of(sheetContext).pop();
-                                          },
-                                          child:
-                                              const Text('Delete', maxLines: 1),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          style: OutlinedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 12),
-                                          ),
-                                          onPressed: () async {
-                                            if (!mounted) return;
-                                            await _showExpenseDetails(
-                                                ref, expense);
-                                          },
-                                          child: const Text('Details',
-                                              maxLines: 1),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text(
+                                'Total Spent on this Day',
+                                style: TextStyle(
+                                  color: palette.darkRed,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
                               ),
+                              Icon(
+                                Icons.receipt_long_rounded,
+                                color: palette.darkRed,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            formatPeso(dayTotal),
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: palette.darkRed,
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'} logged',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                    const SizedBox(height: 14),
+
+                    // Expenses List
+                    if (dayExpenses.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                size: 36,
+                                color: palette.gold,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'No expenses logged for this day',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '₱0 spent',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: dayExpenses.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (BuildContext context, int index) {
+                            final ExpenseEntry expense = dayExpenses[index];
+                            return _buildExpenseTile(
+                              context,
+                              expense: expense,
+                              palette: palette,
+                              onEdit: () =>
+                                  Navigator.of(sheetContext).pop(expense),
+                              onDelete: () async {
+                                final bool shouldDelete =
+                                    await _confirmDeleteExpense(
+                                        context, palette);
+                                if (!mounted ||
+                                    !sheetContext.mounted ||
+                                    !shouldDelete) {
+                                  return;
+                                }
+                                ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .deleteExpense(expense.id);
+                                Navigator.of(sheetContext).pop();
+                              },
+                              onDetails: () async {
+                                await _showExpenseDetails(
+                                    ref, expense, palette);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -848,64 +2028,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     }
   }
 
-  Future<void> _showExpenseActions(WidgetRef ref, ExpenseEntry expense) async {
-    final BuildContext localContext = context;
-    final String? action = await showModalBottomSheet<String>(
-      context: localContext,
-      isScrollControlled: true,
-      builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                ListTile(
-                    leading: const Icon(Icons.edit_outlined),
-                    title: const Text('Edit'),
-                    onTap: () => Navigator.of(sheetContext).pop('edit')),
-                ListTile(
-                    leading: const Icon(Icons.delete_outline_rounded),
-                    title: const Text('Delete'),
-                    onTap: () => Navigator.of(sheetContext).pop('delete')),
-                ListTile(
-                    leading: const Icon(Icons.info_outline),
-                    title: const Text('View Details'),
-                    onTap: () => Navigator.of(sheetContext).pop('view')),
-                const SizedBox(height: 8),
-                TextButton(
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF991B1B),
-                    ),
-                    child: const Text('Cancel')),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  Future<void> _showExpenseDialog(
+    WidgetRef ref, {
+    ExpenseEntry? existing,
+  }) async {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final _ExpensePalette palette = _ExpensePalette(isDark);
 
-    if (action == 'edit') {
-      if (!mounted) return;
-      await _showExpenseDialog(ref, existing: expense);
-    } else if (action == 'delete') {
-      final BuildContext dialogContext = context;
-      if (!dialogContext.mounted) return;
-      final bool shouldDelete = await _confirmDeleteExpense(dialogContext);
-      if (!dialogContext.mounted || !shouldDelete) return;
-      ref
-          .read(budgetBuddyControllerProvider.notifier)
-          .deleteExpense(expense.id);
-    } else if (action == 'view') {
-      if (!mounted) return;
-      await _showExpenseDetails(ref, expense);
-    }
-  }
-
-  Future<void> _showExpenseDialog(WidgetRef ref,
-      {ExpenseEntry? existing}) async {
-    if (existing == null && !_ensureBudgetSet(context)) return;
+    if (existing == null && !_ensureBudgetSet(context, palette)) return;
 
     final TextEditingController titleController =
         TextEditingController(text: existing?.title ?? '');
@@ -923,152 +2053,247 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       showDragHandle: false,
       enableDrag: false,
       isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20),
-          child: StatefulBuilder(
-            builder: (BuildContext context,
-                void Function(void Function()) setModalState) {
-              final BudgetBuddyState state =
-                  ref.read(budgetBuddyControllerProvider);
-              final BudgetSummary summary = widget.isTogetherOnly
-                  ? ref.read(budgetTogetherSummaryProvider)
-                  : ref.read(budgetSummaryProvider);
-              final double enteredAmount =
-                  double.tryParse(amountController.text) ?? 0;
-              final double limit = _categoryLimit(category, state.settings);
-              final double projectedTotal =
-                  _categorySpent(summary, category) + enteredAmount;
-              final bool showWarning = limit > 0 && projectedTotal > limit;
+        final ThemeData theme = Theme.of(sheetContext);
 
-              return ListView(
-                shrinkWrap: true,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      TextButton.icon(
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 14,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+            ),
+            child: StatefulBuilder(
+              builder: (BuildContext context,
+                  void Function(void Function()) setModalState) {
+                final BudgetBuddyState state =
+                    ref.read(budgetBuddyControllerProvider);
+                final BudgetSummary summary = widget.isTogetherOnly
+                    ? ref.read(budgetTogetherSummaryProvider)
+                    : ref.read(budgetSummaryProvider);
+                final double enteredAmount =
+                    double.tryParse(amountController.text) ?? 0;
+                final double limit =
+                    _categoryLimit(category, state.settings);
+                final double projectedTotal =
+                    _categorySpent(summary, category) + enteredAmount;
+                final bool showWarning =
+                    limit > 0 && projectedTotal > limit;
+
+                return ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        FilledButton.tonalIcon(
                           onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          label: const Text('Back')),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(
-                              existing == null
-                                  ? (widget.isTogetherOnly
-                                      ? 'Add Together Expense'
-                                      : 'Add Expense')
-                                  : 'Edit Expense',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                              textAlign: TextAlign.right)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
+                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.darkGreenBg,
+                            foregroundColor: palette.darkGreen,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          existing == null
+                              ? (widget.isTogetherOnly
+                                  ? 'Add Together Expense'
+                                  : 'Add Expense')
+                              : 'Edit Expense',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Title')),
-                  const SizedBox(height: 12),
-                  TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Title',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
                       controller: amountController,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
                       onChanged: (_) => setModalState(() {}),
-                      decoration: const InputDecoration(labelText: 'Amount')),
-                  const SizedBox(height: 12),
-                  TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Amount (₱)',
+                        prefixText: '₱ ',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
                       controller: noteController,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Note')),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<BudgetCategory>(
-                    initialValue: category,
-                    items: BudgetCategory.values
-                        .map((BudgetCategory item) =>
-                            DropdownMenuItem<BudgetCategory>(
-                                value: item, child: Text(item.label)))
-                        .toList(),
-                    onChanged: (BudgetCategory? value) {
-                      if (value != null) {
-                        setModalState(() => category = value);
-                      }
-                    },
-                    decoration: const InputDecoration(labelText: 'Category'),
-                  ),
-                  if (showWarning) ...<Widget>[
-                    const SizedBox(height: 10),
-                    Container(
+                      decoration: InputDecoration(
+                        labelText: 'Note (Optional)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    DropdownButtonFormField<BudgetCategory>(
+                      initialValue: category,
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: BudgetCategory.values
+                          .map((BudgetCategory item) =>
+                              DropdownMenuItem<BudgetCategory>(
+                                value: item,
+                                child: Row(
+                                  children: <Widget>[
+                                    Icon(_expenseCategoryIcon(item),
+                                        size: 16, color: item.color),
+                                    const SizedBox(width: 8),
+                                    Text(item.label),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (BudgetCategory? value) {
+                        if (value != null) {
+                          setModalState(() => category = value);
+                        }
+                      },
+                    ),
+
+                    if (showWarning) ...<Widget>[
+                      const SizedBox(height: 10),
+                      Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                            color: const Color(0xFFFEE2E2),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFFCA5A5))),
-                        child: Text(
-                            '${category.label} is now ${formatPeso(projectedTotal - limit)} over its limit.',
-                            style: const TextStyle(
-                                color: Color(0xFF991B1B),
-                                fontWeight: FontWeight.w600))),
-                  ],
-                  const SizedBox(height: 20),
-                  SizedBox(
+                          color: palette.darkRedBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: palette.darkRedBorder),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Icon(Icons.warning_amber_rounded,
+                                size: 16, color: palette.darkRed),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${category.label} will be ${formatPeso(projectedTotal - limit)} over its limit.',
+                                style: TextStyle(
+                                  color: palette.darkRed,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+
+                    SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                          onPressed: () {
-                            final BudgetBuddyController controller = ref
-                                .read(budgetBuddyControllerProvider.notifier);
-                            final String source =
-                                existing != null && existing.source.isNotEmpty
-                                    ? existing.source
-                                    : (widget.isTogetherOnly
-                                        ? 'togetherSpend'
-                                        : 'manual');
-                            final ExpenseEntry entry = ExpenseEntry(
-                              id: existing?.id ??
-                                  DateTime.now()
-                                      .microsecondsSinceEpoch
-                                      .toString(),
-                              title: titleController.text.trim().isEmpty
-                                  ? 'Expense'
-                                  : titleController.text.trim(),
-                              amount:
-                                  double.tryParse(amountController.text) ?? 0,
-                              category: category,
-                              dateTime: existing?.dateTime ?? controller.now,
-                              note: noteController.text.trim(),
-                              source: source,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          backgroundColor: palette.darkGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          final BudgetBuddyController controller = ref
+                              .read(budgetBuddyControllerProvider.notifier);
+                          final String source =
+                              existing != null && existing.source.isNotEmpty
+                                  ? existing.source
+                                  : (widget.isTogetherOnly
+                                      ? 'togetherSpend'
+                                      : 'manual');
+                          final ExpenseEntry entry = ExpenseEntry(
+                            id: existing?.id ??
+                                DateTime.now()
+                                    .microsecondsSinceEpoch
+                                    .toString(),
+                            title: titleController.text.trim().isEmpty
+                                ? 'Expense'
+                                : titleController.text.trim(),
+                            amount:
+                                double.tryParse(amountController.text) ?? 0,
+                            category: category,
+                            dateTime: existing?.dateTime ?? controller.now,
+                            note: noteController.text.trim(),
+                            source: source,
+                          );
+                          if (existing == null) {
+                            controller.addExpense(
+                              title: entry.title,
+                              amount: entry.amount,
+                              category: entry.category,
+                              note: entry.note,
+                              dateTime: entry.dateTime,
+                              source: entry.source,
                             );
-                            if (existing == null) {
-                              controller.addExpense(
-                                title: entry.title,
-                                amount: entry.amount,
-                                category: entry.category,
-                                note: entry.note,
-                                dateTime: entry.dateTime,
-                                source: entry.source,
-                              );
-                            } else {
-                              controller.updateExpense(entry);
-                            }
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(existing == null
-                              ? 'Save Expense'
-                              : 'Update Expense'))),
-                ],
-              );
-            },
+                          } else {
+                            controller.updateExpense(entry);
+                          }
+                          Navigator.of(context).pop();
+                        },
+                        child: Text(
+                          existing == null ? 'Save Expense' : 'Update Expense',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
     );
   }
 
-  Future<void> _showExpenseDetails(WidgetRef ref, ExpenseEntry expense) async {
+  Future<void> _showExpenseDetails(
+    WidgetRef ref,
+    ExpenseEntry expense,
+    _ExpensePalette palette,
+  ) async {
     final BuildContext localContext = context;
 
     await showModalBottomSheet<void>(
@@ -1078,59 +2303,119 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       showDragHandle: false,
       enableDrag: false,
       isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
-        return SingleChildScrollView(
-          padding: EdgeInsets.only(
+        final ThemeData theme = Theme.of(sheetContext);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
               left: 20,
               right: 20,
-              top: 12,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(expense.title,
-                  softWrap: true,
-                  style: Theme.of(sheetContext)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Text(formatPeso(expense.amount),
-                  softWrap: true,
-                  style: Theme.of(sheetContext)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text('Category: ${expense.category.label}', softWrap: true),
-              const SizedBox(height: 6),
-              Text(
-                  'Date: ${DateFormat('MMMM d, yyyy h:mm a').format(expense.dateTime)}',
-                  softWrap: true),
-              const SizedBox(height: 8),
-              if (expense.note.isNotEmpty)
-                Text('Note: ${expense.note}', softWrap: true),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF991B1B),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Close'),
+              top: 16,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text(
+                      'Expense Details',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: palette.darkRedBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: palette.darkRedBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        expense.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatPeso(expense.amount),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: palette.darkRed,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                Text(
+                  'Category: ${expense.category.label}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Date: ${DateFormat('MMMM d, yyyy h:mm a').format(expense.dateTime)}',
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                if (expense.note.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Note: ${expense.note}',
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
+                const SizedBox(height: 18),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: palette.darkGreen,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Future<bool> _confirmDeleteExpense(BuildContext context) async {
+  Future<bool> _confirmDeleteExpense(
+    BuildContext context,
+    _ExpensePalette palette,
+  ) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -1139,14 +2424,23 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           content: const Text('This expense will be removed permanently.'),
           actions: <Widget>[
             TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF991B1B),
-                ),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              style: TextButton.styleFrom(
+                foregroundColor: palette.darkRed,
+              ),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Delete')),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.darkRed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Delete'),
+            ),
           ],
         );
       },
@@ -1215,377 +2509,4 @@ IconData _expenseCategoryIcon(BudgetCategory category) {
     BudgetCategory.shopping => Icons.shopping_bag_rounded,
     BudgetCategory.miscellaneous => Icons.edit_rounded,
   };
-}
-
-class _DailySection extends StatelessWidget {
-  const _DailySection({
-    required this.dayLabel,
-    required this.expenses,
-    required this.onTapDay,
-    this.isTogetherOnly = false,
-    this.onTapExpense,
-    this.onEditExpense,
-    this.onDeleteExpense,
-    this.onViewExpense,
-  });
-
-  final String dayLabel;
-  final List<ExpenseEntry> expenses;
-  final bool isTogetherOnly;
-  final ValueChanged<DateTime> onTapDay;
-  final ValueChanged<ExpenseEntry>? onTapExpense;
-  final Future<void> Function(ExpenseEntry)? onEditExpense;
-  final Future<void> Function(ExpenseEntry)? onDeleteExpense;
-  final Future<void> Function(ExpenseEntry)? onViewExpense;
-
-  @override
-  Widget build(BuildContext context) {
-    final double total = expenses.fold<double>(
-        0, (double value, ExpenseEntry expense) => value + expense.amount);
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('DAILY',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text(dayLabel,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(
-              '${expenses.length} expense${expenses.length == 1 ? '' : 's'} • ${formatPeso(total)} today',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 12),
-          if (expenses.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isTogetherOnly
-                      ? Theme.of(context).colorScheme.outlineVariant
-                      : const Color(0xFFD97706).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    isTogetherOnly
-                        ? Icons.group_outlined
-                        : Icons.calendar_today_rounded,
-                    color: isTogetherOnly
-                        ? Theme.of(context).colorScheme.onSurfaceVariant
-                        : const Color(0xFFD97706),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      isTogetherOnly
-                          ? 'No Budget Together expenses yet for today.'
-                          : 'No budget and expenses today',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isTogetherOnly
-                                ? Theme.of(context).colorScheme.onSurfaceVariant
-                                : const Color(0xFFD97706),
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                  if (!isTogetherOnly)
-                    const Text(
-                      '₱0',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFD97706),
-                      ),
-                    ),
-                ],
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: expenses.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (BuildContext context, int index) {
-                final ExpenseEntry expense = expenses[index];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => onTapExpense != null
-                      ? onTapExpense!(expense)
-                      : onTapDay(DateTime.now()),
-                  child: Container(
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color:
-                                Theme.of(context).colorScheme.outlineVariant)),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            CircleAvatar(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerLow,
-                                child: Icon(
-                                  _expenseIconForExpense(expense),
-                                  color: expense.category.color,
-                                  size: 18,
-                                )),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(expense.title,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                      expense.note.isNotEmpty
-                                          ? '${expense.category.label} • ${expense.note}'
-                                          : expense.category.label,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(formatPeso(expense.amount),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 12),
-                                ),
-                                onPressed: () {
-                                  if (onEditExpense != null) {
-                                    onEditExpense!(expense);
-                                  }
-                                },
-                                child: const Text('Edit', maxLines: 1),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 12),
-                                ),
-                                onPressed: () async {
-                                  if (onDeleteExpense != null) {
-                                    await onDeleteExpense!(expense);
-                                  }
-                                },
-                                child: const Text('Delete', maxLines: 1),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 12),
-                                ),
-                                onPressed: () async {
-                                  if (onViewExpense != null) {
-                                    await onViewExpense!(expense);
-                                  }
-                                },
-                                child: const Text('Details', maxLines: 1),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthlySection extends StatelessWidget {
-  const _MonthlySection(
-      {required this.availableMonths,
-      required this.expenses,
-      required this.onTapMonth,
-      this.isTogetherOnly = false});
-
-  final List<DateTime> availableMonths;
-  final List<ExpenseEntry> expenses;
-  final ValueChanged<DateTime> onTapMonth;
-  final bool isTogetherOnly;
-
-  @override
-  Widget build(BuildContext context) {
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('MONTHLY',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text('Tap a month to open its daily dates',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          if (availableMonths.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFD97706).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: <Widget>[
-                  const Icon(
-                    Icons.calendar_today_rounded,
-                    color: Color(0xFFD97706),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      isTogetherOnly
-                          ? 'No Budget Together expenses yet.'
-                          : 'No budget and expenses this month',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFFD97706),
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                  const Text(
-                    '₱0',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFD97706),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ...availableMonths.map((DateTime month) {
-              final List<ExpenseEntry> monthExpenses = expenses
-                  .where((ExpenseEntry expense) =>
-                      expense.dateTime.year == month.year &&
-                      expense.dateTime.month == month.month)
-                  .toList();
-              final double total = monthExpenses.fold<double>(
-                  0,
-                  (double value, ExpenseEntry expense) =>
-                      value + expense.amount);
-              final bool isZero = monthExpenses.isEmpty;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                          color: isZero
-                              ? const Color(0xFFD97706).withValues(alpha: 0.3)
-                              : Theme.of(context).colorScheme.outlineVariant)),
-                  leading: Icon(
-                    isZero
-                        ? Icons.calendar_today_rounded
-                        : Icons.date_range_outlined,
-                    color: isZero
-                        ? const Color(0xFFD97706)
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text(DateFormat('MMMM yyyy').format(month),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(isZero
-                      ? 'No budget and expenses this month • Tap for daily dates'
-                      : '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates'),
-                  trailing: Text(
-                    isZero ? '₱0' : formatPeso(total),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: isZero ? const Color(0xFFD97706) : null,
-                    ),
-                  ),
-                  onTap: () => onTapMonth(month),
-                ),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthlyMetric extends StatelessWidget {
-  const _MonthlyMetric({
-    required this.label,
-    required this.value,
-    this.alignEnd = false,
-  });
-
-  final String label;
-  final String value;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.4,
-              ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-      ],
-    );
-  }
 }

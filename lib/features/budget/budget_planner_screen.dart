@@ -16,17 +16,20 @@ class _BudgetPalette {
 
   // Dark Red: expenses, overspent alert, debt, reset/cancel actions
   Color get darkRed => const Color(0xFF991B1B);
-  Color get darkRedBg => const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkRedBg =>
+      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
   Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
 
   // Gold: target budget amounts, currency signs, presets, monthly overview
   Color get gold => const Color(0xFFD97706);
-  Color get goldBg => const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get goldBg =>
+      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
   Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
 
   // Dark Green: remaining safe balance, locked/active status, save/update actions
   Color get darkGreen => const Color(0xFF0F766E);
-  Color get darkGreenBg => const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkGreenBg =>
+      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
   Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
 }
 
@@ -344,7 +347,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         : (hasBudget ? palette.goldBorder : palette.darkRedBorder);
     final IconData statusIcon = isLocked
         ? Icons.check_circle_rounded
-        : (hasBudget ? Icons.edit_rounded : Icons.radio_button_unchecked_rounded);
+        : (hasBudget
+            ? Icons.edit_rounded
+            : Icons.radio_button_unchecked_rounded);
     final String statusLabel =
         isLocked ? 'Active' : (hasBudget ? 'Editing' : 'No Budget Set');
 
@@ -529,8 +534,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: _quickPresets.map((double preset) {
-                  final bool isSelected = _dailyController.text.trim() ==
-                      preset.toStringAsFixed(0);
+                  final bool isSelected =
+                      _dailyController.text.trim() == preset.toStringAsFixed(0);
                   return Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: InkWell(
@@ -543,18 +548,16 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           color: isSelected ? palette.gold : palette.goldBg,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isSelected
-                                ? palette.gold
-                                : palette.goldBorder,
+                            color:
+                                isSelected ? palette.gold : palette.goldBorder,
                           ),
                         ),
                         child: Text(
                           '₱${preset.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w600,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w600,
                             color: isSelected ? Colors.white : palette.gold,
                           ),
                         ),
@@ -646,8 +649,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed:
-                    _dailyController.text.trim().isNotEmpty ? _saveBudget : null,
+                onPressed: _dailyController.text.trim().isNotEmpty
+                    ? _saveBudget
+                    : null,
                 icon: const Icon(Icons.check_circle_rounded, size: 16),
                 label: const Text('Save & Lock Today\'s Budget'),
                 style: FilledButton.styleFrom(
@@ -692,7 +696,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         : (dailySummary.isWarning ? palette.goldBg : palette.darkGreenBg);
     final Color badgeBorder = isOver
         ? palette.darkRedBorder
-        : (dailySummary.isWarning ? palette.goldBorder : palette.darkGreenBorder);
+        : (dailySummary.isWarning
+            ? palette.goldBorder
+            : palette.darkGreenBorder);
 
     final String badgeLabel = !hasBudget
         ? 'Unset'
@@ -732,8 +738,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeBg,
                   borderRadius: BorderRadius.circular(8),
@@ -799,16 +804,16 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           ),
 
           // Warning Notice (Only shown if overspent or warning threshold reached)
-          if (hasBudget && (dailySummary.isOverspent || dailySummary.isWarning)) ...<Widget>[
+          if (hasBudget &&
+              (dailySummary.isOverspent || dailySummary.isWarning)) ...<Widget>[
             const SizedBox(height: 8),
             Row(
               children: <Widget>[
                 Icon(
                   Icons.info_outline_rounded,
                   size: 14,
-                  color: dailySummary.isOverspent
-                      ? palette.darkRed
-                      : palette.gold,
+                  color:
+                      dailySummary.isOverspent ? palette.darkRed : palette.gold,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
@@ -839,8 +844,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.history_rounded,
-                      size: 14, color: palette.darkRed),
+                  Icon(Icons.history_rounded, size: 14, color: palette.darkRed),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -930,14 +934,12 @@ class _CompactMetricTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.bgColor,
-    this.textColor = Colors.white,
     this.icon,
   });
 
   final String label;
   final String value;
   final Color bgColor;
-  final Color textColor;
   final IconData? icon;
 
   @override
@@ -965,7 +967,7 @@ class _CompactMetricTile extends StatelessWidget {
                 Icon(
                   icon,
                   size: 12,
-                  color: textColor.withValues(alpha: 0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -978,7 +980,7 @@ class _CompactMetricTile extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
-                    color: textColor.withValues(alpha: 0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
               ),
@@ -991,12 +993,12 @@ class _CompactMetricTile extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
                 letterSpacing: -0.3,
-                color: textColor,
-                shadows: const <Shadow>[
+                color: Colors.white,
+                shadows: <Shadow>[
                   Shadow(
                     color: Colors.black26,
                     blurRadius: 2,
@@ -1135,7 +1137,8 @@ class _CountdownConfirmationDialogState
                     color: widget.confirmColor,
                   ),
                 ),
-                Icon(Icons.timer_outlined, size: 13, color: widget.confirmColor),
+                Icon(Icons.timer_outlined,
+                    size: 13, color: widget.confirmColor),
               ],
             ),
           ] else ...<Widget>[

@@ -38,14 +38,12 @@ class _CompactMetricTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.bgColor,
-    this.textColor = Colors.white,
     this.icon,
   });
 
   final String label;
   final String value;
   final Color bgColor;
-  final Color textColor;
   final IconData? icon;
 
   @override
@@ -73,7 +71,7 @@ class _CompactMetricTile extends StatelessWidget {
                 Icon(
                   icon,
                   size: 12,
-                  color: textColor.withValues(alpha: 0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -86,7 +84,7 @@ class _CompactMetricTile extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
-                    color: textColor.withValues(alpha: 0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
               ),
@@ -99,12 +97,12 @@ class _CompactMetricTile extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
                 letterSpacing: -0.3,
-                color: textColor,
-                shadows: const <Shadow>[
+                color: Colors.white,
+                shadows: <Shadow>[
                   Shadow(
                     color: Colors.black26,
                     blurRadius: 2,
@@ -163,9 +161,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.arrow_back_rounded, size: 16),
                   label: Text(
-                    widget.isTogetherOnly
-                        ? 'Back to Budget Together'
-                        : 'Back',
+                    widget.isTogetherOnly ? 'Back to Budget Together' : 'Back',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 12),
                   ),
@@ -253,9 +249,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final IconData statusIcon = hasDebt
         ? Icons.warning_amber_rounded
         : (isDeficit ? Icons.trending_down_rounded : Icons.savings_rounded);
-    final String statusLabel = hasDebt
-        ? 'Debt Active'
-        : (isDeficit ? 'Deficit' : 'Surplus');
+    final String statusLabel =
+        hasDebt ? 'Debt Active' : (isDeficit ? 'Deficit' : 'Surplus');
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -407,7 +402,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 child: _CompactMetricTile(
                   label: widget.isTogetherOnly
                       ? 'Tab Spent'
-                      : (state.savingsDebt > 0 ? 'Savings Debt' : 'Debt Status'),
+                      : (state.savingsDebt > 0
+                          ? 'Savings Debt'
+                          : 'Debt Status'),
                   value: widget.isTogetherOnly
                       ? formatPeso(togetherSpent)
                       : (state.savingsDebt > 0
@@ -678,8 +675,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     record: record,
                     currentClock: currentClock,
                     palette: palette,
-                    onTap: () =>
-                        _showSavingsDaySheet(context, record, palette),
+                    onTap: () => _showSavingsDaySheet(context, record, palette),
                   ),
                 );
               },
@@ -931,8 +927,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 10),
                               decoration: BoxDecoration(
-                                color: theme
-                                    .colorScheme.surfaceContainerHighest
+                                color: theme.colorScheme.surfaceContainerHighest
                                     .withValues(alpha: 0.35),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
@@ -1251,8 +1246,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       final List<ExpenseEntry> dayExpenses = togetherExpenses
           .where((ExpenseEntry e) => DateUtils.isSameDay(e.dateTime, date))
           .toList();
-      final double totalSpent = dayExpenses.fold(
-          0, (double sum, ExpenseEntry e) => sum + e.amount);
+      final double totalSpent =
+          dayExpenses.fold(0, (double sum, ExpenseEntry e) => sum + e.amount);
       final double savings =
           togetherBudget > 0 ? togetherBudget - totalSpent : -totalSpent;
 

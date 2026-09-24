@@ -279,9 +279,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.arrow_back_rounded, size: 16),
                   label: Text(
-                    widget.isTogetherOnly
-                        ? 'Back to Budget Together'
-                        : 'Back',
+                    widget.isTogetherOnly ? 'Back to Budget Together' : 'Back',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 12),
                   ),
@@ -429,9 +427,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final IconData statusIcon = !hasBudget
         ? Icons.radio_button_unchecked_rounded
         : (isOver ? Icons.warning_amber_rounded : Icons.check_circle_rounded);
-    final String statusLabel = !hasBudget
-        ? 'No Budget'
-        : (isOver ? 'Overspent' : 'Active');
+    final String statusLabel =
+        !hasBudget ? 'No Budget' : (isOver ? 'Overspent' : 'Active');
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -508,7 +505,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         : (dailySummary.isWarning ? palette.goldBg : palette.darkGreenBg);
     final Color badgeBorder = isOver
         ? palette.darkRedBorder
-        : (dailySummary.isWarning ? palette.goldBorder : palette.darkGreenBorder);
+        : (dailySummary.isWarning
+            ? palette.goldBorder
+            : palette.darkGreenBorder);
 
     final String badgeLabel = !hasBudget
         ? 'Unset'
@@ -548,8 +547,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeBg,
                   borderRadius: BorderRadius.circular(8),
@@ -615,16 +613,16 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           ),
 
           // Warning Notice
-          if (hasBudget && (dailySummary.isOverspent || dailySummary.isWarning)) ...<Widget>[
+          if (hasBudget &&
+              (dailySummary.isOverspent || dailySummary.isWarning)) ...<Widget>[
             const SizedBox(height: 8),
             Row(
               children: <Widget>[
                 Icon(
                   Icons.info_outline_rounded,
                   size: 14,
-                  color: dailySummary.isOverspent
-                      ? palette.darkRed
-                      : palette.gold,
+                  color:
+                      dailySummary.isOverspent ? palette.darkRed : palette.gold,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
@@ -1019,7 +1017,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final TextEditingController amountController =
         TextEditingController(text: '');
     final TextEditingController noteController = TextEditingController();
-    final List<double> quickPresets = const <double>[20, 50, 100, 150, 200, 500];
+    const List<double> quickPresets = <double>[20, 50, 100, 150, 200, 500];
 
     showModalBottomSheet<void>(
       context: context,
@@ -1032,9 +1030,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           builder: (BuildContext context, StateSetter setModalState) {
             final double currentAmount =
                 double.tryParse(amountController.text) ?? 0;
-            final double totalPending = _pendingSpends.fold(
-                0.0, (sum, item) => sum + item.amount);
-            final double grandTotal = totalPending + currentAmount;
+            final double totalPending =
+                _pendingSpends.fold(0.0, (sum, item) => sum + item.amount);
             final int grandCount =
                 _pendingSpends.length + (currentAmount > 0 ? 1 : 0);
 
@@ -1065,8 +1062,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                 color: option.color.withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                               ),
-                              child:
-                                  Icon(option.icon, color: option.color, size: 18),
+                              child: Icon(option.icon,
+                                  color: option.color, size: 18),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -1309,7 +1306,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                               Navigator.of(sheetContext).pop();
                               _logAllPendingSpends(context, palette);
                             },
-                            icon: const Icon(Icons.check_circle_rounded, size: 16),
+                            icon: const Icon(Icons.check_circle_rounded,
+                                size: 16),
                             label: Text(
                               grandCount > 0
                                   ? 'Log Now (${grandCount == 1 ? '1 item' : '$grandCount items'})'
@@ -1370,7 +1368,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                           separatorBuilder: (BuildContext context, int index) =>
                               const SizedBox(height: 6),
                           itemBuilder: (BuildContext context, int index) {
-                            final _PendingSpendItem item = _pendingSpends[index];
+                            final _PendingSpendItem item =
+                                _pendingSpends[index];
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 8),
@@ -1430,8 +1429,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                     decoration: BoxDecoration(
                                       color: palette.goldBg,
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: palette.goldBorder),
+                                      border:
+                                          Border.all(color: palette.goldBorder),
                                     ),
                                     child: Text(
                                       formatPeso(item.amount),
@@ -1599,8 +1598,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                               .deleteExpense(existing.id);
                           Navigator.of(sheetContext).pop();
                         },
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 16),
+                        icon:
+                            const Icon(Icons.delete_outline_rounded, size: 16),
                         label: const Text('Delete'),
                         style: FilledButton.styleFrom(
                           backgroundColor: palette.darkRed,
@@ -1787,14 +1786,12 @@ class _CompactMetricTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.bgColor,
-    this.textColor = Colors.white,
     this.icon,
   });
 
   final String label;
   final String value;
   final Color bgColor;
-  final Color textColor;
   final IconData? icon;
 
   @override
@@ -1822,7 +1819,7 @@ class _CompactMetricTile extends StatelessWidget {
                 Icon(
                   icon,
                   size: 12,
-                  color: textColor.withValues(alpha: 0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -1835,7 +1832,7 @@ class _CompactMetricTile extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
-                    color: textColor.withValues(alpha: 0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
               ),
@@ -1848,12 +1845,12 @@ class _CompactMetricTile extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
                 letterSpacing: -0.3,
-                color: textColor,
-                shadows: const <Shadow>[
+                color: Colors.white,
+                shadows: <Shadow>[
                   Shadow(
                     color: Colors.black26,
                     blurRadius: 2,
