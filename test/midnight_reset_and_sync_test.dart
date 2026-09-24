@@ -33,10 +33,13 @@ void main() {
       notificationService = NotificationService.instance;
     });
 
-    test('resets active daily budget and today expense entry when new day starts', () async {
+    test(
+        'resets active daily budget and today expense entry when new day starts',
+        () async {
       final DateTime now = DateTime.now();
       final DateTime yesterday = now.subtract(const Duration(days: 1));
-      final DateTime yesterdayDate = DateTime(yesterday.year, yesterday.month, yesterday.day);
+      final DateTime yesterdayDate =
+          DateTime(yesterday.year, yesterday.month, yesterday.day);
 
       repo.storedState = BudgetBuddyState.initial().copyWith(
         dailyPeriodStart: yesterdayDate,
@@ -84,7 +87,9 @@ void main() {
       controller.dispose();
     });
 
-    test('automatically backfills missing past days so every calendar day has a record', () async {
+    test(
+        'automatically backfills missing past days so every calendar day has a record',
+        () async {
       final DateTime now = DateTime.now();
       final DateTime threeDaysAgo = now.subtract(const Duration(days: 3));
       final DateTime threeDaysAgoDate =
@@ -131,7 +136,9 @@ void main() {
       controller.dispose();
     });
 
-    test('Dev Mode simulateMidnightReset() resets active daily budget and rolls over to 12:00 AM', () async {
+    test(
+        'Dev Mode simulateMidnightReset() resets active daily budget and rolls over to 12:00 AM',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
@@ -192,7 +199,56 @@ void main() {
       controller.dispose();
     });
 
-    test('Dev Mode setSimulatedDateTime() triggers reset when setting time to 12:00 AM or future day', () async {
+    test('Dev Mode fastForwardOneDay() starts a fresh day at 12:00 AM',
+        () async {
+      repo.storedState = BudgetBuddyState.initial();
+
+      final controller = BudgetBuddyController(
+        repository: repo,
+        service: service,
+        notificationService: notificationService,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final DateTime today = controller.now;
+      controller.state = controller.state.copyWith(
+        dailyPeriodStart: DateTime(today.year, today.month, today.day),
+        settings: controller.state.settings.copyWith(
+          dailyLimit: 500,
+          hasConfiguredBudget: true,
+        ),
+        budgetEntries: <BudgetEntry>[
+          BudgetEntry(
+            date: DateTime(today.year, today.month, today.day),
+            amount: 500,
+          ),
+        ],
+        dailySpent: 200,
+      );
+
+      await controller.fastForwardOneDay();
+
+      expect(controller.now,
+          equals(DateTime(today.year, today.month, today.day + 1)));
+      expect(controller.state.settings.dailyLimit, isNull);
+      expect(controller.state.settings.hasConfiguredBudget, isFalse);
+      expect(controller.state.dailySpent, equals(0));
+
+      controller.recordDailyBudget(amount: 300);
+      controller.addExpense(
+        title: 'Breakfast',
+        amount: 75,
+        category: BudgetCategory.food,
+      );
+      expect(controller.state.settings.dailyLimit, equals(300));
+      expect(controller.state.dailySpent, equals(75));
+
+      controller.dispose();
+    });
+
+    test(
+        'Dev Mode setSimulatedDateTime() triggers reset when setting time to 12:00 AM or future day',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
@@ -218,7 +274,8 @@ void main() {
       );
 
       // Simulate user setting time to 12:00 AM tomorrow
-      final DateTime tomorrow12AM = DateTime(today.year, today.month, today.day + 1, 0, 0);
+      final DateTime tomorrow12AM =
+          DateTime(today.year, today.month, today.day + 1, 0, 0);
       await controller.setSimulatedDateTime(tomorrow12AM);
 
       // Active budget reset
@@ -229,7 +286,9 @@ void main() {
       controller.dispose();
     });
 
-    test('after budget reset, spending is 0 and user can set a new budget for today', () async {
+    test(
+        'after budget reset, spending is 0 and user can set a new budget for today',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
@@ -295,7 +354,9 @@ void main() {
       controller.dispose();
     });
 
-    test('Zero-Activity Days (Empty State): records Budget = 0.0, Expenses = 0.0, and preserves date in history logs', () async {
+    test(
+        'Zero-Activity Days (Empty State): records Budget = 0.0, Expenses = 0.0, and preserves date in history logs',
+        () async {
       final DateTime now = DateTime.now();
       final DateTime twoDaysAgo = now.subtract(const Duration(days: 2));
       final DateTime twoDaysAgoDate =
@@ -331,18 +392,18 @@ void main() {
       final DateTime yesterdayDate =
           DateTime(yesterday.year, yesterday.month, yesterday.day);
 
-      final DailyRecord? yesterdayRecord = controller.state.dailyRecords
-          .cast<DailyRecord?>()
-          .firstWhere(
-            (DailyRecord? r) =>
-                r != null &&
-                r.date.year == yesterdayDate.year &&
-                r.date.month == yesterdayDate.month &&
-                r.date.day == yesterdayDate.day,
-            orElse: () => null,
-          );
+      final DailyRecord? yesterdayRecord =
+          controller.state.dailyRecords.cast<DailyRecord?>().firstWhere(
+                (DailyRecord? r) =>
+                    r != null &&
+                    r.date.year == yesterdayDate.year &&
+                    r.date.month == yesterdayDate.month &&
+                    r.date.day == yesterdayDate.day,
+                orElse: () => null,
+              );
 
-      expect(yesterdayRecord, isNotNull, reason: 'Zero-activity date must be in history logs');
+      expect(yesterdayRecord, isNotNull,
+          reason: 'Zero-activity date must be in history logs');
       expect(yesterdayRecord!.budget, equals(0.0));
       expect(yesterdayRecord.totalSpent, equals(0.0));
       expect(yesterdayRecord.remainingBalance, equals(0.0));
@@ -351,18 +412,18 @@ void main() {
 
       // Also check today's record when no budget and no expenses logged
       final DateTime todayDate = DateTime(now.year, now.month, now.day);
-      final DailyRecord? todayRecord = controller.state.dailyRecords
-          .cast<DailyRecord?>()
-          .firstWhere(
-            (DailyRecord? r) =>
-                r != null &&
-                r.date.year == todayDate.year &&
-                r.date.month == todayDate.month &&
-                r.date.day == todayDate.day,
-            orElse: () => null,
-          );
+      final DailyRecord? todayRecord =
+          controller.state.dailyRecords.cast<DailyRecord?>().firstWhere(
+                (DailyRecord? r) =>
+                    r != null &&
+                    r.date.year == todayDate.year &&
+                    r.date.month == todayDate.month &&
+                    r.date.day == todayDate.day,
+                orElse: () => null,
+              );
 
-      expect(todayRecord, isNotNull, reason: 'Today zero-activity date must be in history logs');
+      expect(todayRecord, isNotNull,
+          reason: 'Today zero-activity date must be in history logs');
       expect(todayRecord!.budget, equals(0.0));
       expect(todayRecord.totalSpent, equals(0.0));
       expect(todayRecord.remainingBalance, equals(0.0));
@@ -372,7 +433,9 @@ void main() {
       controller.dispose();
     });
 
-    test('Budget Surplus & Savings Debt Logic: maintains savingsDebt and totalSavings correctly', () async {
+    test(
+        'Budget Surplus & Savings Debt Logic: maintains savingsDebt and totalSavings correctly',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
@@ -419,7 +482,9 @@ void main() {
       controller.dispose();
     });
 
-    test('Budget Surplus & Savings Debt: automatic settlement on midnight reset', () async {
+    test(
+        'Budget Surplus & Savings Debt: automatic settlement on midnight reset',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
@@ -463,7 +528,9 @@ void main() {
       controller.dispose();
     });
 
-    test('budget left goes to savings only (not full budget) and is NOT added to next day budget', () async {
+    test(
+        'budget left goes to savings only (not full budget) and is NOT added to next day budget',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
@@ -511,7 +578,9 @@ void main() {
       controller.dispose();
     });
 
-    test('Day 1 has 12 left (100 budget, 88 spent); Day 2 has no new budget; 12am reset does NOT copy 100 into savings', () async {
+    test(
+        'Day 1 has 12 left (100 budget, 88 spent); Day 2 has no new budget; 12am reset does NOT copy 100 into savings',
+        () async {
       repo.storedState = BudgetBuddyState.initial();
 
       final controller = BudgetBuddyController(
