@@ -412,26 +412,26 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       WidgetRef ref, DateTime month, List<ExpenseEntry> expenses) async {
     final BuildContext localContext = context;
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final DateTime currentNow =
-        ref.read(budgetBuddyControllerProvider.notifier).now;
     final List<ExpenseEntry> monthExpenses = _expensesForMonth(expenses, month);
 
-    final Set<DateTime> daysSet = <DateTime>{};
-    for (final ExpenseEntry expense in monthExpenses) {
-      daysSet.add(DateTime(
-          expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
+    final DateTime monthStart = DateTime(month.year, month.month);
+    final DateTime nextMonthStart = DateTime(month.year, month.month + 1);
+    final List<DateTime> monthDays = <DateTime>[];
+    for (DateTime day = nextMonthStart.subtract(const Duration(days: 1));
+        !day.isBefore(monthStart);
+        day = day.subtract(const Duration(days: 1))) {
+      monthDays.add(day);
     }
-    for (final DailyRecord record in state.dailyRecords) {
-      if (record.date.year == month.year && record.date.month == month.month) {
-        daysSet.add(
-            DateTime(record.date.year, record.date.month, record.date.day));
-      }
-    }
-    if (currentNow.year == month.year && currentNow.month == month.month) {
-      daysSet.add(DateTime(currentNow.year, currentNow.month, currentNow.day));
-    }
-    final List<DateTime> monthDays = daysSet.toList()
-      ..sort((a, b) => b.compareTo(a));
+    final double totalMonthlyBudget = widget.isTogetherOnly
+        ? state.togetherBudget
+        : state.budgetEntries
+            .where((BudgetEntry entry) =>
+                !entry.date.isBefore(monthStart) &&
+                entry.date.isBefore(nextMonthStart))
+            .fold(0, (double total, BudgetEntry entry) => total + entry.amount);
+    final double totalMonthlyExpenses = monthExpenses.fold(
+        0, (double total, ExpenseEntry expense) => total + expense.amount);
+    final bool isSaved = totalMonthlyBudget >= totalMonthlyExpenses;
 
     await showModalBottomSheet<void>(
       context: localContext,
@@ -440,145 +440,161 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       enableDrag: false,
       isDismissible: false,
       builder: (BuildContext sheetContext) {
+        final MediaQueryData mediaQuery = MediaQuery.of(sheetContext);
         return SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78),
+          child: SizedBox(
+            height: mediaQuery.size.height * 0.78 - mediaQuery.padding.bottom,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('Back'),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          DateFormat('MMMM yyyy').format(month),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.right,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          label: const Text('Back'),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
-                      style: Theme.of(sheetContext)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
-                              color: Theme.of(sheetContext)
-                                  .colorScheme
-                                  .onSurfaceVariant)),
-                  const SizedBox(height: 12),
-                  if (monthDays.isEmpty)
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            DateFormat('MMMM yyyy').format(month),
+                            style: Theme.of(sheetContext)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                        '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
+                        style: Theme.of(sheetContext)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                                color: Theme.of(sheetContext)
+                                    .colorScheme
+                                    .onSurfaceVariant)),
+                    const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Theme.of(sheetContext)
                             .colorScheme
                             .surfaceContainerLow,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFD97706).withValues(alpha: 0.3),
+                          color: isSaved
+                              ? const Color(0xFF166534).withValues(alpha: 0.35)
+                              : const Color(0xFFB91C1C).withValues(alpha: 0.35),
                         ),
                       ),
-                      child: Row(
+                      child: Column(
                         children: <Widget>[
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            color: Color(0xFFD97706),
-                            size: 20,
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: _MonthlyMetric(
+                                  label: 'MONTHLY BUDGET',
+                                  value: formatPeso(totalMonthlyBudget),
+                                ),
+                              ),
+                              Expanded(
+                                child: _MonthlyMetric(
+                                  label: 'EXPENSES',
+                                  value: formatPeso(totalMonthlyExpenses),
+                                  alignEnd: true,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'No budget and expenses this month',
-                              style: Theme.of(sheetContext)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: const Color(0xFFD97706),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ),
-                          const Text(
-                            '₱0',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFD97706),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isSaved
+                                    ? const Color(0xFF166534)
+                                    : const Color(0xFFB91C1C),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                isSaved ? 'SAVED' : 'OVER BUDGET',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: monthDays.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (BuildContext context, int index) {
-                          final DateTime day = monthDays[index];
-                          final List<ExpenseEntry> dayExpenses = monthExpenses
-                              .where((ExpenseEntry expense) =>
-                                  DateUtils.isSameDay(expense.dateTime, day))
-                              .toList();
-                          final double dayTotal = dayExpenses.fold<double>(
-                              0,
-                              (double total, ExpenseEntry expense) =>
-                                  total + expense.amount);
-                          final bool isZero = dayExpenses.isEmpty;
+                    ),
+                    const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                    ...monthDays.map((DateTime day) {
+                      final List<ExpenseEntry> dayExpenses = monthExpenses
+                          .where((ExpenseEntry expense) =>
+                              DateUtils.isSameDay(expense.dateTime, day))
+                          .toList();
+                      final double dayTotal = dayExpenses.fold<double>(
+                          0,
+                          (double total, ExpenseEntry expense) =>
+                              total + expense.amount);
+                      final bool isZero = dayExpenses.isEmpty;
 
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .outlineVariant)),
-                            leading: Icon(
-                              isZero
-                                  ? Icons.calendar_today_rounded
-                                  : Icons.calendar_today_outlined,
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          tileColor: Theme.of(context).colorScheme.surface,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant)),
+                          leading: Icon(
+                            isZero
+                                ? Icons.calendar_today_rounded
+                                : Icons.calendar_today_outlined,
+                            color: isZero ? const Color(0xFFD97706) : null,
+                          ),
+                          title: Text(_formatDayLabel(day),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          subtitle: Text(
+                            isZero
+                                ? 'No activity'
+                                : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                          ),
+                          trailing: Text(
+                            isZero ? '₱0' : formatPeso(dayTotal),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
                               color: isZero ? const Color(0xFFD97706) : null,
                             ),
-                            title: Text(_formatDayLabel(day),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                            subtitle: Text(
-                              isZero
-                                  ? 'No budget and expenses today'
-                                  : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                            ),
-                            trailing: Text(
-                              isZero ? '₱0' : formatPeso(dayTotal),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: isZero ? const Color(0xFFD97706) : null,
-                              ),
-                            ),
-                            onTap: () async => await _showDayExpensesSheet(
-                                ref, day, expenses,
-                                showBackButton: true),
-                          );
-                        },
-                      ),
-                    ),
-                ],
+                          ),
+                          onTap: () async => await _showDayExpensesSheet(
+                              ref, day, expenses,
+                              showBackButton: true),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1521,6 +1537,42 @@ class _MonthlySection extends StatelessWidget {
             }),
         ],
       ),
+    );
+  }
+}
+
+class _MonthlyMetric extends StatelessWidget {
+  const _MonthlyMetric({
+    required this.label,
+    required this.value,
+    this.alignEnd = false,
+  });
+
+  final String label;
+  final String value;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+      ],
     );
   }
 }
