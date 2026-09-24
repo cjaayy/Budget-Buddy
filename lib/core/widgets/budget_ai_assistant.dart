@@ -4,6 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/budget_models.dart' as models;
 import '../state/app_controller.dart';
 
+void showBudsChat(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => const _BudsChatSheet(),
+  );
+}
+
 class BudgetAiAssistant extends ConsumerStatefulWidget {
   const BudgetAiAssistant({super.key});
 
@@ -16,12 +25,7 @@ class _BudgetAiAssistantState extends ConsumerState<BudgetAiAssistant> {
   double _bottom = 18;
 
   void _showChat() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const _BudgeeChatSheet(),
-    );
+    showBudsChat(context);
   }
 
   @override
@@ -54,7 +58,7 @@ class _BudgetAiAssistantState extends ConsumerState<BudgetAiAssistant> {
                 },
                 onTap: _showChat,
                 child: Tooltip(
-                  message: 'Ask Budgee',
+                  message: 'Ask Buds',
                   child: Material(
                     color: Theme.of(context).colorScheme.primary,
                     elevation: 6,
@@ -86,18 +90,18 @@ class _BudgetAiAssistantState extends ConsumerState<BudgetAiAssistant> {
   }
 }
 
-class _BudgeeChatSheet extends ConsumerStatefulWidget {
-  const _BudgeeChatSheet();
+class _BudsChatSheet extends ConsumerStatefulWidget {
+  const _BudsChatSheet();
 
   @override
-  ConsumerState<_BudgeeChatSheet> createState() => _BudgeeChatSheetState();
+  ConsumerState<_BudsChatSheet> createState() => _BudsChatSheetState();
 }
 
-class _BudgeeChatSheetState extends ConsumerState<_BudgeeChatSheet> {
+class _BudsChatSheetState extends ConsumerState<_BudsChatSheet> {
   final TextEditingController _controller = TextEditingController();
-  final List<_BudgeeMessage> _messages = <_BudgeeMessage>[
-    const _BudgeeMessage(
-      text: 'Hi, I\'m Budgee. What would you like to check today?',
+  final List<_BudsMessage> _messages = <_BudsMessage>[
+    const _BudsMessage(
+      text: "Hi, I'm Buds. What would you like to check today?",
       fromUser: false,
     ),
   ];
@@ -116,9 +120,9 @@ class _BudgeeChatSheetState extends ConsumerState<_BudgeeChatSheet> {
 
     final models.BudgetSummary summary = ref.read(budgetSummaryProvider);
     setState(() {
-      _messages.add(_BudgeeMessage(text: text, fromUser: true));
+      _messages.add(_BudsMessage(text: text, fromUser: true));
       _messages.add(
-        _BudgeeMessage(text: _replyFor(text, summary), fromUser: false),
+        _BudsMessage(text: _replyFor(text, summary), fromUser: false),
       );
       _controller.clear();
     });
@@ -175,16 +179,44 @@ class _BudgeeChatSheetState extends ConsumerState<_BudgeeChatSheet> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(
-                        'Budgee',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            'Buds',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD97706)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'DEV',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFFD97706),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       Text(
-                        'Your budget sidekick',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        'AI Assistant (Under Development)',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                     ],
                   ),
@@ -213,7 +245,7 @@ class _BudgeeChatSheetState extends ConsumerState<_BudgeeChatSheet> {
                 child: ListView.builder(
                   itemCount: _messages.length,
                   itemBuilder: (BuildContext context, int index) {
-                    final _BudgeeMessage message = _messages[index];
+                    final _BudsMessage message = _messages[index];
                     return Align(
                       alignment: message.fromUser
                           ? Alignment.centerRight
@@ -251,7 +283,7 @@ class _BudgeeChatSheetState extends ConsumerState<_BudgeeChatSheet> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: const InputDecoration(
-                        hintText: 'Ask Budgee...',
+                        hintText: 'Ask Buds...',
                         prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
                       ),
                     ),
@@ -272,8 +304,8 @@ class _BudgeeChatSheetState extends ConsumerState<_BudgeeChatSheet> {
   }
 }
 
-class _BudgeeMessage {
-  const _BudgeeMessage({required this.text, required this.fromUser});
+class _BudsMessage {
+  const _BudsMessage({required this.text, required this.fromUser});
 
   final String text;
   final bool fromUser;

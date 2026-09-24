@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -58,13 +59,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         fit: StackFit.expand,
         children: <Widget>[
           IndexedStack(index: _index, children: _pages),
-          const Positioned.fill(
-            child: BudgetAiAssistant(),
-          ),
+          if (kDebugMode)
+            const Positioned.fill(
+              child: BudgetAiAssistant(),
+            ),
         ],
       ),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
+          indicatorColor: Theme.of(context).colorScheme.primaryContainer,
           labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
               (Set<WidgetState> states) {
             return const TextStyle(fontSize: 11, height: 1.0);
@@ -99,14 +102,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               label: 'Spend',
             ),
             const NavigationDestination(
-              icon: SizedBox.square(
-                dimension: 24,
-                child: Icon(Icons.receipt_long_outlined),
-              ),
-              selectedIcon: SizedBox.square(
-                dimension: 24,
-                child: Icon(Icons.receipt_long_rounded),
-              ),
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long_rounded),
               label: 'Expenses',
             ),
             const NavigationDestination(

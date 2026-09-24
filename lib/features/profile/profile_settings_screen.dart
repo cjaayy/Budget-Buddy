@@ -19,6 +19,7 @@ import '../../core/services/update_service.dart';
 import '../../core/widgets/update_dialog.dart';
 import '../auth/auth_screen.dart';
 import '../splash/splash_screen.dart';
+import '../../core/widgets/budget_ai_assistant.dart';
 
 /// Palette defining the unified 3 primary design colors: Dark Red, Gold, and Dark Green.
 class _SettingsPalette {
@@ -494,6 +495,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       _showDevUpdateModal(context),
                                   icon: const Icon(Icons.system_update_rounded),
                                   label: const Text('Preview Update Modal'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () => showBudsChat(context),
+                                  icon: const Icon(Icons.auto_awesome_rounded),
+                                  label: const Text('Open Buds AI'),
                                 ),
                               ],
                             ),
