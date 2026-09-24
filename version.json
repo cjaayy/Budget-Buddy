@@ -1,12 +1,12 @@
 ﻿{
     "app_name":  "Budget Buddy",
     "package_name":  "com.budgetbuddy.app",
-    "version":  "1.5.5",
-    "build_number":  155,
-    "tag_name":  "v1.5.5",
-    "title":  "Budget Buddy v1.5.5",
-    "release_notes":  "## What\u0027s Changed in Budget Buddy v1.5.5\r\n\r\n### Features\r\n- add budget AI assistant widget, home shell, and profile settings screen\r\n- add profile settings, splash, update dialog, and auth screens\r\n- add expense tracker and profile settings screens\r\n- add core models, state controller, and initial feature screens\r\n- add core feature screens for spending, expenses, savings, and together budgeting\r\n- add initial feature screens for savings, spending, budgeting, and dashboard\r\n- add core feature screens and home shell navigation\r\n- add savings and spend screens\r\n- enhance expense tracker with improved display and color coding for expenses\r\n- add core feature screens and home navigation shell\r\n- add expense tracker screen and agent configuration files\r\n- implement core feature screens for savings, spend, budget planner, and expense tracker\r\n- add home shell, savings screen, and budget AI assistant components\r\n- implement spend screen for logging and batching expenses\r\n- add feature screens and tests for profile, spend, budget, and expenses\r\n- add budget planner and expense tracker screens\r\n- implement core app controller, feature screens, and related test suites\r\n- add midnight auto-reset, date sync, savings screen, and app controller state logic\r\n- add core budget services, state controller, feature screens, and tests\r\n- implement app controller, expense tracker, and profile settings screens\r\n- add core budget models, state controller, feature screens, and tests\r\n- implement core models, state management, UI feature screens, and midnight reset tests\r\n- add core app controller, feature screens, and budget lock and confirmation tests\r\n- add core state management, budget planner, profile settings, and test suites\r\n- implement local budget repository, profile settings screen, models, and tests\r\n- add PowerShell script to automate OTA release preparation and versioning\r\n- implement in-app OTA update service and core user interface screens\r\n- implement core feature screens for authentication, budgeting, profile settings, and collaborative planning\r\n- implement budget together, expense tracker, and spend management feature screens\r\n- implement PDF and CSV financial report generation service and add supporting screens\r\n- implement ProfileSettingsScreen and update run script\r\n- implement platform storage integration and core budget model definitions\r\n- add BudgetBuddyController state management and initial UI screens for planning, settings, and shared budgets\r\n- add expense tracking and spending management screens for Budget Buddy\r\n- implement profile settings screen for user preferences, theme toggling, and data management\r\n- implement savings tracking screens for daily and monthly breakdown analysis\r\n\r\n### Fixes \u0026 Improvements\r\n- upgrade Gradle to 8.14, configure buildDir for Flutter, and fix batch script stability tweaks\r\n\r\n**Full Changelog**: https://github.com/cjaayy/Budget-Buddy/commits/v1.5.5",
-    "download_url":  "https://github.com/cjaayy/Budget-Buddy/releases/download/v1.5.5/app-release.apk",
-    "published_at":  "2026-09-24T14:26:14Z",
+    "version":  "1.5.6",
+    "build_number":  158,
+    "tag_name":  "v1.5.6",
+    "title":  "Budget Buddy v1.5.6",
+    "release_notes":  "## What\u0027s Changed in Budget Buddy v1.5.6\r\n\r\n### Features\r\n- add in-app update system with native platform integration and profile settings screen\r\n\r\n**Full Changelog**: https://github.com/cjaayy/Budget-Buddy/commits/v1.5.6",
+    "download_url":  "https://github.com/cjaayy/Budget-Buddy/releases/download/v1.5.6/app-release.apk",
+    "published_at":  "2026-09-24T14:55:52Z",
     "mandatory":  false
 }
