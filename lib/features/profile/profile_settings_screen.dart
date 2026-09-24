@@ -19,6 +19,8 @@ import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
 import '../../core/services/update_service.dart';
 import '../../core/widgets/update_dialog.dart';
+import '../auth/auth_screen.dart';
+import '../splash/splash_screen.dart';
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -185,7 +187,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                               value: state.themeMode == ThemeMode.dark,
                               onChanged: (bool isDark) {
                                 ref
-                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .read(
+                                        budgetBuddyControllerProvider.notifier)
                                     .setThemeMode(
                                       isDark ? ThemeMode.dark : ThemeMode.light,
                                     );
@@ -294,6 +297,39 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             Text(
                               'Test midnight 12:00 AM auto-reset, clock simulation, and past day backfills.',
                               style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: <Widget>[
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const _DevPreviewFrame(
+                                          child: AuthScreen(),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.login_rounded),
+                                  label: const Text('Preview Login'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const _DevPreviewFrame(
+                                          child: SplashScreen(),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.home_rounded),
+                                  label: const Text('Preview First Screen'),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             Builder(
@@ -420,15 +456,18 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
-                                              color: state.settings.dailyLimit != null
-                                                  ? const Color(0xFF0F766E)
-                                                  : Colors.grey,
+                                              color:
+                                                  state.settings.dailyLimit !=
+                                                          null
+                                                      ? const Color(0xFF0F766E)
+                                                      : Colors.grey,
                                             ),
                                           ),
                                         ],
                                       ),
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: <Widget>[
                                           Text(
                                             'Today\'s Spent',
@@ -513,7 +552,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             FilledButton.icon(
                               onPressed: () async {
                                 await ref
-                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .read(
+                                        budgetBuddyControllerProvider.notifier)
                                     .simulateMidnightReset();
                                 setState(() {});
                                 if (context.mounted) {
@@ -527,9 +567,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   );
                                 }
                               },
-                              icon: const Icon(Icons.nightlight_round,
-                                  size: 18),
-                              label: const Text('Click 12:00 AM Midnight Reset'),
+                              icon:
+                                  const Icon(Icons.nightlight_round, size: 18),
+                              label:
+                                  const Text('Click 12:00 AM Midnight Reset'),
                               style: FilledButton.styleFrom(
                                 minimumSize: const Size.fromHeight(44),
                                 backgroundColor: const Color(0xFF0F766E),
@@ -605,8 +646,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                         );
                                       }
                                     },
-                                    icon: const Icon(
-                                        Icons.fast_forward_rounded,
+                                    icon: const Icon(Icons.fast_forward_rounded,
                                         size: 16),
                                     label: const Text('+1 Day (12 AM)'),
                                   ),
@@ -992,29 +1032,39 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   },
                                 ),
                               ),
-                               const Divider(height: 1),
-                               ListTile(
-                                 contentPadding: EdgeInsets.zero,
-                                 leading: Icon(
-                                   modalRef.watch(budgetBuddyControllerProvider).themeMode == ThemeMode.dark
-                                       ? Icons.dark_mode_rounded
-                                       : Icons.light_mode_rounded,
-                                 ),
-                                 title: const Text('Dark Mode Theme'),
-                                 subtitle: const Text(
-                                     'Switch between light mode and dark mode theme.'),
-                                 trailing: Switch(
-                                   value: modalRef.watch(budgetBuddyControllerProvider).themeMode == ThemeMode.dark,
-                                   onChanged: (bool isDark) {
-                                     modalRef
-                                         .read(budgetBuddyControllerProvider.notifier)
-                                         .setThemeMode(
-                                           isDark ? ThemeMode.dark : ThemeMode.light,
-                                         );
-                                   },
-                                 ),
-                               ),
-                               const SizedBox(height: 12),
+                              const Divider(height: 1),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  modalRef
+                                              .watch(
+                                                  budgetBuddyControllerProvider)
+                                              .themeMode ==
+                                          ThemeMode.dark
+                                      ? Icons.dark_mode_rounded
+                                      : Icons.light_mode_rounded,
+                                ),
+                                title: const Text('Dark Mode Theme'),
+                                subtitle: const Text(
+                                    'Switch between light mode and dark mode theme.'),
+                                trailing: Switch(
+                                  value: modalRef
+                                          .watch(budgetBuddyControllerProvider)
+                                          .themeMode ==
+                                      ThemeMode.dark,
+                                  onChanged: (bool isDark) {
+                                    modalRef
+                                        .read(budgetBuddyControllerProvider
+                                            .notifier)
+                                        .setThemeMode(
+                                          isDark
+                                              ? ThemeMode.dark
+                                              : ThemeMode.light,
+                                        );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                             ],
                           ),
                         ),
@@ -2155,8 +2205,9 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     onPressed: canSave
                                         ? () async {
                                             ref
-                                                .read(budgetBuddyControllerProvider
-                                                    .notifier)
+                                                .read(
+                                                    budgetBuddyControllerProvider
+                                                        .notifier)
                                                 .updateProfile(
                                                   state.profile.copyWith(
                                                     displayName: normalizedName,
@@ -2193,11 +2244,13 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                             );
                                           }
                                         : null,
-                                    icon: const Icon(Icons.check_circle_rounded),
+                                    icon:
+                                        const Icon(Icons.check_circle_rounded),
                                     label: const Text('Save Name'),
                                   ),
                                 ),
-                              ] else if (hasCustomName && !isEditing) ...<Widget>[
+                              ] else if (hasCustomName &&
+                                  !isEditing) ...<Widget>[
                                 SizedBox(
                                   width: double.infinity,
                                   child: OutlinedButton.icon(
@@ -2246,7 +2299,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                                               Navigator.of(
                                                                       context)
                                                                   .pop(false),
-                                                          child: const Text('No'),
+                                                          child:
+                                                              const Text('No'),
                                                         ),
                                                         FilledButton(
                                                           onPressed: () =>
@@ -2291,7 +2345,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                                   builder:
                                                       (BuildContext context) {
                                                     return AlertDialog(
-                                                      title: const Text('Saved'),
+                                                      title:
+                                                          const Text('Saved'),
                                                       content: const Text(
                                                         'Profile name saved successfully.',
                                                       ),
@@ -2301,7 +2356,8 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                                               Navigator.of(
                                                                       context)
                                                                   .pop(),
-                                                          child: const Text('OK'),
+                                                          child:
+                                                              const Text('OK'),
                                                         ),
                                                       ],
                                                     );
@@ -2347,6 +2403,37 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
 
     return parts.take(2).map((String part) => part[0]).join().toUpperCase();
+  }
+}
+
+class _DevPreviewFrame extends StatelessWidget {
+  const _DevPreviewFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: <Widget>[
+        child,
+        Positioned(
+          top: 8,
+          left: 12,
+          child: SafeArea(
+            child: Material(
+              color: Colors.black54,
+              shape: const CircleBorder(),
+              child: IconButton(
+                tooltip: 'Back to Dev Mode',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -2423,8 +2510,7 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
         ),
         FilledButton(
           onPressed: () {
-            if (_confirmationController.text.trim().toUpperCase() ==
-                'RESET') {
+            if (_confirmationController.text.trim().toUpperCase() == 'RESET') {
               Navigator.of(context).pop(true);
             }
           },

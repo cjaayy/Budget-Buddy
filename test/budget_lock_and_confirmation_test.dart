@@ -136,11 +136,11 @@ void main() {
     await tester.tap(find.text('Update Budget'));
     await tester.pumpAndSettle();
 
-    // 5-second confirmation dialog should appear
+    // 5-second confirmation dialog should appear with countdown timer
     expect(find.text('Confirm Budget Update'), findsOneWidget);
-    expect(find.textContaining('Auto-confirming in'), findsOneWidget);
+    expect(find.textContaining('Timer:'), findsOneWidget);
 
-    // Tap Update Now to confirm immediately
+    // Tap Update Now to confirm manually
     await tester.tap(find.text('Update Now'));
     await tester.pumpAndSettle();
 

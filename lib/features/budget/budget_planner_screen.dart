@@ -87,7 +87,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Today\'s budget set to ${formatPeso(amount)}! Input locked.'),
+        content: Text('Today\'s budget set to ${formatPeso(amount)}!'),
         backgroundColor: const Color(0xFF0F766E),
         behavior: SnackBarBehavior.floating,
       ),
@@ -120,7 +120,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         confirmLabel: 'Update Now',
         confirmColor: const Color(0xFF0F766E),
         icon: Icons.sync_rounded,
-        autoConfirm: true,
+        autoConfirm: false,
       ),
     );
 
@@ -138,7 +138,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Today\'s budget updated to ${formatPeso(newAmount)}! Input locked.'),
+        content: Text('Today\'s budget updated to ${formatPeso(newAmount)}!'),
         backgroundColor: const Color(0xFF0F766E),
         behavior: SnackBarBehavior.floating,
       ),
@@ -343,10 +343,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         ? palette.darkGreenBorder
         : (hasBudget ? palette.goldBorder : palette.darkRedBorder);
     final IconData statusIcon = isLocked
-        ? Icons.lock_rounded
-        : (hasBudget ? Icons.lock_open_rounded : Icons.radio_button_unchecked_rounded);
+        ? Icons.check_circle_rounded
+        : (hasBudget ? Icons.edit_rounded : Icons.radio_button_unchecked_rounded);
     final String statusLabel =
-        isLocked ? 'Locked' : (hasBudget ? 'Editing' : 'No Budget Set');
+        isLocked ? 'Active' : (hasBudget ? 'Editing' : 'No Budget Set');
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -435,11 +435,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  isLocked
-                      ? Icons.lock_rounded
-                      : Icons.account_balance_wallet_rounded,
+                  Icons.account_balance_wallet_rounded,
                   size: 16,
-                  color: isLocked ? palette.darkGreen : palette.gold,
+                  color: palette.gold,
                 ),
               ),
               const SizedBox(width: 8),
@@ -451,33 +449,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const Spacer(),
-              if (isLocked)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: palette.darkGreenBg,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: palette.darkGreenBorder),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(Icons.lock_rounded,
-                          size: 11, color: palette.darkGreen),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Locked',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: palette.darkGreen,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -538,22 +509,16 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: palette.gold, width: 2),
               ),
-              suffixIcon: isLocked
-                  ? Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Icon(Icons.lock_outline_rounded,
-                          size: 20, color: palette.darkGreen),
+              suffixIcon: !isLocked && _dailyController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear_rounded,
+                          color: palette.darkRed, size: 20),
+                      onPressed: () {
+                        _dailyController.clear();
+                        setState(() {});
+                      },
                     )
-                  : (_dailyController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.clear_rounded,
-                              color: palette.darkRed, size: 20),
-                          onPressed: () {
-                            _dailyController.clear();
-                            setState(() {});
-                          },
-                        )
-                      : null),
+                  : null,
             ),
           ),
 
@@ -799,16 +764,15 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 3 Compact Metric Tiles: Budget (Gold), Spent (Dark Red), Remaining (Green / Red)
+          // 3 Compact Metric Tiles with Rich Colored Backgrounds & Highly Visible Numbers
           Row(
             children: <Widget>[
               Expanded(
                 child: _CompactMetricTile(
                   label: 'Budget',
                   value: formatPeso(currentBudget),
-                  color: palette.gold,
-                  bgColor: palette.goldBg,
-                  borderColor: palette.goldBorder,
+                  bgColor: palette.gold,
+                  icon: Icons.account_balance_wallet_rounded,
                 ),
               ),
               const SizedBox(width: 8),
@@ -816,9 +780,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 child: _CompactMetricTile(
                   label: 'Spent',
                   value: formatPeso(currentSpent),
-                  color: currentSpent > 0 ? palette.darkRed : theme.colorScheme.onSurface,
-                  bgColor: palette.darkRedBg,
-                  borderColor: palette.darkRedBorder,
+                  bgColor: palette.darkRed,
+                  icon: Icons.shopping_bag_rounded,
                 ),
               ),
               const SizedBox(width: 8),
@@ -826,10 +789,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 child: _CompactMetricTile(
                   label: isOver ? 'Over' : 'Remaining',
                   value: formatPeso(remaining.abs()),
-                  color: isOver ? palette.darkRed : palette.darkGreen,
-                  bgColor: isOver ? palette.darkRedBg : palette.darkGreenBg,
-                  borderColor:
-                      isOver ? palette.darkRedBorder : palette.darkGreenBorder,
+                  bgColor: isOver ? palette.darkRed : palette.darkGreen,
+                  icon: isOver
+                      ? Icons.warning_amber_rounded
+                      : Icons.savings_rounded,
                 ),
               ),
             ],
@@ -961,51 +924,86 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   }
 }
 
-/// Compact Metric Tile for Budget, Spent, and Remaining
+/// Compact Metric Tile for Budget, Spent, and Remaining with solid background color and prominent numbers
 class _CompactMetricTile extends StatelessWidget {
   const _CompactMetricTile({
     required this.label,
     required this.value,
-    required this.color,
     required this.bgColor,
-    required this.borderColor,
+    this.textColor = Colors.white,
+    this.icon,
   });
 
   final String label;
   final String value;
-  final Color color;
   final Color bgColor;
-  final Color borderColor;
+  final Color textColor;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: bgColor.withValues(alpha: 0.32),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          Row(
+            children: <Widget>[
+              if (icon != null) ...<Widget>[
+                Icon(
+                  icon,
+                  size: 12,
+                  color: textColor.withValues(alpha: 0.88),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: textColor.withValues(alpha: 0.88),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-              color: color,
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: -0.3,
+                color: textColor,
+                shadows: const <Shadow>[
+                  Shadow(
+                    color: Colors.black26,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

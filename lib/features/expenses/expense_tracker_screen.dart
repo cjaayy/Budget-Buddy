@@ -446,155 +446,168 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             height: mediaQuery.size.height * 0.78 - mediaQuery.padding.bottom,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: SingleChildScrollView(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        TextButton.icon(
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          label: const Text('Back'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      TextButton.icon(
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Back'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          DateFormat('MMMM yyyy').format(month),
+                          style: Theme.of(sheetContext)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.right,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            DateFormat('MMMM yyyy').format(month),
-                            style: Theme.of(sheetContext)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                            textAlign: TextAlign.right,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                      '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
+                      style: Theme.of(sheetContext)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(sheetContext)
+                          .colorScheme
+                          .surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSaved
+                            ? const Color(0xFF166534).withValues(alpha: 0.35)
+                            : const Color(0xFFB91C1C).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: _MonthlyMetric(
+                                label: 'MONTHLY BUDGET',
+                                value: formatPeso(totalMonthlyBudget),
+                              ),
+                            ),
+                            Expanded(
+                              child: _MonthlyMetric(
+                                label: 'EXPENSES',
+                                value: formatPeso(totalMonthlyExpenses),
+                                alignEnd: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSaved
+                                  ? const Color(0xFF166534)
+                                  : const Color(0xFFB91C1C),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              isSaved ? 'SAVED' : 'OVER BUDGET',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                        '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} in this month',
-                        style: Theme.of(sheetContext)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                                color: Theme.of(sheetContext)
-                                    .colorScheme
-                                    .onSurfaceVariant)),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Theme.of(sheetContext)
-                            .colorScheme
-                            .surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSaved
-                              ? const Color(0xFF166534).withValues(alpha: 0.35)
-                              : const Color(0xFFB91C1C).withValues(alpha: 0.35),
-                        ),
-                      ),
-                      child: Column(
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ClipRect(
+                      child: ListView(
+                        padding: const EdgeInsets.only(bottom: 8),
                         children: <Widget>[
-                          Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: _MonthlyMetric(
-                                  label: 'MONTHLY BUDGET',
-                                  value: formatPeso(totalMonthlyBudget),
+                          ...monthDays.map((DateTime day) {
+                            final List<ExpenseEntry> dayExpenses = monthExpenses
+                                .where((ExpenseEntry expense) =>
+                                    DateUtils.isSameDay(expense.dateTime, day))
+                                .toList();
+                            final double dayTotal = dayExpenses.fold<double>(
+                                0,
+                                (double total, ExpenseEntry expense) =>
+                                    total + expense.amount);
+                            final bool isZero = dayExpenses.isEmpty;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant,
+                                  ),
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  leading: Icon(
+                                    isZero
+                                        ? Icons.calendar_today_rounded
+                                        : Icons.calendar_today_outlined,
+                                    color:
+                                        isZero ? const Color(0xFFD97706) : null,
+                                  ),
+                                  title: Text(_formatDayLabel(day),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700)),
+                                  subtitle: Text(
+                                    isZero
+                                        ? 'No activity'
+                                        : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
+                                  ),
+                                  trailing: Text(
+                                    isZero ? '₱0' : formatPeso(dayTotal),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: isZero
+                                          ? const Color(0xFFD97706)
+                                          : null,
+                                    ),
+                                  ),
+                                  onTap: () async =>
+                                      await _showDayExpensesSheet(
+                                          ref, day, expenses,
+                                          showBackButton: true),
                                 ),
                               ),
-                              Expanded(
-                                child: _MonthlyMetric(
-                                  label: 'EXPENSES',
-                                  value: formatPeso(totalMonthlyExpenses),
-                                  alignEnd: true,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isSaved
-                                    ? const Color(0xFF166534)
-                                    : const Color(0xFFB91C1C),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                isSaved ? 'SAVED' : 'OVER BUDGET',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ),
-                          ),
+                            );
+                          })
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const SizedBox(height: 12),
-                    ...monthDays.map((DateTime day) {
-                      final List<ExpenseEntry> dayExpenses = monthExpenses
-                          .where((ExpenseEntry expense) =>
-                              DateUtils.isSameDay(expense.dateTime, day))
-                          .toList();
-                      final double dayTotal = dayExpenses.fold<double>(
-                          0,
-                          (double total, ExpenseEntry expense) =>
-                              total + expense.amount);
-                      final bool isZero = dayExpenses.isEmpty;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          tileColor: Theme.of(context).colorScheme.surface,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .outlineVariant)),
-                          leading: Icon(
-                            isZero
-                                ? Icons.calendar_today_rounded
-                                : Icons.calendar_today_outlined,
-                            color: isZero ? const Color(0xFFD97706) : null,
-                          ),
-                          title: Text(_formatDayLabel(day),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text(
-                            isZero
-                                ? 'No activity'
-                                : '${dayExpenses.length} expense${dayExpenses.length == 1 ? '' : 's'}',
-                          ),
-                          trailing: Text(
-                            isZero ? '₱0' : formatPeso(dayTotal),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: isZero ? const Color(0xFFD97706) : null,
-                            ),
-                          ),
-                          onTap: () async => await _showDayExpensesSheet(
-                              ref, day, expenses,
-                              showBackButton: true),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
