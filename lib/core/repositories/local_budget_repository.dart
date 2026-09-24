@@ -42,8 +42,8 @@ class LocalBudgetRepository {
 
     state = state.copyWith(
       themeMode: ThemeMode.values.firstWhere(
-        (ThemeMode mode) => mode.name == themeName,
-        orElse: () => ThemeMode.system,
+        (ThemeMode mode) => mode.name == themeName && mode != ThemeMode.system,
+        orElse: () => ThemeMode.light,
       ),
       notificationsEnabled: notificationsEnabled,
       loggedIn: loggedIn,

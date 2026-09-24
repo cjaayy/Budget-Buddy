@@ -296,15 +296,15 @@ class BudgetSettings {
     final double? resolvedDailyLimit =
         identical(dailyLimit, _dailyLimitSentinel)
             ? (totalDailyBudget ?? this.dailyLimit)
-            : dailyLimit as double?;
+            : (dailyLimit as num?)?.toDouble();
     final double? resolvedWeeklyLimit =
         identical(weeklyLimit, _weeklyLimitSentinel)
             ? (weeklyBudget ?? this.weeklyLimit)
-            : weeklyLimit as double?;
+            : (weeklyLimit as num?)?.toDouble();
     final double? resolvedMonthlyLimit =
         identical(monthlyLimit, _monthlyLimitSentinel)
             ? (monthlyBudget ?? this.monthlyLimit)
-            : monthlyLimit as double?;
+            : (monthlyLimit as num?)?.toDouble();
 
     return BudgetSettings(
       dailyLimit: resolvedDailyLimit,
@@ -1113,7 +1113,7 @@ class BudgetBuddyState {
       profile: UserProfile.defaults(),
       loggedIn: false,
       onboardingComplete: false,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       notificationsEnabled: true,
       isBootstrapping: true,
       currentExpenseFilter: null,
@@ -1285,9 +1285,9 @@ class BudgetBuddyState {
       onboardingComplete: json['onboardingComplete'] as bool? ?? false,
       themeMode: ThemeMode.values.firstWhere(
         (ThemeMode mode) =>
-            mode.name ==
-            (json['themeMode'] as String? ?? ThemeMode.system.name),
-        orElse: () => ThemeMode.system,
+            mode.name == (json['themeMode'] as String?) &&
+            mode != ThemeMode.system,
+        orElse: () => ThemeMode.light,
       ),
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
       isBootstrapping: false,

@@ -6,7 +6,7 @@ import 'package:budgetbuddy/core/services/budget_service.dart';
 void main() {
   test('monthly budget sums recorded daily budget entries', () {
     final BudgetService service = BudgetService();
-    final DateTime dayOne = DateTime(2026, 6, 1);
+    final DateTime dayOne = DateTime(2026, 6, 3);
     final BudgetBuddyState state = BudgetBuddyState.initial().copyWith(
       settings: BudgetSettings.defaults().copyWith(
         dailyLimit: 200,

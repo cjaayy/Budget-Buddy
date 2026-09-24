@@ -66,7 +66,7 @@ void main() {
 
     // Verify toggles exist
     final Finder overspendTile =
-        find.widgetWithText(ListTile, 'Overspend alerts');
+        find.widgetWithText(ListTile, 'Overspend Alerts');
     final Finder summaryTile =
         find.widgetWithText(ListTile, 'End-of-day summary');
     final Finder notifyResetTile =
@@ -85,7 +85,7 @@ void main() {
 
     await tester.tap(overspendSwitch);
     await tester.pumpAndSettle();
-    expect(find.text('Confirm change'), findsOneWidget);
+    expect(find.text('Confirm Change'), findsOneWidget);
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
     expect(find.text('Success'), findsOneWidget);
@@ -102,7 +102,7 @@ void main() {
     final bool initialSummary = sw.value;
     await tester.tap(summarySwitch);
     await tester.pumpAndSettle();
-    expect(find.text('Confirm change'), findsOneWidget);
+    expect(find.text('Confirm Change'), findsOneWidget);
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
     expect(find.text('Success'), findsOneWidget);
@@ -119,7 +119,7 @@ void main() {
     final bool initialNotify = sw.value;
     await tester.tap(notifySwitch);
     await tester.pumpAndSettle();
-    expect(find.text('Confirm change'), findsOneWidget);
+    expect(find.text('Confirm Change'), findsOneWidget);
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
     expect(find.text('Success'), findsOneWidget);

@@ -177,9 +177,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             subtitle: Text(
                               state.themeMode == ThemeMode.dark
                                   ? 'Dark theme enabled'
-                                  : state.themeMode == ThemeMode.light
-                                      ? 'Light theme enabled'
-                                      : 'System theme default',
+                                  : 'Light theme enabled',
                             ),
                             trailing: Switch(
                               value: state.themeMode == ThemeMode.dark,
