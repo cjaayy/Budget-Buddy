@@ -82,7 +82,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       if (info != null && info.isUpdateAvailable) {
         showDialog<void>(
           context: context,
-          barrierDismissible: !info.mandatory,
+          barrierDismissible: false,
           builder: (BuildContext dialogContext) => UpdateDialog(
             updateInfo: info,
             currentVersion: _appVersion,
@@ -135,7 +135,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
     showDialog<void>(
       context: context,
-      barrierDismissible: !mandatory,
+      barrierDismissible: false,
       builder: (BuildContext dialogContext) => UpdateDialog(
         updateInfo: mockInfo,
         currentVersion: _appVersion ??

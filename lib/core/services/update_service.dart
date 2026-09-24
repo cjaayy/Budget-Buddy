@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show MethodChannel, rootBundle;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -203,6 +203,7 @@ class UpdateService {
         isUpdateAvailable: isNewer,
         publishedAt: publishedAt,
         fileSize: size,
+        mandatory: true,
       );
     } finally {
       client.close();
@@ -237,7 +238,7 @@ class UpdateService {
       final title = json['title']?.toString() ?? 'Budget Buddy $tagName';
       final notes = json['release_notes']?.toString() ?? 'New release available.';
       final downloadUrl = json['download_url']?.toString() ?? '';
-      final mandatory = json['mandatory'] == true;
+      final mandatory = json['mandatory'] != false;
       final publishedAtStr = json['published_at']?.toString();
       final publishedAt = publishedAtStr != null ? DateTime.tryParse(publishedAtStr) : null;
 
@@ -312,6 +313,33 @@ class UpdateService {
     }
   }
 
+  static const MethodChannel _platformChannel =
+      MethodChannel('budgetbuddy/storage');
+
+  Future<bool> canRequestPackageInstalls() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final res =
+          await _platformChannel.invokeMethod<bool>('canRequestPackageInstalls');
+      return res ?? true;
+    } catch (e) {
+      debugPrint('[UpdateService] canRequestPackageInstalls failed: $e');
+      return true;
+    }
+  }
+
+  Future<bool> openInstallPermissionSettings() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final res = await _platformChannel
+          .invokeMethod<bool>('openInstallPermissionSettings');
+      return res ?? false;
+    } catch (e) {
+      debugPrint('[UpdateService] openInstallPermissionSettings failed: $e');
+      return false;
+    }
+  }
+
   Future<String?> installApk(File file) async {
     try {
       final res = await OpenFile.open(
@@ -331,39 +359,15 @@ class UpdateService {
     if (_hasCheckedOnLaunch) return;
     _hasCheckedOnLaunch = true;
 
-    Future<void>.delayed(const Duration(seconds: 3), () async {
+    Future<void>.delayed(const Duration(milliseconds: 1000), () async {
       try {
         final updateInfo = await checkForUpdate();
         if (updateInfo != null && updateInfo.isUpdateAvailable && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 8),
-              content: Row(
-                children: [
-                  const Icon(Icons.system_update_rounded, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Update available: v${updateInfo.version}!',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-              action: SnackBarAction(
-                label: 'View',
-                textColor: Colors.amberAccent,
-                onPressed: () {
-                  showDialog<void>(
-                    context: context,
-                    barrierDismissible: !updateInfo.mandatory,
-                    builder: (BuildContext dialogContext) =>
-                        UpdateDialog(updateInfo: updateInfo),
-                  );
-                },
-              ),
-            ),
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext dialogContext) =>
+                UpdateDialog(updateInfo: updateInfo),
           );
         }
       } catch (e) {
