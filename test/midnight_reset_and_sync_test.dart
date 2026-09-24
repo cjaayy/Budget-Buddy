@@ -494,9 +494,6 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
 
-      final DateTime today = controller.now;
-      final DateTime todayDate = DateTime(today.year, today.month, today.day);
-
       // Day 1: Budget 500, Expenses 700 (over-budget by 200)
       controller.recordDailyBudget(amount: 500);
       controller.addExpense(

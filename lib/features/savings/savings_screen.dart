@@ -23,7 +23,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final List<DailyRecord> records = _getRecords(state);
+    final DateTime currentClock =
+        ref.watch(budgetBuddyControllerProvider.notifier).now;
+    final List<DailyRecord> records = _getRecords(state, currentClock);
     final List<DateTime> availableMonths = _availableMonths(records);
     final double netSavings = _sectionNetSavings(records, _activeSection);
 
@@ -256,6 +258,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                   padding: const EdgeInsets.only(bottom: 10),
                                   child: _SavingsDateTile(
                                     record: record,
+                                    currentClock: currentClock,
                                     onTap: () =>
                                         _showSavingsDaySheet(context, record),
                                   ),
@@ -283,6 +286,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                       context,
                                       month,
                                       monthRecords,
+                                      currentClock,
                                     ),
                                   ),
                                 );
@@ -473,6 +477,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     BuildContext context,
     DateTime month,
     List<DailyRecord> records,
+    DateTime currentClock,
   ) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -603,7 +608,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                         CrossAxisAlignment.start,
                                     children: <Widget>[
                                       Text(
-                                        _formatDayLabel(record.date),
+                                        _formatDayLabel(record.date, currentClock),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -651,11 +656,14 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     );
   }
 
-  List<DailyRecord> _getRecords(BudgetBuddyState state) {
+  List<DailyRecord> _getRecords(
+    BudgetBuddyState state,
+    DateTime currentClock,
+  ) {
     if (!widget.isTogetherOnly) {
       if (state.dailyRecords.isEmpty) {
-        final DateTime now = DateTime.now();
-        final DateTime today = DateTime(now.year, now.month, now.day);
+        final DateTime today =
+            DateTime(currentClock.year, currentClock.month, currentClock.day);
         return <DailyRecord>[
           DailyRecord(
             date: today,
@@ -685,8 +693,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
     final Set<DateTime> dates = <DateTime>{};
     if (togetherBudget > 0) {
-      final DateTime now = DateTime.now();
-      dates.add(DateTime(now.year, now.month, now.day));
+      dates.add(
+          DateTime(currentClock.year, currentClock.month, currentClock.day));
     }
     for (final ExpenseEntry expense in togetherExpenses) {
       dates.add(DateTime(
@@ -789,10 +797,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 enum SavingsSection { daily, monthly }
 
 class _SavingsDateTile extends StatelessWidget {
-  const _SavingsDateTile({required this.record, required this.onTap});
+  const _SavingsDateTile({
+    required this.record,
+    required this.onTap,
+    this.currentClock,
+  });
 
   final DailyRecord record;
   final VoidCallback onTap;
+  final DateTime? currentClock;
 
   @override
   Widget build(BuildContext context) {
@@ -846,7 +859,7 @@ class _SavingsDateTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    _formatDayLabel(record.date),
+                    _formatDayLabel(record.date, currentClock),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 2),
@@ -948,8 +961,8 @@ class _SavingsMonthTile extends StatelessWidget {
   }
 }
 
-String _formatDayLabel(DateTime dateTime) {
-  final DateTime now = DateTime.now();
+String _formatDayLabel(DateTime dateTime, [DateTime? currentClock]) {
+  final DateTime now = currentClock ?? DateTime.now();
   if (DateUtils.isSameDay(dateTime, now)) {
     return 'Today, ${DateFormat('MMMM d, yyyy').format(dateTime)}';
   }

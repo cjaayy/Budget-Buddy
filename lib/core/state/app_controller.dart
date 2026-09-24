@@ -39,20 +39,26 @@ final budgetBuddyControllerProvider =
 );
 
 final budgetSummaryProvider = Provider<BudgetSummary>((Ref<BudgetSummary> ref) {
+  final BudgetBuddyController controller =
+      ref.watch(budgetBuddyControllerProvider.notifier);
   final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
   final List<ExpenseEntry> mainExpenses = state.expenses
       .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
       .toList();
   final BudgetBuddyState mainState = state.copyWith(expenses: mainExpenses);
-  return ref.watch(budgetServiceProvider).computeSummary(mainState);
+  return ref
+      .watch(budgetServiceProvider)
+      .computeSummary(mainState, now: controller.now);
 });
 
 final budgetTogetherSummaryProvider =
     Provider<BudgetSummary>((Ref<BudgetSummary> ref) {
+  final BudgetBuddyController controller =
+      ref.watch(budgetBuddyControllerProvider.notifier);
   final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
   final BudgetService service = ref.watch(budgetServiceProvider);
   final double togetherBudget = state.togetherBudget;
-  final DateTime now = DateTime.now();
+  final DateTime now = controller.now;
   final DateTime dailyStart = DateTime(now.year, now.month, now.day);
   final DateTime weeklyStart = DateTime(now.year, now.month, now.day)
       .subtract(Duration(days: now.weekday - DateTime.monday));
@@ -82,7 +88,7 @@ final budgetTogetherSummaryProvider =
     budgetEntries: <BudgetEntry>[],
   );
 
-  return service.computeSummary(togetherState);
+  return service.computeSummary(togetherState, now: now);
 });
 
 final mealSuggestionsProvider =
@@ -167,15 +173,9 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final DateTime current = now;
     final DateTime endingDay =
         DateTime(current.year, current.month, current.day);
-    final DateTime nextDay = DateTime(
-      current.year,
-      current.month,
-      current.day + 1,
-      current.hour,
-      current.minute,
-      current.second,
-    );
-    _simulatedDateTime = nextDay;
+    final DateTime nextDayMidnight =
+        DateTime(current.year, current.month, current.day + 1);
+    _simulatedDateTime = nextDayMidnight;
     await syncDateAndCheckMidnightReset(
       forceReset: true,
       endingDateOverride: endingDay,
@@ -259,7 +259,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   BudgetSummary get summary => _service.computeSummary(
         state.copyWith(
           expenses: state.expenses
-              .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
+              .where(
+                  (ExpenseEntry expense) => expense.source != 'togetherSpend')
               .toList(),
         ),
         now: now,
@@ -408,12 +409,11 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
     double? limit = _periodLimit(period);
     if (period == BudgetPeriod.daily) {
-      final BudgetEntry? entry = state.budgetEntries
-          .cast<BudgetEntry?>()
-          .firstWhere(
-            (BudgetEntry? e) => e != null && _isSameDay(e.date, start),
-            orElse: () => null,
-          );
+      final BudgetEntry? entry =
+          state.budgetEntries.cast<BudgetEntry?>().firstWhere(
+                (BudgetEntry? e) => e != null && _isSameDay(e.date, start),
+                orElse: () => null,
+              );
       if (entry != null && entry.amount > 0) {
         limit = entry.amount;
       }
@@ -546,7 +546,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       return;
     }
 
-    if (forceReset || (lastDailyStart != null && lastDailyStart.isBefore(todayStart))) {
+    if (forceReset ||
+        (lastDailyStart != null && lastDailyStart.isBefore(todayStart))) {
       // 0. Settle the ending day's budget surplus & debt before clearing today
       final List<DateTime> daysToSettle = <DateTime>[];
 
@@ -556,7 +557,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
           endingDateOverride.month,
           endingDateOverride.day,
         ));
-      } else if (lastDailyStart != null && lastDailyStart.isBefore(todayStart)) {
+      } else if (lastDailyStart != null &&
+          lastDailyStart.isBefore(todayStart)) {
         DateTime cursor = DateTime(
           lastDailyStart.year,
           lastDailyStart.month,
@@ -578,12 +580,11 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
           continue; // Already settled, do not re-settle!
         }
 
-        final BudgetEntry? entry = state.budgetEntries
-            .cast<BudgetEntry?>()
-            .firstWhere(
-              (BudgetEntry? e) => e != null && _isSameDay(e.date, day),
-              orElse: () => null,
-            );
+        final BudgetEntry? entry =
+            state.budgetEntries.cast<BudgetEntry?>().firstWhere(
+                  (BudgetEntry? e) => e != null && _isSameDay(e.date, day),
+                  orElse: () => null,
+                );
 
         // If this is the active day before reset, allow fallback to dailyLimit.
         // If this is an unconfigured past day without a budget entry, budget is 0.0.
@@ -597,7 +598,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
             .where((ExpenseEntry expense) =>
                 expense.source != 'togetherSpend' &&
                 _isSameDay(expense.dateTime, day))
-            .fold(0.0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+            .fold(0.0,
+                (double sum, ExpenseEntry expense) => sum + expense.amount);
 
         if (dayBudget > 0 || dayExpenses > 0) {
           applyDailyBudgetSurplusAndDebt(
@@ -621,8 +623,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
       // 3. Reset today's active budget and expense entry
       final List<ExpenseEntry> pastExpenses = state.expenses
-          .where((ExpenseEntry expense) =>
-              expense.dateTime.isBefore(todayStart))
+          .where(
+              (ExpenseEntry expense) => expense.dateTime.isBefore(todayStart))
           .toList();
       final List<BudgetEntry> pastBudgetEntries = state.budgetEntries
           .where((BudgetEntry entry) => !_isSameDay(entry.date, todayStart))
@@ -666,12 +668,6 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final DateTime currentNow = currentDate ?? now;
     final DateTime today =
         DateTime(currentNow.year, currentNow.month, currentNow.day);
-
-    final List<ExpenseEntry> mainExpenses = state.expenses
-        .where((ExpenseEntry expense) => expense.source != 'togetherSpend')
-        .toList();
-    final BudgetSummary currentSummary =
-        _service.computeSummary(state.copyWith(expenses: mainExpenses));
 
     final Set<DateTime> knownDateSet = <DateTime>{};
 
@@ -725,15 +721,15 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         (DailyRecord r) => _isSameDay(r.date, cursor),
       );
 
+      final DailyRecord newRecord =
+          _buildDailyRecordForDate(cursor, currentDate: currentNow);
+
       if (existingIndex < 0) {
         // Missing day! Backfill record
-        updatedRecords.add(_buildDailyRecordForDate(cursor));
+        updatedRecords.add(newRecord);
       } else if (_isSameDay(cursor, today)) {
         // Update today's record with active data
-        updatedRecords[existingIndex] = _buildDailyRecordForDate(
-          today,
-          todaySummary: currentSummary,
-        );
+        updatedRecords[existingIndex] = newRecord;
       }
 
       cursor = DateTime(cursor.year, cursor.month, cursor.day + 1);
@@ -751,34 +747,21 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   DailyRecord _buildDailyRecordForDate(
     DateTime date, {
-    BudgetSummary? todaySummary,
+    DateTime? currentDate,
   }) {
     final DateTime dayStart = DateTime(date.year, date.month, date.day);
-    final DateTime currentNow = now;
+    final DateTime currentNow = currentDate ?? now;
     final bool isToday = _isSameDay(dayStart, currentNow);
 
-    final BudgetEntry? entry = state.budgetEntries
-        .cast<BudgetEntry?>()
-        .firstWhere(
-          (BudgetEntry? e) => e != null && _isSameDay(e.date, dayStart),
-          orElse: () => null,
-        );
+    final BudgetEntry? entry =
+        state.budgetEntries.cast<BudgetEntry?>().firstWhere(
+              (BudgetEntry? e) => e != null && _isSameDay(e.date, dayStart),
+              orElse: () => null,
+            );
 
     double dayBudget = entry?.amount ?? 0.0;
     if (dayBudget <= 0 && isToday) {
       dayBudget = state.settings.dailyLimit ?? 0.0;
-    }
-
-    if (isToday && todaySummary != null) {
-      return DailyRecord(
-        date: dayStart,
-        budget: dayBudget,
-        totalSpent: todaySummary.totalSpent,
-        remainingBalance: todaySummary.remainingBalance,
-        savings: todaySummary.savings,
-        biggestExpenseCategory: todaySummary.biggestExpenseCategory,
-        categoryTotals: todaySummary.categoryTotals,
-      );
     }
 
     final List<ExpenseEntry> dayExpenses = state.expenses
@@ -825,10 +808,6 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       biggestExpenseCategory: biggestExpenseCategory,
       categoryTotals: categoryTotals,
     );
-  }
-
-  Future<void> _syncDailyRecord() async {
-    _backfillMissingDays();
   }
 
   bool _isSameDay(DateTime left, DateTime right) {
@@ -1045,6 +1024,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         budgetCreatedAt: now,
       ),
     );
+    _recalculatePeriodSpending(now);
+    _backfillMissingDays(currentDate: now);
     _persist();
   }
 
@@ -1076,6 +1057,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         budgetCreatedAt: now,
       ),
     );
+    _recalculatePeriodSpending(now);
+    _backfillMissingDays(currentDate: now);
     _persist();
   }
 

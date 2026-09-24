@@ -105,8 +105,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       }
     }
     for (final ExpenseEntry expense in expenses) {
-      final DateTime eDate = DateTime(expense.dateTime.year,
-          expense.dateTime.month, expense.dateTime.day);
+      final DateTime eDate = DateTime(
+          expense.dateTime.year, expense.dateTime.month, expense.dateTime.day);
       if (eDate.isBefore(todayDay)) {
         pastDaysSet.add(eDate);
       }
@@ -269,17 +269,17 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                               ...pastDays.map((DateTime day) {
                                 final List<ExpenseEntry> dayExpenses =
                                     _expensesForDay(expenses, day);
-                                final double dayTotal = dayExpenses.fold<double>(
-                                    0,
-                                    (double sum, ExpenseEntry e) =>
-                                        sum + e.amount);
+                                final double dayTotal =
+                                    dayExpenses.fold<double>(
+                                        0,
+                                        (double sum, ExpenseEntry e) =>
+                                            sum + e.amount);
                                 final bool isZero = dayExpenses.isEmpty;
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 4),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 4),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                       side: BorderSide(
@@ -369,17 +369,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return _sortExpenses(filtered);
   }
 
-  List<DateTime> _availableDays(List<ExpenseEntry> expenses) {
-    final Set<DateTime> days = <DateTime>{};
-    for (final ExpenseEntry expense in expenses) {
-      days.add(DateTime(
-          expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
-    }
-    final List<DateTime> sortedDays = days.toList()
-      ..sort((DateTime left, DateTime right) => right.compareTo(left));
-    return sortedDays;
-  }
-
   List<DateTime> _availableMonths(
       BudgetBuddyState state, List<ExpenseEntry> expenses, DateTime today) {
     final Set<DateTime> months = <DateTime>{};
@@ -429,17 +418,20 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
     final Set<DateTime> daysSet = <DateTime>{};
     for (final ExpenseEntry expense in monthExpenses) {
-      daysSet.add(DateTime(expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
+      daysSet.add(DateTime(
+          expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
     }
     for (final DailyRecord record in state.dailyRecords) {
       if (record.date.year == month.year && record.date.month == month.month) {
-        daysSet.add(DateTime(record.date.year, record.date.month, record.date.day));
+        daysSet.add(
+            DateTime(record.date.year, record.date.month, record.date.day));
       }
     }
     if (currentNow.year == month.year && currentNow.month == month.month) {
       daysSet.add(DateTime(currentNow.year, currentNow.month, currentNow.day));
     }
-    final List<DateTime> monthDays = daysSet.toList()..sort((a, b) => b.compareTo(a));
+    final List<DateTime> monthDays = daysSet.toList()
+      ..sort((a, b) => b.compareTo(a));
 
     await showModalBottomSheet<void>(
       context: localContext,
@@ -1000,12 +992,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           onPressed: () {
                             final BudgetBuddyController controller = ref
                                 .read(budgetBuddyControllerProvider.notifier);
-                            final String source = existing != null &&
-                                    existing.source.isNotEmpty
-                                ? existing.source
-                                : (widget.isTogetherOnly
-                                    ? 'togetherSpend'
-                                    : 'manual');
+                            final String source =
+                                existing != null && existing.source.isNotEmpty
+                                    ? existing.source
+                                    : (widget.isTogetherOnly
+                                        ? 'togetherSpend'
+                                        : 'manual');
                             final ExpenseEntry entry = ExpenseEntry(
                               id: existing?.id ??
                                   DateTime.now()
@@ -1308,9 +1300,8 @@ class _DailySection extends StatelessWidget {
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outlineVariant)),
+                            color:
+                                Theme.of(context).colorScheme.outlineVariant)),
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1503,9 +1494,7 @@ class _MonthlySection extends StatelessWidget {
                       side: BorderSide(
                           color: isZero
                               ? const Color(0xFFD97706).withValues(alpha: 0.3)
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant)),
+                              : Theme.of(context).colorScheme.outlineVariant)),
                   leading: Icon(
                     isZero
                         ? Icons.calendar_today_rounded
@@ -1516,10 +1505,9 @@ class _MonthlySection extends StatelessWidget {
                   ),
                   title: Text(DateFormat('MMMM yyyy').format(month),
                       style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(
-                      isZero
-                          ? 'No budget and expenses this month • Tap for daily dates'
-                          : '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates'),
+                  subtitle: Text(isZero
+                      ? 'No budget and expenses this month • Tap for daily dates'
+                      : '${monthExpenses.length} expense${monthExpenses.length == 1 ? '' : 's'} • Tap for daily dates'),
                   trailing: Text(
                     isZero ? '₱0' : formatPeso(total),
                     style: TextStyle(

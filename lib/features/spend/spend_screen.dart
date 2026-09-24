@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -84,13 +85,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = widget.isTogetherOnly
         ? ref.watch(budgetTogetherSummaryProvider)
         : ref.watch(budgetSummaryProvider);
-    final bool hasBudget = widget.isTogetherOnly
-        ? state.togetherBudget > 0
-        : state.settings.totalDailyBudget > 0;
+    final DateTime currentClock =
+        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final Color spendColor = widget.isTogetherOnly
+        ? const Color(0xFF0F766E)
+        : const Color(0xFFDC2626);
 
     return Scaffold(
       body: SafeArea(
@@ -131,64 +133,93 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                 const SizedBox(height: 12),
               ],
               SectionTitle(
-                title: widget.isTogetherOnly ? 'Spend (Budget Together)' : 'Spend',
+                title:
+                    widget.isTogetherOnly ? 'Spend (Budget Together)' : 'Spend',
                 subtitle: widget.isTogetherOnly
                     ? 'Plan and log spending inside Budget Together. Deducted from your tab budget.'
                     : 'Plan and log spending in one place. Every entry is deducted from active day and month limits.',
               ),
               const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.today_rounded, size: 14, color: spendColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Today • ${DateFormat('EEE, MMM d').format(currentClock)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _BalanceSummary(summary: summary),
+              const SizedBox(height: 16),
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
-                    if (!hasBudget)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            const Icon(Icons.warning_amber_rounded,
-                                color: Color(0xFFDC2626)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                widget.isTogetherOnly
-                                    ? 'Please set a Budget Together amount before logging spend.'
-                                    : 'Please set a daily budget before logging spend.',
-                                style: const TextStyle(
-                                  color: Color(0xFF991B1B),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    _RemainingPills(summary: summary),
-                    const SizedBox(height: 16),
                     SectionCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            'Quick Spend Categories',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                          Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: spendColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.receipt_long_rounded,
+                                  color: spendColor,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Quick Spend Categories',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w800),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                        'Choose a category or add a custom expense.',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tap a category to log amount and note.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
+                          const SizedBox(height: 2),
                           GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -538,8 +569,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   }
 }
 
-class _RemainingPills extends StatelessWidget {
-  const _RemainingPills({required this.summary});
+class _BalanceSummary extends StatelessWidget {
+  const _BalanceSummary({required this.summary});
 
   final BudgetSummary summary;
 
@@ -550,33 +581,95 @@ class _RemainingPills extends StatelessWidget {
     final BudgetPeriodSummary? month =
         summary.periodSummaries[BudgetPeriod.monthly];
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Row(
       children: <Widget>[
-        _pill('Day', day),
-        _pill('Month', month),
+        Expanded(child: _BalanceCard(label: 'Day', period: day)),
+        const SizedBox(width: 10),
+        Expanded(child: _BalanceCard(label: 'Month', period: month)),
       ],
     );
   }
+}
 
-  Widget _pill(String label, BudgetPeriodSummary? period) {
-    final bool active = period != null && period.isActive;
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.label, required this.period});
+
+  final String label;
+  final BudgetPeriodSummary? period;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool active = period != null && period!.isActive;
+    final bool isOver = active && period!.isOverspent;
     final Color color = !active
         ? const Color(0xFF64748B)
-        : period.isOverspent
+        : isOver
             ? const Color(0xFFDC2626)
-            : period.isWarning
+            : period!.isWarning
                 ? const Color(0xFFF59E0B)
                 : const Color(0xFF0F766E);
+    final String value = !active
+        ? 'Not set'
+        : isOver
+            ? formatPeso(period!.overspentAmount)
+            : formatPeso(period!.remaining);
+    final String caption = !active
+        ? 'Set a budget first'
+        : isOver
+            ? 'Over'
+            : 'Left';
 
-    final String text = !active
-        ? '$label Not Set'
-        : period.isOverspent
-            ? '$label ${formatPeso(period.overspentAmount)} Over'
-            : '$label ${formatPeso(period.remaining)} Left';
-
-    return SoftPill(text: text, color: color);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                label == 'Day' ? Icons.today_rounded : Icons.date_range_rounded,
+                size: 17,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            caption,
+            style: TextStyle(
+              color: color.withValues(alpha: 0.85),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -648,18 +741,14 @@ class _SpendCategoryOption {
     required this.subtitle,
     required this.icon,
     required this.budgetCategory,
-    required this.defaultAmount,
     required this.color,
-    this.isCustom = false,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final BudgetCategory budgetCategory;
-  final double defaultAmount;
   final Color color;
-  final bool isCustom;
 }
 
 const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
@@ -668,7 +757,6 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     subtitle: 'Meals, Snacks, Coffee',
     icon: Icons.restaurant_rounded,
     budgetCategory: BudgetCategory.food,
-    defaultAmount: 120,
     color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
@@ -676,7 +764,6 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     subtitle: 'Jeep, Tricycle, Grab',
     icon: Icons.directions_bus_rounded,
     budgetCategory: BudgetCategory.transportation,
-    defaultAmount: 70,
     color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
@@ -684,7 +771,6 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     subtitle: 'Clothes, Personal',
     icon: Icons.shopping_bag_rounded,
     budgetCategory: BudgetCategory.shopping,
-    defaultAmount: 220,
     color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
@@ -692,7 +778,6 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     subtitle: 'Outings, Activities',
     icon: Icons.celebration_rounded,
     budgetCategory: BudgetCategory.entertainment,
-    defaultAmount: 280,
     color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
@@ -700,7 +785,6 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     subtitle: 'Meds, Checkup',
     icon: Icons.health_and_safety_rounded,
     budgetCategory: BudgetCategory.miscellaneous,
-    defaultAmount: 180,
     color: Color(0xFFDC2626),
   ),
   _SpendCategoryOption(
@@ -708,7 +792,6 @@ const List<_SpendCategoryOption> _spendCategories = <_SpendCategoryOption>[
     subtitle: 'Load, Electric, Wifi',
     icon: Icons.receipt_long_rounded,
     budgetCategory: BudgetCategory.miscellaneous,
-    defaultAmount: 350,
     color: Color(0xFFDC2626),
   ),
 ];
@@ -718,7 +801,5 @@ const _SpendCategoryOption _customSpendCategory = _SpendCategoryOption(
   subtitle: 'Any Other Spend',
   icon: Icons.edit_rounded,
   budgetCategory: BudgetCategory.miscellaneous,
-  defaultAmount: 0,
   color: Color(0xFFDC2626),
-  isCustom: true,
 );
