@@ -349,7 +349,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       label: const Text('Install Now'),
                     )
                   else if (_state == UpdateDownloadState.downloading)
-                    OutlinedButton(
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF991B1B),
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: () {
                         setState(() {
                           _state = UpdateDownloadState.idle;

@@ -113,6 +113,36 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
   }
 
+  void _showDevUpdateModal(BuildContext context, {bool mandatory = false}) {
+    final mockInfo = AppUpdateInfo(
+      version: '1.2.0',
+      buildNumber: 15,
+      tagName: 'v1.2.0',
+      title: 'Budget Buddy v1.2.0 is Available!',
+      releaseNotes: '• Redesigned Settings and Preferences.\n'
+          '• Reset today\'s budget to 0 at 12:00 AM.\n'
+          '• Unified visual palette (Dark Red, Gold, Dark Green).\n'
+          '• Fixed expense breakdown and category tracking.\n'
+          '• Performance optimizations & UI polish.',
+      downloadUrl:
+          'https://github.com/cjaayy/Budget-Buddy/releases/download/v1.2.0/app-release.apk',
+      isUpdateAvailable: true,
+      fileSize: 25 * 1024 * 1024,
+      mandatory: mandatory,
+      publishedAt: DateTime.now(),
+    );
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: !mandatory,
+      builder: (BuildContext dialogContext) => UpdateDialog(
+        updateInfo: mockInfo,
+        currentVersion: _appVersion ??
+            const AppVersion(version: '1.0.0', buildNumber: 1),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _backupRestoreController.dispose();
@@ -458,6 +488,12 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   },
                                   icon: const Icon(Icons.home_rounded),
                                   label: const Text('Preview First Screen'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _showDevUpdateModal(context),
+                                  icon: const Icon(Icons.system_update_rounded),
+                                  label: const Text('Preview Update Modal'),
                                 ),
                               ],
                             ),
@@ -1424,7 +1460,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: TextButton(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF991B1B),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
@@ -1536,7 +1579,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: TextButton(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF991B1B),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
@@ -1709,7 +1759,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: TextButton(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF991B1B),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
@@ -1857,7 +1914,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: TextButton(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF991B1B),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
@@ -2176,33 +2240,85 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                   !isEditing) ...<Widget>[
                                 SizedBox(
                                   width: double.infinity,
-                                  child: OutlinedButton.icon(
+                                  child: FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD97706),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
                                     onPressed: () {
                                       setModalState(() {
                                         isEditing = true;
                                       });
                                     },
-                                    icon: const Icon(Icons.edit_rounded),
-                                    label: const Text('Edit Name'),
+                                    icon: const Icon(Icons.edit_rounded,
+                                        size: 16),
+                                    label: const Text(
+                                      'Edit Name',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700),
+                                    ),
                                   ),
                                 ),
                               ] else ...<Widget>[
                                 Row(
                                   children: <Widget>[
                                     Expanded(
-                                      child: OutlinedButton(
+                                      child: FilledButton.icon(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF991B1B),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          elevation: 0,
+                                        ),
                                         onPressed: () {
                                           setModalState(() {
                                             updatedName = originalName;
                                             isEditing = false;
                                           });
                                         },
-                                        child: const Text('Cancel'),
+                                        icon: const Icon(Icons.close_rounded,
+                                            size: 16),
+                                        label: const Text(
+                                          'Cancel',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
-                                      child: FilledButton(
+                                      child: FilledButton.icon(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF0F766E),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          elevation: 0,
+                                        ),
+                                        icon: const Icon(Icons.save_rounded,
+                                            size: 16),
+                                        label: const Text(
+                                          'Save',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700),
+                                        ),
                                         onPressed: canSave
                                             ? () async {
                                                 final bool? confirmSave =
@@ -2288,7 +2404,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                                 );
                                               }
                                             : null,
-                                        child: const Text('Save'),
                                       ),
                                     ),
                                   ],
@@ -2531,11 +2646,19 @@ class _PasteJsonDialogState extends State<_PasteJsonDialog> {
         ),
       ),
       actions: <Widget>[
-        TextButton(
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF991B1B),
+            foregroundColor: Colors.white,
+          ),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF0F766E),
+            foregroundColor: Colors.white,
+          ),
           onPressed: () {
             if (_controller.text.trim().isNotEmpty) {
               Navigator.of(context).pop(_controller.text.trim());
