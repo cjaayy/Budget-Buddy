@@ -360,18 +360,17 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: palette.goldBg,
+                      color: palette.gold,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: palette.goldBorder),
                     ),
                     child: Text(
                       _activeSection == SavingsSection.daily
                           ? '${records.length} Day${records.length == 1 ? '' : 's'}'
                           : '${availableMonths.length} Month${availableMonths.length == 1 ? '' : 's'}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: palette.gold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -645,18 +644,17 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: palette.goldBg,
+                  color: palette.gold,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: palette.goldBorder),
                 ),
                 child: Text(
                   _activeSection == SavingsSection.daily
-                      ? '${records.length} recorded'
-                      : '${availableMonths.length} recorded',
-                  style: TextStyle(
+                      ? '${records.length} record${records.length == 1 ? '' : 's'}'
+                      : '${availableMonths.length} record${availableMonths.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: palette.gold,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -899,16 +897,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: palette.goldBg,
+                              color: palette.gold,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: palette.goldBorder),
                             ),
                             child: Text(
                               '${categories.length} item${categories.length == 1 ? '' : 's'}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: palette.gold,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -1155,16 +1152,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: palette.goldBg,
+                            color: palette.gold,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: palette.goldBorder),
                           ),
                           child: Text(
                             '${records.length} day${records.length == 1 ? '' : 's'}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: palette.gold,
+                              color: Colors.white,
                             ),
                           ),
                         ),
