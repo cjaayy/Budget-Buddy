@@ -421,15 +421,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     required bool isOver,
     required _SpendPalette palette,
   }) {
-    final Color statusColor = !hasBudget
+    final Color statusColor =
+        !hasBudget || isOver ? Colors.white : Colors.white;
+    final Color statusBg = !hasBudget
         ? palette.darkRed
         : (isOver ? palette.darkRed : palette.darkGreen);
-    final Color statusBg = !hasBudget
-        ? palette.darkRedBg
-        : (isOver ? palette.darkRedBg : palette.darkGreenBg);
     final Color statusBorder = !hasBudget
-        ? palette.darkRedBorder
-        : (isOver ? palette.darkRedBorder : palette.darkGreenBorder);
+        ? palette.darkRed
+        : (isOver ? palette.darkRed : palette.darkGreen);
     final IconData statusIcon = !hasBudget
         ? Icons.radio_button_unchecked_rounded
         : (isOver ? Icons.warning_amber_rounded : Icons.check_circle_rounded);
@@ -503,17 +502,13 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final Color barColor = isOver
         ? palette.darkRed
         : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeColor = isOver
+    const Color badgeColor = Colors.white;
+    final Color badgeBg = isOver
         ? palette.darkRed
         : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBg = isOver
-        ? palette.darkRedBg
-        : (dailySummary.isWarning ? palette.goldBg : palette.darkGreenBg);
     final Color badgeBorder = isOver
-        ? palette.darkRedBorder
-        : (dailySummary.isWarning
-            ? palette.goldBorder
-            : palette.darkGreenBorder);
+        ? palette.darkRed
+        : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
 
     final String badgeLabel = !hasBudget
         ? 'Unset'
@@ -522,6 +517,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             : '${(progressValue * 100).toInt()}% Used';
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? theme.cardColor,
@@ -530,122 +526,129 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: <Widget>[
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // Header Row
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  Icon(Icons.analytics_rounded,
-                      size: 16, color: palette.darkGreen),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Daily Spending',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
+                  Row(
+                    children: <Widget>[
+                      Icon(Icons.analytics_rounded,
+                          size: 16, color: palette.darkGreen),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Daily Spending',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: badgeBorder),
+                    ),
+                    child: Text(
+                      badgeLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: badgeColor,
+                      ),
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: badgeBorder),
+              const SizedBox(height: 10),
+
+              // Linear progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progressValue,
+                  minHeight: 7,
+                  backgroundColor: barColor.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
                 ),
-                child: Text(
-                  badgeLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor,
+              ),
+              const SizedBox(height: 12),
+
+              // 3 Compact Metric Tiles: Budget (Gold), Spent (Dark Red), Remaining (Green / Red)
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: 'Budget',
+                      value: formatPeso(currentBudget),
+                      bgColor: palette.gold,
+                      icon: Icons.account_balance_wallet_rounded,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: 'Spent',
+                      value: formatPeso(currentSpent),
+                      bgColor: palette.darkRed,
+                      icon: Icons.trending_down_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: isOver ? 'Over' : 'Remaining',
+                      value: formatPeso(remaining.abs()),
+                      bgColor: isOver ? palette.darkRed : palette.darkGreen,
+                      icon: isOver
+                          ? Icons.warning_amber_rounded
+                          : Icons.savings_rounded,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
 
-          // Linear progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              minHeight: 7,
-              backgroundColor: barColor.withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 3 Compact Metric Tiles: Budget (Gold), Spent (Dark Red), Remaining (Green / Red)
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _CompactMetricTile(
-                  label: 'Budget',
-                  value: formatPeso(currentBudget),
-                  bgColor: palette.gold,
-                  icon: Icons.account_balance_wallet_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: 'Spent',
-                  value: formatPeso(currentSpent),
-                  bgColor: palette.darkRed,
-                  icon: Icons.trending_down_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: isOver ? 'Over' : 'Remaining',
-                  value: formatPeso(remaining.abs()),
-                  bgColor: isOver ? palette.darkRed : palette.darkGreen,
-                  icon: isOver
-                      ? Icons.warning_amber_rounded
-                      : Icons.savings_rounded,
-                ),
-              ),
-            ],
-          ),
-
-          // Warning Notice
-          if (hasBudget &&
-              (dailySummary.isOverspent || dailySummary.isWarning)) ...<Widget>[
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 14,
-                  color:
-                      dailySummary.isOverspent ? palette.darkRed : palette.gold,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    dailySummary.warningMessage,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+              // Warning Notice
+              if (hasBudget &&
+                  (dailySummary.isOverspent ||
+                      dailySummary.isWarning)) ...<Widget>[
+                const SizedBox(height: 8),
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
                       color: dailySummary.isOverspent
                           ? palette.darkRed
                           : palette.gold,
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        dailySummary.warningMessage,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: dailySummary.isOverspent
+                              ? palette.darkRed
+                              : palette.gold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );
@@ -661,13 +664,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         color: theme.cardTheme.color ?? theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: palette.goldBorder),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: palette.gold.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -768,8 +764,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
               label: const Text('Custom Expense'),
               style: FilledButton.styleFrom(
-                backgroundColor: palette.darkGreenBg,
-                foregroundColor: palette.darkGreen,
+                backgroundColor: palette.darkGreen,
+                foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(40),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -794,13 +790,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         color: theme.cardTheme.color ?? theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: palette.goldBorder, width: 1.5),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: palette.gold.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1103,12 +1092,21 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                 .onSurfaceVariant,
                           ),
                         ),
-                        Text(
-                          'Tap to set amount',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: palette.gold,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: palette.goldBg,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: palette.goldBorder),
+                          ),
+                          child: Text(
+                            'Tap to set amount',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: palette.gold,
+                            ),
                           ),
                         ),
                       ],
@@ -1796,13 +1794,6 @@ class _CompactMetricTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: bgColor.withValues(alpha: 0.32),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -392,15 +392,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     required bool isOver,
     required _ExpensePalette palette,
   }) {
-    final Color statusColor = !hasBudget
+    const Color statusColor = Colors.white;
+    final Color statusBg = !hasBudget
         ? palette.darkRed
         : (isOver ? palette.darkRed : palette.darkGreen);
-    final Color statusBg = !hasBudget
-        ? palette.darkRedBg
-        : (isOver ? palette.darkRedBg : palette.darkGreenBg);
     final Color statusBorder = !hasBudget
-        ? palette.darkRedBorder
-        : (isOver ? palette.darkRedBorder : palette.darkGreenBorder);
+        ? palette.darkRed
+        : (isOver ? palette.darkRed : palette.darkGreen);
     final IconData statusIcon = !hasBudget
         ? Icons.warning_amber_rounded
         : (isOver ? Icons.trending_down_rounded : Icons.check_circle_rounded);
@@ -444,7 +442,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               const SizedBox(width: 5),
               Text(
                 statusLabel,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: statusColor,
@@ -483,10 +481,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         activeBudget > 0 ? (activeSpent / activeBudget).clamp(0.0, 1.0) : 0.0;
 
     final Color barColor = isOver ? palette.darkRed : palette.darkGreen;
-    final Color badgeColor = isOver ? palette.darkRed : palette.darkGreen;
-    final Color badgeBg = isOver ? palette.darkRedBg : palette.darkGreenBg;
-    final Color badgeBorder =
-        isOver ? palette.darkRedBorder : palette.darkGreenBorder;
+    const Color badgeColor = Colors.white;
+    final Color badgeBg = isOver ? palette.darkRed : palette.darkGreen;
+    final Color badgeBorder = isOver ? palette.darkRed : palette.darkGreen;
 
     final String badgeLabel = !hasBudget
         ? 'Unset'
@@ -495,6 +492,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             : '${(progressValue * 100).toInt()}% Used';
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? theme.cardColor,
@@ -503,95 +501,100 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: <Widget>[
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // Header Row
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  Icon(
-                    Icons.analytics_rounded,
-                    size: 16,
-                    color: palette.darkGreen,
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.analytics_rounded,
+                        size: 16,
+                        color: palette.darkGreen,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isDaily
+                            ? 'Daily Expense Overview'
+                            : 'Monthly Expense Overview',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isDaily
-                        ? 'Daily Expense Overview'
-                        : 'Monthly Expense Overview',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: badgeBorder),
+                    ),
+                    child: Text(
+                      badgeLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: badgeColor,
+                      ),
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: badgeBorder),
+              const SizedBox(height: 10),
+
+              // Linear Progress Bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progressValue,
+                  minHeight: 7,
+                  backgroundColor: barColor.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
                 ),
-                child: Text(
-                  badgeLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor,
+              ),
+              const SizedBox(height: 12),
+
+              // 3 Compact Metric Tiles: Budget (Gold), Spent (Dark Red), Remaining (Green/Red)
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: isDaily ? 'Budget' : 'Month Budget',
+                      value: formatPeso(activeBudget),
+                      bgColor: palette.gold,
+                      icon: Icons.account_balance_wallet_rounded,
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Linear Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              minHeight: 7,
-              backgroundColor: barColor.withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 3 Compact Metric Tiles: Budget (Gold), Spent (Dark Red), Remaining (Green/Red)
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _CompactMetricTile(
-                  label: isDaily ? 'Budget' : 'Month Budget',
-                  value: formatPeso(activeBudget),
-                  bgColor: palette.gold,
-                  icon: Icons.account_balance_wallet_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: isDaily ? 'Spent' : 'Month Spent',
-                  value: formatPeso(activeSpent),
-                  bgColor: palette.darkRed,
-                  icon: Icons.shopping_bag_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: isOver ? 'Over' : 'Remaining',
-                  value: formatPeso(activeRemaining.abs()),
-                  bgColor: isOver ? palette.darkRed : palette.darkGreen,
-                  icon: isOver
-                      ? Icons.warning_amber_rounded
-                      : Icons.savings_rounded,
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: isDaily ? 'Spent' : 'Month Spent',
+                      value: formatPeso(activeSpent),
+                      bgColor: palette.darkRed,
+                      icon: Icons.shopping_bag_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: isOver ? 'Over' : 'Remaining',
+                      value: formatPeso(activeRemaining.abs()),
+                      bgColor: isOver ? palette.darkRed : palette.darkGreen,
+                      icon: isOver
+                          ? Icons.warning_amber_rounded
+                          : Icons.savings_rounded,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

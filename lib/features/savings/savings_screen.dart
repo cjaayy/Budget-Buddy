@@ -237,15 +237,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     required _SavingsPalette palette,
   }) {
     final bool isDeficit = netSavings < 0;
-    final Color statusColor = hasDebt
+    const Color statusColor = Colors.white;
+    final Color statusBg = hasDebt
         ? palette.darkRed
         : (isDeficit ? palette.darkRed : palette.darkGreen);
-    final Color statusBg = hasDebt
-        ? palette.darkRedBg
-        : (isDeficit ? palette.darkRedBg : palette.darkGreenBg);
     final Color statusBorder = hasDebt
-        ? palette.darkRedBorder
-        : (isDeficit ? palette.darkRedBorder : palette.darkGreenBorder);
+        ? palette.darkRed
+        : (isDeficit ? palette.darkRed : palette.darkGreen);
     final IconData statusIcon = hasDebt
         ? Icons.warning_amber_rounded
         : (isDeficit ? Icons.trending_down_rounded : Icons.savings_rounded);
@@ -289,7 +287,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               const SizedBox(width: 5),
               Text(
                 statusLabel,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: statusColor,
@@ -316,6 +314,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final bool isDeficit = netSavings < 0;
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? theme.cardColor,
@@ -324,136 +323,150 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: <Widget>[
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Positioned.fill(
+            child: ColoredBox(
+              color: (isDeficit ? palette.darkRed : palette.darkGreen)
+                  .withValues(alpha: 0.12),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // Header Row
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  Icon(
-                    Icons.analytics_rounded,
-                    size: 16,
-                    color: palette.darkGreen,
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.analytics_rounded,
+                        size: 16,
+                        color: palette.darkGreen,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Savings Overview',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Savings Overview',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: palette.goldBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: palette.goldBorder),
                     ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: palette.goldBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: palette.goldBorder),
-                ),
-                child: Text(
-                  _activeSection == SavingsSection.daily
-                      ? '${records.length} Day${records.length == 1 ? '' : 's'}'
-                      : '${availableMonths.length} Month${availableMonths.length == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: palette.gold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 3 Compact Metric Tiles: Green/Red, Gold, Dark Red/Green
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _CompactMetricTile(
-                  label: _activeSection == SavingsSection.daily
-                      ? 'Daily Saved'
-                      : 'Monthly Saved',
-                  value: (isDeficit ? '-' : '') + formatPeso(netSavings.abs()),
-                  bgColor: isDeficit ? palette.darkRed : palette.darkGreen,
-                  icon: isDeficit
-                      ? Icons.trending_down_rounded
-                      : Icons.savings_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: widget.isTogetherOnly ? 'Tab Budget' : 'Total Saved',
-                  value: widget.isTogetherOnly
-                      ? formatPeso(state.togetherBudget)
-                      : formatPeso(state.totalSavings),
-                  bgColor: palette.gold,
-                  icon: Icons.account_balance_wallet_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: widget.isTogetherOnly
-                      ? 'Tab Spent'
-                      : (state.savingsDebt > 0
-                          ? 'Savings Debt'
-                          : 'Debt Status'),
-                  value: widget.isTogetherOnly
-                      ? formatPeso(togetherSpent)
-                      : (state.savingsDebt > 0
-                          ? formatPeso(state.savingsDebt)
-                          : '₱0 (Clear)'),
-                  bgColor: widget.isTogetherOnly
-                      ? palette.darkRed
-                      : (state.savingsDebt > 0
-                          ? palette.darkRed
-                          : palette.darkGreen),
-                  icon: widget.isTogetherOnly
-                      ? Icons.shopping_bag_rounded
-                      : (state.savingsDebt > 0
-                          ? Icons.warning_amber_rounded
-                          : Icons.check_circle_rounded),
-                ),
-              ),
-            ],
-          ),
-
-          // Savings Debt Alert (Dark Red Banner)
-          if (!widget.isTogetherOnly && state.savingsDebt > 0) ...<Widget>[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: palette.darkRedBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: palette.darkRedBorder),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(Icons.info_outline_rounded,
-                      size: 14, color: palette.darkRed),
-                  const SizedBox(width: 6),
-                  Expanded(
                     child: Text(
-                      'Savings Debt: ${formatPeso(state.savingsDebt)} carried over to offset your next surplus.',
+                      _activeSection == SavingsSection.daily
+                          ? '${records.length} Day${records.length == 1 ? '' : 's'}'
+                          : '${availableMonths.length} Month${availableMonths.length == 1 ? '' : 's'}',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: palette.darkRed,
+                        fontWeight: FontWeight.w700,
+                        color: palette.gold,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+
+              // 3 Compact Metric Tiles: Green/Red, Gold, Dark Red/Green
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: _activeSection == SavingsSection.daily
+                          ? 'Daily Saved'
+                          : 'Monthly Saved',
+                      value:
+                          (isDeficit ? '-' : '') + formatPeso(netSavings.abs()),
+                      bgColor: isDeficit ? palette.darkRed : palette.darkGreen,
+                      icon: isDeficit
+                          ? Icons.trending_down_rounded
+                          : Icons.savings_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label:
+                          widget.isTogetherOnly ? 'Tab Budget' : 'Total Saved',
+                      value: widget.isTogetherOnly
+                          ? formatPeso(state.togetherBudget)
+                          : formatPeso(state.totalSavings),
+                      bgColor: palette.gold,
+                      icon: Icons.account_balance_wallet_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CompactMetricTile(
+                      label: widget.isTogetherOnly
+                          ? 'Tab Spent'
+                          : (state.savingsDebt > 0
+                              ? 'Savings Debt'
+                              : 'Debt Status'),
+                      value: widget.isTogetherOnly
+                          ? formatPeso(togetherSpent)
+                          : (state.savingsDebt > 0
+                              ? formatPeso(state.savingsDebt)
+                              : '₱0 (Clear)'),
+                      bgColor: widget.isTogetherOnly
+                          ? palette.darkRed
+                          : (state.savingsDebt > 0
+                              ? palette.darkRed
+                              : palette.darkGreen),
+                      icon: widget.isTogetherOnly
+                          ? Icons.shopping_bag_rounded
+                          : (state.savingsDebt > 0
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_rounded),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Savings Debt Alert (Dark Red Banner)
+              if (!widget.isTogetherOnly && state.savingsDebt > 0) ...<Widget>[
+                const SizedBox(height: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: palette.darkRedBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: palette.darkRedBorder),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.info_outline_rounded,
+                          size: 14, color: palette.darkRed),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Savings Debt: ${formatPeso(state.savingsDebt)} carried over to offset your next surplus.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: palette.darkRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );

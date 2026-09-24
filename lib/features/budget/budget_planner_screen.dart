@@ -336,14 +336,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     required bool isLocked,
     required _BudgetPalette palette,
   }) {
-    final Color statusColor = isLocked
-        ? palette.darkGreen
-        : (hasBudget ? palette.gold : palette.darkRed);
+    final Color statusColor =
+        isLocked ? Colors.white : (hasBudget ? palette.gold : palette.darkRed);
     final Color statusBg = isLocked
-        ? palette.darkGreenBg
+        ? palette.darkGreen
         : (hasBudget ? palette.goldBg : palette.darkRedBg);
     final Color statusBorder = isLocked
-        ? palette.darkGreenBorder
+        ? palette.darkGreen
         : (hasBudget ? palette.goldBorder : palette.darkRedBorder);
     final IconData statusIcon = isLocked
         ? Icons.check_circle_rounded
@@ -419,13 +418,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         color: theme.cardTheme.color ?? theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: palette.goldBorder),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: palette.gold.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -688,17 +680,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final Color barColor = isOver
         ? palette.darkRed
         : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeColor = isOver
+    const Color badgeColor = Colors.white;
+    final Color badgeBg = isOver
         ? palette.darkRed
         : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
-    final Color badgeBg = isOver
-        ? palette.darkRedBg
-        : (dailySummary.isWarning ? palette.goldBg : palette.darkGreenBg);
     final Color badgeBorder = isOver
-        ? palette.darkRedBorder
-        : (dailySummary.isWarning
-            ? palette.goldBorder
-            : palette.darkGreenBorder);
+        ? palette.darkRed
+        : (dailySummary.isWarning ? palette.gold : palette.darkGreen);
 
     final String badgeLabel = !hasBudget
         ? 'Unset'
@@ -706,162 +694,173 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             ? 'Over by ${formatPeso(remaining.abs())}'
             : '${(progressValue * 100).toInt()}% Used';
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints _) {
+        return Container(
+          clipBehavior: Clip.antiAlias,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: theme.cardTheme.color ?? theme.cardColor,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Stack(
             children: <Widget>[
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.analytics_rounded,
-                      size: 16, color: palette.darkGreen),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Daily Spending',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
+                  // Header Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Icon(Icons.analytics_rounded,
+                              size: 16, color: palette.darkGreen),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Daily Spending',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: badgeBorder),
+                        ),
+                        child: Text(
+                          badgeLabel,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: badgeColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Linear progress bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 7,
+                      backgroundColor: barColor.withValues(alpha: 0.12),
+                      valueColor: AlwaysStoppedAnimation<Color>(barColor),
                     ),
                   ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: badgeBorder),
-                ),
-                child: Text(
-                  badgeLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor,
+                  const SizedBox(height: 12),
+
+                  // 3 Compact Metric Tiles with Rich Colored Backgrounds & Highly Visible Numbers
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _CompactMetricTile(
+                          label: 'Budget',
+                          value: formatPeso(currentBudget),
+                          bgColor: palette.gold,
+                          icon: Icons.account_balance_wallet_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactMetricTile(
+                          label: 'Spent',
+                          value: formatPeso(currentSpent),
+                          bgColor: palette.darkRed,
+                          icon: Icons.shopping_bag_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactMetricTile(
+                          label: isOver ? 'Over' : 'Remaining',
+                          value: formatPeso(remaining.abs()),
+                          bgColor: isOver ? palette.darkRed : palette.darkGreen,
+                          icon: isOver
+                              ? Icons.warning_amber_rounded
+                              : Icons.savings_rounded,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
 
-          // Linear progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              minHeight: 7,
-              backgroundColor: barColor.withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 3 Compact Metric Tiles with Rich Colored Backgrounds & Highly Visible Numbers
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _CompactMetricTile(
-                  label: 'Budget',
-                  value: formatPeso(currentBudget),
-                  bgColor: palette.gold,
-                  icon: Icons.account_balance_wallet_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: 'Spent',
-                  value: formatPeso(currentSpent),
-                  bgColor: palette.darkRed,
-                  icon: Icons.shopping_bag_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactMetricTile(
-                  label: isOver ? 'Over' : 'Remaining',
-                  value: formatPeso(remaining.abs()),
-                  bgColor: isOver ? palette.darkRed : palette.darkGreen,
-                  icon: isOver
-                      ? Icons.warning_amber_rounded
-                      : Icons.savings_rounded,
-                ),
-              ),
-            ],
-          ),
-
-          // Warning Notice (Only shown if overspent or warning threshold reached)
-          if (hasBudget &&
-              (dailySummary.isOverspent || dailySummary.isWarning)) ...<Widget>[
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 14,
-                  color:
-                      dailySummary.isOverspent ? palette.darkRed : palette.gold,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    dailySummary.warningMessage,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: dailySummary.isOverspent
-                          ? palette.darkRed
-                          : palette.gold,
+                  // Warning Notice (Only shown if overspent or warning threshold reached)
+                  if (hasBudget &&
+                      (dailySummary.isOverspent ||
+                          dailySummary.isWarning)) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 14,
+                          color: dailySummary.isOverspent
+                              ? palette.darkRed
+                              : palette.gold,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            dailySummary.warningMessage,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: dailySummary.isOverspent
+                                  ? palette.darkRed
+                                  : palette.gold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                  ],
 
-          // Savings Debt Alert (Dark Red)
-          if (savingsDebt > 0) ...<Widget>[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: palette.darkRedBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: palette.darkRedBorder),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(Icons.history_rounded, size: 14, color: palette.darkRed),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Debt: ${formatPeso(savingsDebt)} will be settled from surplus.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: palette.darkRed,
+                  // Savings Debt Alert (Dark Red)
+                  if (savingsDebt > 0) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: palette.darkRedBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: palette.darkRedBorder),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.history_rounded,
+                              size: 14, color: palette.darkRed),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Debt: ${formatPeso(savingsDebt)} will be settled from surplus.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: palette.darkRed,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
-            ),
-          ],
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -949,13 +948,6 @@ class _CompactMetricTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: bgColor.withValues(alpha: 0.32),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,13 +990,6 @@ class _CompactMetricTile extends StatelessWidget {
                 fontSize: 16,
                 letterSpacing: -0.3,
                 color: Colors.white,
-                shadows: <Shadow>[
-                  Shadow(
-                    color: Colors.black26,
-                    blurRadius: 2,
-                    offset: Offset(0, 1),
-                  ),
-                ],
               ),
             ),
           ),
