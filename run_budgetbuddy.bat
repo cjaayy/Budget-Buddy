@@ -905,8 +905,27 @@ echo [5/5] Committing and tagging release in Git repository...
 git add version.json pubspec.yaml
 git commit -m "chore(release): bump version to v!NEW_VERSION! (build !NEW_BUILD!)"
 git tag -a "v!NEW_VERSION!" -m "Budget Buddy v!NEW_VERSION!"
-git push origin main
-git push origin "v!NEW_VERSION!"
+
+echo Pushing commit and tag to GitHub...
+set "PUSH_SUCCESS=0"
+for /L %%I in (1,1,3) do (
+    if "!PUSH_SUCCESS!"=="0" (
+        git push origin main "v!NEW_VERSION!"
+        if !errorlevel! equ 0 (
+            set "PUSH_SUCCESS=1"
+        ) else (
+            if %%I LSS 3 (
+                echo [Warning] Remote server busy or rejected ref. Retrying attempt %%I in 2 seconds...
+                timeout /t 2 /nobreak >nul
+            )
+        )
+    )
+)
+if "!PUSH_SUCCESS!"=="0" (
+    echo [Notice] Git tag push encountered a remote delay; GitHub CLI will synchronize the tag via API.
+) else (
+    echo [OK] Commit and tag pushed successfully to GitHub.
+)
 
 echo.
 echo ====================================================
@@ -929,7 +948,7 @@ if not defined GH_TOKEN (
 )
 
 echo GitHub CLI detected. Creating GitHub Release automatically...
-call "!GH_BIN!" release create v!NEW_VERSION! "build\app\outputs\flutter-apk\app-release.apk" --repo "%GH_USER%/%GH_REPO%" --title "Budget Buddy v!NEW_VERSION!" -F "%SCRIPTS_DIR%.release_notes.txt"
+call "!GH_BIN!" release create v!NEW_VERSION! "build\app\outputs\flutter-apk\app-release.apk" --repo "%GH_USER%/%GH_REPO%" --title "Budget Buddy v!NEW_VERSION!" --target main -F "%SCRIPTS_DIR%.release_notes.txt"
 if errorlevel 1 goto gh_cli_failed
 
 echo.
