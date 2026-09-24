@@ -116,7 +116,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         title: item.title,
         amount: item.amount,
         category: item.category,
-        note: _withSpendTag(item.note),
+        note: _stripSpendTag(item.note),
         dateTime: now,
         source: widget.isTogetherOnly ? 'togetherSpend' : 'manual',
         spendCategory: item.title,
@@ -1699,7 +1699,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                 title: title,
                                 amount: amount,
                                 category: selectedCategory,
-                                note: _withSpendTag(noteController.text.trim()),
+                                note:
+                                    _stripSpendTag(noteController.text.trim()),
                               ),
                             );
                       },
@@ -1735,7 +1736,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           title: title,
           amount: amount,
           category: category,
-          note: _withSpendTag(note),
+          note: _stripSpendTag(note),
           dateTime: ref.read(budgetBuddyControllerProvider.notifier).now,
           source: widget.isTogetherOnly ? 'togetherSpend' : 'manual',
           spendCategory: title,
@@ -1759,24 +1760,12 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 
-  bool _isSpendTagged(String note) {
-    return note.startsWith(_spendTag);
-  }
-
-  String _withSpendTag(String note) {
-    final String trimmed = note.trim();
-    if (trimmed.isEmpty) {
-      return _spendTag;
-    }
-    return '$_spendTag $trimmed';
-  }
-
   String _stripSpendTag(String note) {
-    if (!_isSpendTagged(note)) {
-      return note.trim();
+    final String trimmed = note.trim();
+    if (trimmed.startsWith(_spendTag)) {
+      return trimmed.substring(_spendTag.length).trim();
     }
-    final String stripped = note.replaceFirst(_spendTag, '').trim();
-    return stripped;
+    return trimmed;
   }
 }
 

@@ -40,14 +40,12 @@ class _CompactMetricTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.bgColor,
-    this.textColor = Colors.white,
     this.icon,
   });
 
   final String label;
   final String value;
   final Color bgColor;
-  final Color textColor;
   final IconData? icon;
 
   @override
@@ -75,7 +73,7 @@ class _CompactMetricTile extends StatelessWidget {
                 Icon(
                   icon,
                   size: 12,
-                  color: textColor.withValues(alpha: 0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -88,7 +86,7 @@ class _CompactMetricTile extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
-                    color: textColor.withValues(alpha: 0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
               ),
@@ -101,12 +99,12 @@ class _CompactMetricTile extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
                 letterSpacing: -0.3,
-                color: textColor,
-                shadows: const <Shadow>[
+                color: Colors.white,
+                shadows: <Shadow>[
                   Shadow(
                     color: Colors.black26,
                     blurRadius: 2,
@@ -285,9 +283,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.arrow_back_rounded, size: 16),
                   label: Text(
-                    widget.isTogetherOnly
-                        ? 'Back to Budget Together'
-                        : 'Back',
+                    widget.isTogetherOnly ? 'Back to Budget Together' : 'Back',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 12),
                   ),
@@ -398,9 +394,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final IconData statusIcon = !hasBudget
         ? Icons.warning_amber_rounded
         : (isOver ? Icons.trending_down_rounded : Icons.check_circle_rounded);
-    final String statusLabel = !hasBudget
-        ? 'No Budget Set'
-        : (isOver ? 'Over Budget' : 'On Track');
+    final String statusLabel =
+        !hasBudget ? 'No Budget Set' : (isOver ? 'Over Budget' : 'On Track');
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -471,13 +466,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
     final double activeBudget = isDaily ? currentBudget : monthlyBudget;
     final double activeSpent = isDaily ? todayTotal : monthTotal;
-    final double activeRemaining =
-        isDaily ? dailyRemaining : monthlyRemaining;
+    final double activeRemaining = isDaily ? dailyRemaining : monthlyRemaining;
     final bool isOver = isDaily ? isDailyOver : isMonthlyOver;
 
-    final double progressValue = activeBudget > 0
-        ? (activeSpent / activeBudget).clamp(0.0, 1.0)
-        : 0.0;
+    final double progressValue =
+        activeBudget > 0 ? (activeSpent / activeBudget).clamp(0.0, 1.0) : 0.0;
 
     final Color barColor = isOver ? palette.darkRed : palette.darkGreen;
     final Color badgeColor = isOver ? palette.darkRed : palette.darkGreen;
@@ -516,7 +509,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    isDaily ? 'Daily Expense Overview' : 'Monthly Expense Overview',
+                    isDaily
+                        ? 'Daily Expense Overview'
+                        : 'Monthly Expense Overview',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -526,8 +521,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeBg,
                   borderRadius: BorderRadius.circular(8),
@@ -946,7 +940,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             ],
           ),
           const SizedBox(height: 12),
-
           if (pastDays.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
@@ -1133,7 +1126,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             ],
           ),
           const SizedBox(height: 12),
-
           if (availableMonths.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
@@ -1157,7 +1149,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       expense.dateTime.month == month.month)
                   .toList();
               final double total = monthExpenses.fold<double>(
-                  0, (double value, ExpenseEntry expense) => value + expense.amount);
+                  0,
+                  (double value, ExpenseEntry expense) =>
+                      value + expense.amount);
               final bool isZero = monthExpenses.isEmpty;
 
               final Color accent = isZero ? palette.gold : palette.darkRed;
@@ -1272,11 +1266,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     required VoidCallback onDetails,
   }) {
     final ThemeData theme = Theme.of(context);
+    final String displayNote = _cleanNote(expense.note);
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        color:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
@@ -1313,8 +1309,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      expense.note.isNotEmpty
-                          ? '${expense.category.label} • ${expense.note}'
+                      displayNote.isNotEmpty
+                          ? '${expense.category.label} • $displayNote'
                           : expense.category.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1328,8 +1324,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: palette.darkRedBg,
                   borderRadius: BorderRadius.circular(8),
@@ -1362,7 +1357,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ),
                   onPressed: onEdit,
                   child: const Text('Edit',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(width: 6),
@@ -1379,7 +1375,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ),
                   onPressed: onDelete,
                   child: const Text('Delete',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(width: 6),
@@ -1394,7 +1391,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ),
                   onPressed: onDetails,
                   child: const Text('Details',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -1559,7 +1557,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: isSaved ? palette.darkGreenBg : palette.darkRedBg,
+                        color:
+                            isSaved ? palette.darkGreenBg : palette.darkRedBg,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSaved
@@ -1701,15 +1700,18 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   DateUtils.isSameDay(expense.dateTime, day))
                               .toList();
                           final double dayTotal = dayExpenses.fold<double>(
-                              0, (double total, ExpenseEntry expense) => total + expense.amount);
+                              0,
+                              (double total, ExpenseEntry expense) =>
+                                  total + expense.amount);
                           final bool isZero = dayExpenses.isEmpty;
 
                           final Color accent =
                               isZero ? palette.gold : palette.darkRed;
                           final Color accentBg =
                               isZero ? palette.goldBg : palette.darkRedBg;
-                          final Color accentBorder =
-                              isZero ? palette.goldBorder : palette.darkRedBorder;
+                          final Color accentBorder = isZero
+                              ? palette.goldBorder
+                              : palette.darkRedBorder;
 
                           return InkWell(
                             borderRadius: BorderRadius.circular(14),
@@ -1830,8 +1832,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final double dayTotal = dayExpenses.fold<double>(
         0, (double sum, ExpenseEntry e) => sum + e.amount);
 
-    final ExpenseEntry? editExpense =
-        await showModalBottomSheet<ExpenseEntry>(
+    final ExpenseEntry? editExpense = await showModalBottomSheet<ExpenseEntry>(
       context: localContext,
       isScrollControlled: true,
       showDragHandle: false,
@@ -2001,7 +2002,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                   return;
                                 }
                                 ref
-                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .read(
+                                        budgetBuddyControllerProvider.notifier)
                                     .deleteExpense(expense.id);
                                 Navigator.of(sheetContext).pop();
                               },
@@ -2042,7 +2044,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final TextEditingController amountController =
         TextEditingController(text: existing?.amount.toStringAsFixed(0) ?? '');
     final TextEditingController noteController =
-        TextEditingController(text: existing?.note ?? '');
+        TextEditingController(text: _cleanNote(existing?.note ?? ''));
     BudgetCategory category = existing?.category ?? BudgetCategory.food;
 
     final BuildContext localContext = context;
@@ -2079,12 +2081,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     : ref.read(budgetSummaryProvider);
                 final double enteredAmount =
                     double.tryParse(amountController.text) ?? 0;
-                final double limit =
-                    _categoryLimit(category, state.settings);
+                final double limit = _categoryLimit(category, state.settings);
                 final double projectedTotal =
                     _categorySpent(summary, category) + enteredAmount;
-                final bool showWarning =
-                    limit > 0 && projectedTotal > limit;
+                final bool showWarning = limit > 0 && projectedTotal > limit;
 
                 return ListView(
                   shrinkWrap: true,
@@ -2126,7 +2126,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-
                     TextField(
                       controller: titleController,
                       decoration: InputDecoration(
@@ -2137,7 +2136,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     TextField(
                       controller: amountController,
                       keyboardType:
@@ -2152,7 +2150,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     TextField(
                       controller: noteController,
                       maxLines: 2,
@@ -2164,7 +2161,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     DropdownButtonFormField<BudgetCategory>(
                       initialValue: category,
                       decoration: InputDecoration(
@@ -2193,7 +2189,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         }
                       },
                     ),
-
                     if (showWarning) ...<Widget>[
                       const SizedBox(height: 10),
                       Container(
@@ -2223,7 +2218,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
@@ -2236,8 +2230,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           ),
                         ),
                         onPressed: () {
-                          final BudgetBuddyController controller = ref
-                              .read(budgetBuddyControllerProvider.notifier);
+                          final BudgetBuddyController controller =
+                              ref.read(budgetBuddyControllerProvider.notifier);
                           final String source =
                               existing != null && existing.source.isNotEmpty
                                   ? existing.source
@@ -2252,8 +2246,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                             title: titleController.text.trim().isEmpty
                                 ? 'Expense'
                                 : titleController.text.trim(),
-                            amount:
-                                double.tryParse(amountController.text) ?? 0,
+                            amount: double.tryParse(amountController.text) ?? 0,
                             category: category,
                             dateTime: existing?.dateTime ?? controller.now,
                             note: noteController.text.trim(),
@@ -2306,6 +2299,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
         final ThemeData theme = Theme.of(sheetContext);
+        final String displayNote = _cleanNote(expense.note);
 
         return Container(
           decoration: BoxDecoration(
@@ -2339,7 +2333,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
@@ -2371,7 +2364,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-
                 Text(
                   'Category: ${expense.category.label}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -2381,15 +2373,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   'Date: ${DateFormat('MMMM d, yyyy h:mm a').format(expense.dateTime)}',
                   style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                 ),
-                if (expense.note.isNotEmpty) ...<Widget>[
+                if (displayNote.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 8),
                   Text(
-                    'Note: ${expense.note}',
+                    'Note: $displayNote',
                     style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ],
                 const SizedBox(height: 18),
-
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -2464,6 +2455,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 }
 
 enum ExpenseSection { daily, monthly }
+
+String _cleanNote(String note) {
+  final String trimmed = note.trim();
+  if (trimmed.startsWith('[SPEND]')) {
+    return trimmed.substring('[SPEND]'.length).trim();
+  }
+  return trimmed;
+}
 
 String _formatDayLabel(DateTime dateTime) {
   final DateTime now = DateTime.now();

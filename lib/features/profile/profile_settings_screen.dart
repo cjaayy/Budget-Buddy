@@ -2425,7 +2425,12 @@ class _DevPreviewFrame extends StatelessWidget {
               shape: const CircleBorder(),
               child: IconButton(
                 tooltip: 'Back to Dev Mode',
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  final NavigatorState navigator = Navigator.of(context);
+                  if (navigator.canPop()) {
+                    navigator.maybePop();
+                  }
+                },
                 icon: const Icon(Icons.arrow_back_rounded),
                 color: Colors.white,
               ),
