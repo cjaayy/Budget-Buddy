@@ -5,8 +5,120 @@ import 'package:intl/intl.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
+
+/// Palette matching Daily Budget and Spend screens:
+/// Dark Red (#991B1B), Gold (#D97706), Dark Green (#0F766E)
+class _SavingsPalette {
+  const _SavingsPalette(this.isDark);
+
+  final bool isDark;
+
+  // Dark Red: expenses, deficits, savings debt, overspent alert
+  Color get darkRed => const Color(0xFF991B1B);
+  Color get darkRedBg =>
+      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+
+  // Gold: target budget amounts, savings surplus, presets, monthly overview
+  Color get gold => const Color(0xFFD97706);
+  Color get goldBg =>
+      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
+
+  // Dark Green: safe savings, debt-free, positive progress, active status
+  Color get darkGreen => const Color(0xFF0F766E);
+  Color get darkGreenBg =>
+      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
+}
+
+/// Compact Metric Tile for Savings, Total Saved, and Debt matching Daily Budget & Spend screens
+class _CompactMetricTile extends StatelessWidget {
+  const _CompactMetricTile({
+    required this.label,
+    required this.value,
+    required this.bgColor,
+    this.textColor = Colors.white,
+    this.icon,
+  });
+
+  final String label;
+  final String value;
+  final Color bgColor;
+  final Color textColor;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: bgColor.withValues(alpha: 0.32),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              if (icon != null) ...<Widget>[
+                Icon(
+                  icon,
+                  size: 12,
+                  color: textColor.withValues(alpha: 0.88),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: textColor.withValues(alpha: 0.88),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: -0.3,
+                color: textColor,
+                shadows: const <Shadow>[
+                  Shadow(
+                    color: Colors.black26,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key, this.isTogetherOnly = false});
@@ -25,275 +137,90 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final DateTime currentClock =
         ref.watch(budgetBuddyControllerProvider.notifier).now;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final _SavingsPalette palette = _SavingsPalette(isDark);
+
     final List<DailyRecord> records = _getRecords(state, currentClock);
     final List<DateTime> availableMonths = _availableMonths(records);
     final double netSavings = _sectionNetSavings(records, _activeSection);
 
+    final double togetherSpent = widget.isTogetherOnly
+        ? state.expenses
+            .where((ExpenseEntry e) => e.source == 'togetherSpend')
+            .fold(0.0, (double sum, ExpenseEntry e) => sum + e.amount)
+        : 0.0;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // Back Button (If pushed on top of another screen)
               if (Navigator.of(context).canPop()) ...<Widget>[
                 FilledButton.tonalIcon(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
                   label: Text(
                     widget.isTogetherOnly
-                        ? 'Back to Budget Together Menu'
-                        : 'Back to Menu',
+                        ? 'Back to Budget Together'
+                        : 'Back',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13),
+                        fontWeight: FontWeight.w700, fontSize: 12),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: widget.isTogetherOnly
-                        ? const Color(0xFF0F766E).withValues(alpha: 0.12)
-                        : Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.12),
-                    foregroundColor: widget.isTogetherOnly
-                        ? const Color(0xFF0F766E)
-                        : Theme.of(context).colorScheme.primary,
+                    backgroundColor: palette.darkGreenBg,
+                    foregroundColor: palette.darkGreen,
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
               ],
-              SectionTitle(
-                title: widget.isTogetherOnly
-                    ? 'Savings (Budget Together)'
-                    : 'Savings',
-                subtitle: widget.isTogetherOnly
-                    ? 'Track how much you saved in Budget Together based on your tab budget.'
-                    : 'Track how much you saved each day based on your active budget.',
+
+              // 1. Compact Header (matching Daily Budget & Spend screens)
+              _buildHeader(
+                context,
+                currentClock: currentClock,
+                hasDebt: state.savingsDebt > 0,
+                netSavings: netSavings,
+                palette: palette,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // 2. Main Content
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
-                    BudgetMetricCard(
-                      label: _activeSection == SavingsSection.daily
-                          ? 'Daily Savings'
-                          : 'Monthly Savings',
-                      value: formatPeso(netSavings),
-                      subtitle: _activeSection == SavingsSection.daily
-                          ? 'Across ${records.length} day${records.length == 1 ? '' : 's'}'
-                          : 'Across ${availableMonths.length} month${availableMonths.length == 1 ? '' : 's'}',
-                      icon: Icons.savings_rounded,
-                      color: widget.isTogetherOnly
-                          ? const Color(0xFF0F766E)
-                          : const Color(0xFFD97706),
-                      centerContent: true,
-                    ),
-                    if (!widget.isTogetherOnly && (state.savingsDebt > 0 || state.totalSavings > 0)) ...<Widget>[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: <Widget>[
-                          if (state.totalSavings > 0)
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD97706).withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.25)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    const Text(
-                                      'Total Savings',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFFD97706),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      formatPeso(state.totalSavings),
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFFD97706),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          if (state.totalSavings > 0 && state.savingsDebt > 0)
-                            const SizedBox(width: 10),
-                          if (state.savingsDebt > 0)
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF991B1B).withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFF991B1B).withValues(alpha: 0.25)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    const Text(
-                                      'Savings Debt',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF991B1B),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      formatPeso(state.savingsDebt),
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF991B1B),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => setState(() {
-                              _activeSection = SavingsSection.daily;
-                            }),
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  _activeSection == SavingsSection.daily
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                              foregroundColor:
-                                  _activeSection == SavingsSection.daily
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurface,
-                            ),
-                            child: const Text('Daily'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => setState(() {
-                              _activeSection = SavingsSection.monthly;
-                            }),
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  _activeSection == SavingsSection.monthly
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                              foregroundColor:
-                                  _activeSection == SavingsSection.monthly
-                                      ? Theme.of(context).colorScheme.onPrimary
-                                      : Theme.of(context).colorScheme.onSurface,
-                            ),
-                            child: const Text('Monthly'),
-                          ),
-                        ),
-                      ],
+                    // Savings Overview Card (with 3 Solid Metric Tiles)
+                    _buildOverviewCard(
+                      context,
+                      state: state,
+                      records: records,
+                      availableMonths: availableMonths,
+                      netSavings: netSavings,
+                      togetherSpent: togetherSpent,
+                      palette: palette,
                     ),
                     const SizedBox(height: 12),
-                    SectionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            _activeSection == SavingsSection.daily
-                                ? 'DAILY'
-                                : 'MONTHLY',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _activeSection == SavingsSection.daily
-                                ? 'Tap a date to view the savings breakdown for that day.'
-                                : 'Tap a month to view the savings breakdown for that month.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 12),
-                          if (records.isEmpty)
-                            Text(
-                              widget.isTogetherOnly
-                                  ? 'No Budget Together savings records yet. Set a budget in Budget Together to start tracking tab savings.'
-                                  : 'No savings records yet. Set a budget to start tracking your daily and monthly savings.',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                            )
-                          else if (_activeSection == SavingsSection.daily)
-                            ...records.map(
-                              (DailyRecord record) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _SavingsDateTile(
-                                    record: record,
-                                    currentClock: currentClock,
-                                    onTap: () =>
-                                        _showSavingsDaySheet(context, record),
-                                  ),
-                                );
-                              },
-                            )
-                          else
-                            ...availableMonths.map(
-                              (DateTime month) {
-                                final List<DailyRecord> monthRecords =
-                                    _recordsForMonth(records, month);
-                                final double monthSavings =
-                                    monthRecords.fold<double>(
-                                  0,
-                                  (double total, DailyRecord record) =>
-                                      total + record.savings,
-                                );
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _SavingsMonthTile(
-                                    month: month,
-                                    savings: monthSavings,
-                                    recordCount: monthRecords.length,
-                                    onTap: () => _showSavingsMonthSheet(
-                                      context,
-                                      month,
-                                      monthRecords,
-                                      currentClock,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
-                      ),
+
+                    // Sleek Daily / Monthly Toggle
+                    _buildSectionToggle(context, palette),
+                    const SizedBox(height: 12),
+
+                    // History Card with records list
+                    _buildHistoryCard(
+                      context,
+                      records: records,
+                      availableMonths: availableMonths,
+                      currentClock: currentClock,
+                      palette: palette,
                     ),
                   ],
                 ),
@@ -305,9 +232,494 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     );
   }
 
+  /// Compact header without redundant subtitles or duplicate pills
+  Widget _buildHeader(
+    BuildContext context, {
+    required DateTime currentClock,
+    required bool hasDebt,
+    required double netSavings,
+    required _SavingsPalette palette,
+  }) {
+    final bool isDeficit = netSavings < 0;
+    final Color statusColor = hasDebt
+        ? palette.darkRed
+        : (isDeficit ? palette.darkRed : palette.darkGreen);
+    final Color statusBg = hasDebt
+        ? palette.darkRedBg
+        : (isDeficit ? palette.darkRedBg : palette.darkGreenBg);
+    final Color statusBorder = hasDebt
+        ? palette.darkRedBorder
+        : (isDeficit ? palette.darkRedBorder : palette.darkGreenBorder);
+    final IconData statusIcon = hasDebt
+        ? Icons.warning_amber_rounded
+        : (isDeficit ? Icons.trending_down_rounded : Icons.savings_rounded);
+    final String statusLabel = hasDebt
+        ? 'Debt Active'
+        : (isDeficit ? 'Deficit' : 'Surplus');
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              widget.isTogetherOnly ? 'Together Savings' : 'Savings',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormat('EEEE, MMM d').format(currentClock),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: statusBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(statusIcon, size: 12, color: statusColor),
+              const SizedBox(width: 5),
+              Text(
+                statusLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Compact Overview Card with the 3 Solid Metric Tiles
+  Widget _buildOverviewCard(
+    BuildContext context, {
+    required BudgetBuddyState state,
+    required List<DailyRecord> records,
+    required List<DateTime> availableMonths,
+    required double netSavings,
+    required double togetherSpent,
+    required _SavingsPalette palette,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    final bool isDeficit = netSavings < 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.analytics_rounded,
+                    size: 16,
+                    color: palette.darkGreen,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Savings Overview',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: palette.goldBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: palette.goldBorder),
+                ),
+                child: Text(
+                  _activeSection == SavingsSection.daily
+                      ? '${records.length} Day${records.length == 1 ? '' : 's'}'
+                      : '${availableMonths.length} Month${availableMonths.length == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: palette.gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 3 Compact Metric Tiles: Green/Red, Gold, Dark Red/Green
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _CompactMetricTile(
+                  label: _activeSection == SavingsSection.daily
+                      ? 'Daily Saved'
+                      : 'Monthly Saved',
+                  value: (isDeficit ? '-' : '') + formatPeso(netSavings.abs()),
+                  bgColor: isDeficit ? palette.darkRed : palette.darkGreen,
+                  icon: isDeficit
+                      ? Icons.trending_down_rounded
+                      : Icons.savings_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CompactMetricTile(
+                  label: widget.isTogetherOnly ? 'Tab Budget' : 'Total Saved',
+                  value: widget.isTogetherOnly
+                      ? formatPeso(state.togetherBudget)
+                      : formatPeso(state.totalSavings),
+                  bgColor: palette.gold,
+                  icon: Icons.account_balance_wallet_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CompactMetricTile(
+                  label: widget.isTogetherOnly
+                      ? 'Tab Spent'
+                      : (state.savingsDebt > 0 ? 'Savings Debt' : 'Debt Status'),
+                  value: widget.isTogetherOnly
+                      ? formatPeso(togetherSpent)
+                      : (state.savingsDebt > 0
+                          ? formatPeso(state.savingsDebt)
+                          : '₱0 (Clear)'),
+                  bgColor: widget.isTogetherOnly
+                      ? palette.darkRed
+                      : (state.savingsDebt > 0
+                          ? palette.darkRed
+                          : palette.darkGreen),
+                  icon: widget.isTogetherOnly
+                      ? Icons.shopping_bag_rounded
+                      : (state.savingsDebt > 0
+                          ? Icons.warning_amber_rounded
+                          : Icons.check_circle_rounded),
+                ),
+              ),
+            ],
+          ),
+
+          // Savings Debt Alert (Dark Red Banner)
+          if (!widget.isTogetherOnly && state.savingsDebt > 0) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: palette.darkRedBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: palette.darkRedBorder),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(Icons.info_outline_rounded,
+                      size: 14, color: palette.darkRed),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Savings Debt: ${formatPeso(state.savingsDebt)} carried over to offset your next surplus.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: palette.darkRed,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Sleek segmented Daily / Monthly toggle matching app style
+  Widget _buildSectionToggle(BuildContext context, _SavingsPalette palette) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                if (_activeSection != SavingsSection.daily) {
+                  setState(() => _activeSection = SavingsSection.daily);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _activeSection == SavingsSection.daily
+                      ? palette.darkGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _activeSection == SavingsSection.daily
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: palette.darkGreen.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 14,
+                      color: _activeSection == SavingsSection.daily
+                          ? Colors.white
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Daily',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _activeSection == SavingsSection.daily
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: _activeSection == SavingsSection.daily
+                            ? Colors.white
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                if (_activeSection != SavingsSection.monthly) {
+                  setState(() => _activeSection = SavingsSection.monthly);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _activeSection == SavingsSection.monthly
+                      ? palette.darkGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _activeSection == SavingsSection.monthly
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: palette.darkGreen.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      size: 14,
+                      color: _activeSection == SavingsSection.monthly
+                          ? Colors.white
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Monthly',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _activeSection == SavingsSection.monthly
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: _activeSection == SavingsSection.monthly
+                            ? Colors.white
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// History card containing the list of daily or monthly savings records
+  Widget _buildHistoryCard(
+    BuildContext context, {
+    required List<DailyRecord> records,
+    required List<DateTime> availableMonths,
+    required DateTime currentClock,
+    required _SavingsPalette palette,
+  }) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.history_rounded, size: 16, color: palette.gold),
+                  const SizedBox(width: 6),
+                  Text(
+                    _activeSection == SavingsSection.daily
+                        ? 'Daily Records'
+                        : 'Monthly Records',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: palette.goldBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: palette.goldBorder),
+                ),
+                child: Text(
+                  _activeSection == SavingsSection.daily
+                      ? '${records.length} recorded'
+                      : '${availableMonths.length} recorded',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: palette.gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (records.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  widget.isTogetherOnly
+                      ? 'No Budget Together savings records yet. Set a budget in Budget Together to start tracking tab savings.'
+                      : 'No savings records yet. Set a budget to start tracking your daily and monthly savings.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else if (_activeSection == SavingsSection.daily)
+            ...records.map(
+              (DailyRecord record) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _SavingsDateTile(
+                    record: record,
+                    currentClock: currentClock,
+                    palette: palette,
+                    onTap: () =>
+                        _showSavingsDaySheet(context, record, palette),
+                  ),
+                );
+              },
+            )
+          else
+            ...availableMonths.map(
+              (DateTime month) {
+                final List<DailyRecord> monthRecords =
+                    _recordsForMonth(records, month);
+                final double monthSavings = monthRecords.fold<double>(
+                  0,
+                  (double total, DailyRecord record) => total + record.savings,
+                );
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _SavingsMonthTile(
+                    month: month,
+                    savings: monthSavings,
+                    recordCount: monthRecords.length,
+                    palette: palette,
+                    onTap: () => _showSavingsMonthSheet(
+                      context,
+                      month,
+                      monthRecords,
+                      currentClock,
+                      palette,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showSavingsDaySheet(
     BuildContext context,
     DailyRecord record,
+    _SavingsPalette palette,
   ) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -315,156 +727,256 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       showDragHandle: false,
       enableDrag: false,
       isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
+        final ThemeData theme = Theme.of(sheetContext);
         final bool isZeroActivity = record.isZeroActivity;
         final bool isOverspent = record.savings < 0;
+
         final Color accent = isZeroActivity
-            ? const Color(0xFFD97706)
-            : (isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706));
+            ? palette.gold
+            : (isOverspent ? palette.darkRed : palette.darkGreen);
+        final Color accentBg = isZeroActivity
+            ? palette.goldBg
+            : (isOverspent ? palette.darkRedBg : palette.darkGreenBg);
+        final Color accentBorder = isZeroActivity
+            ? palette.goldBorder
+            : (isOverspent ? palette.darkRedBorder : palette.darkGreenBorder);
+
         final List<MapEntry<String, double>> categories = record
             .categoryTotals.entries
+            .where((MapEntry<String, double> entry) => entry.value > 0)
             .toList()
           ..sort(
               (MapEntry<String, double> left, MapEntry<String, double> right) =>
                   right.value.compareTo(left.value));
 
-        return SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('Back'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF991B1B),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          DateFormat('EEEE, MMM d, yyyy').format(record.date),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isZeroActivity
-                        ? 'No budget and expenses today'
-                        : (isOverspent
-                            ? 'Overspent ${formatPeso(record.savings.abs())} on this day.'
-                            : 'Saved ${formatPeso(record.savings)} on this day.'),
-                    style:
-                        Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(sheetContext)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: accent.withValues(alpha: 0.16)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Header with back button and date
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        Text(
-                          isZeroActivity
-                              ? 'Status'
-                              : (isOverspent ? 'Overspent' : 'Saved'),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .labelLarge
-                              ?.copyWith(
-                                color: accent,
-                                fontWeight: FontWeight.w700,
-                              ),
+                        FilledButton.tonalIcon(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.darkGreenBg,
+                            foregroundColor: palette.darkGreen,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 6),
                         Text(
-                          isZeroActivity
-                              ? 'No budget and expenses today'
-                              : formatPeso(record.savings.abs()),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          isZeroActivity
-                              ? 'Budget ₱0 • Spent ₱0 • ₱0 balance'
-                              : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)}',
-                          style: Theme.of(sheetContext).textTheme.bodyMedium,
+                          DateFormat('EEEE, MMM d, yyyy').format(record.date),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Category Breakdown',
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 12),
-                  if (categories.isEmpty || isZeroActivity)
-                    const Text('No budget and expenses today.')
-                  else
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: categories.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (BuildContext context, int index) {
-                          final MapEntry<String, double> entry =
-                              categories[index];
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: Text(
-                                    entry.key,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                    const SizedBox(height: 12),
+
+                    // Main Status Highlight Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: accentBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: accentBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text(
+                                isZeroActivity
+                                    ? 'Zero Activity'
+                                    : (isOverspent ? 'Overspent' : 'Saved'),
+                                style: TextStyle(
+                                  color: accent,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
                                 ),
-                                Text(formatPeso(entry.value)),
-                              ],
+                              ),
+                              Icon(
+                                isZeroActivity
+                                    ? Icons.horizontal_rule_rounded
+                                    : (isOverspent
+                                        ? Icons.trending_down_rounded
+                                        : Icons.trending_up_rounded),
+                                color: accent,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isZeroActivity
+                                ? '₱0'
+                                : formatPeso(record.savings.abs()),
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: accent,
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isZeroActivity
+                                ? 'Budget ₱0 • Spent ₱0 • ₱0 balance'
+                                : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                    const SizedBox(height: 14),
+
+                    // Category Breakdown Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Icon(Icons.category_rounded,
+                                size: 15, color: palette.gold),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Category Breakdown',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (categories.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: palette.goldBg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: palette.goldBorder),
+                            ),
+                            child: Text(
+                              '${categories.length} item${categories.length == 1 ? '' : 's'}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: palette.gold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (categories.isEmpty || isZeroActivity)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text(
+                            'No expenses logged for this day.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: categories.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (BuildContext ctx, int index) {
+                            final MapEntry<String, double> entry =
+                                categories[index];
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: theme
+                                    .colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Text(
+                                      entry.key,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: palette.darkRedBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: palette.darkRedBorder),
+                                    ),
+                                    child: Text(
+                                      formatPeso(entry.value),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        color: palette.darkRed,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -478,6 +990,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     DateTime month,
     List<DailyRecord> records,
     DateTime currentClock,
+    _SavingsPalette palette,
   ) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -485,169 +998,201 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       showDragHandle: false,
       enableDrag: false,
       isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
+        final ThemeData theme = Theme.of(sheetContext);
         final double monthSavings = records.fold<double>(
           0,
           (double total, DailyRecord record) => total + record.savings,
         );
         final bool isOverspent = monthSavings < 0;
-        final Color accent =
-            isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
+        final Color accent = isOverspent ? palette.darkRed : palette.darkGreen;
+        final Color accentBg =
+            isOverspent ? palette.darkRedBg : palette.darkGreenBg;
+        final Color accentBorder =
+            isOverspent ? palette.darkRedBorder : palette.darkGreenBorder;
 
-        return SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('Back'),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          DateFormat('MMMM yyyy').format(month),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Total savings for this month: ${formatPeso(monthSavings.abs())}',
-                    style:
-                        Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(sheetContext)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: accent.withValues(alpha: 0.16)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Header with back button and month
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        Text(
-                          isOverspent ? 'Overspent' : 'Saved',
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .labelLarge
-                              ?.copyWith(
-                                color: accent,
-                                fontWeight: FontWeight.w700,
-                              ),
+                        FilledButton.tonalIcon(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.darkGreenBg,
+                            foregroundColor: palette.darkGreen,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 6),
                         Text(
-                          formatPeso(monthSavings.abs()),
-                          style: Theme.of(sheetContext)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${records.length} day${records.length == 1 ? '' : 's'} tracked',
-                          style: Theme.of(sheetContext).textTheme.bodyMedium,
+                          DateFormat('MMMM yyyy').format(month),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Days in this month',
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 12),
-                  if (records.isEmpty)
-                    const Text('No savings records for this month.')
-                  else
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: records.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (BuildContext context, int index) {
-                          final DailyRecord record = records[index];
-                          final bool isZero = record.isZeroActivity;
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        _formatDayLabel(record.date, currentClock),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      if (isZero)
-                                        Text(
-                                          'No budget and expenses today',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                        ),
-                                    ],
-                                  ),
+                    const SizedBox(height: 12),
+
+                    // Monthly Highlight Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: accentBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: accentBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text(
+                                isOverspent
+                                    ? 'Month Overspent'
+                                    : 'Month Net Saved',
+                                style: TextStyle(
+                                  color: accent,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
                                 ),
-                                Text(
-                                  isZero
-                                      ? '₱0 balance'
-                                      : formatPeso(record.savings),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: isZero
-                                        ? const Color(0xFFD97706)
-                                        : (record.savings < 0
-                                            ? const Color(0xFF991B1B)
-                                            : const Color(0xFFD97706)),
-                                  ),
-                                ),
-                              ],
+                              ),
+                              Icon(
+                                isOverspent
+                                    ? Icons.trending_down_rounded
+                                    : Icons.savings_rounded,
+                                color: accent,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            (isOverspent ? '-' : '+') +
+                                formatPeso(monthSavings.abs()),
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: accent,
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${records.length} day${records.length == 1 ? '' : 's'} tracked in this period',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                    const SizedBox(height: 14),
+
+                    // Days in Month Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Icon(Icons.calendar_today_rounded,
+                                size: 15, color: palette.gold),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Days in this Month',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: palette.goldBg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: palette.goldBorder),
+                          ),
+                          child: Text(
+                            '${records.length} day${records.length == 1 ? '' : 's'}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: palette.gold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (records.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text(
+                            'No savings records for this month.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: records.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (BuildContext ctx, int index) {
+                            final DailyRecord record = records[index];
+                            return _SavingsDateTile(
+                              record: record,
+                              currentClock: currentClock,
+                              palette: palette,
+                              onTap: () => _showSavingsDaySheet(
+                                  sheetContext, record, palette),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -800,20 +1345,30 @@ class _SavingsDateTile extends StatelessWidget {
   const _SavingsDateTile({
     required this.record,
     required this.onTap,
+    required this.palette,
     this.currentClock,
   });
 
   final DailyRecord record;
   final VoidCallback onTap;
+  final _SavingsPalette palette;
   final DateTime? currentClock;
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     final bool isZeroActivity = record.isZeroActivity;
     final bool isOverspent = record.savings < 0;
+
     final Color accent = isZeroActivity
-        ? const Color(0xFFD97706)
-        : (isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706));
+        ? palette.gold
+        : (isOverspent ? palette.darkRed : palette.darkGreen);
+    final Color accentBg = isZeroActivity
+        ? palette.goldBg
+        : (isOverspent ? palette.darkRedBg : palette.darkGreenBg);
+    final Color accentBorder = isZeroActivity
+        ? palette.goldBorder
+        : (isOverspent ? palette.darkRedBorder : palette.darkGreenBorder);
 
     final IconData icon = isZeroActivity
         ? Icons.calendar_today_rounded
@@ -822,62 +1377,92 @@ class _SavingsDateTile extends StatelessWidget {
             : Icons.trending_up_rounded);
 
     final String statusText = isZeroActivity
-        ? 'No budget and expenses today'
+        ? 'No budget & expenses'
         : (isOverspent
-            ? 'Overspent by ${formatPeso(record.savings.abs())}'
+            ? 'Overspent ${formatPeso(record.savings.abs())}'
             : 'Saved ${formatPeso(record.savings)}');
 
-    final String trailingText =
-        isZeroActivity ? '₱0 balance' : formatPeso(record.savings);
+    final String badgeText = isZeroActivity
+        ? '₱0'
+        : (isOverspent
+            ? '-${formatPeso(record.savings.abs())}'
+            : '+${formatPeso(record.savings)}');
 
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: accent.withValues(alpha: 0.14)),
+          color:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+          ),
         ),
         child: Row(
           children: <Widget>[
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
+                color: accentBg,
                 shape: BoxShape.circle,
+                border: Border.all(color: accentBorder),
               ),
               child: Icon(
                 icon,
                 color: accent,
+                size: 16,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
                     _formatDayLabel(record.date, currentClock),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     statusText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              trailingText,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: accent,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: accentBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: accentBorder),
               ),
+              child: Text(
+                badgeText,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: accent,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ],
         ),
@@ -891,68 +1476,105 @@ class _SavingsMonthTile extends StatelessWidget {
     required this.month,
     required this.savings,
     required this.recordCount,
+    required this.palette,
     required this.onTap,
   });
 
   final DateTime month;
   final double savings;
   final int recordCount;
+  final _SavingsPalette palette;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     final bool isOverspent = savings < 0;
-    final Color accent =
-        isOverspent ? const Color(0xFF991B1B) : const Color(0xFFD97706);
+    final Color accent = isOverspent ? palette.darkRed : palette.darkGreen;
+    final Color accentBg =
+        isOverspent ? palette.darkRedBg : palette.darkGreenBg;
+    final Color accentBorder =
+        isOverspent ? palette.darkRedBorder : palette.darkGreenBorder;
+
+    final String badgeText = isOverspent
+        ? '-${formatPeso(savings.abs())}'
+        : '+${formatPeso(savings)}';
 
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: accent.withValues(alpha: 0.14)),
+          color:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+          ),
         ),
         child: Row(
           children: <Widget>[
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
+                color: accentBg,
                 shape: BoxShape.circle,
+                border: Border.all(color: accentBorder),
               ),
               child: Icon(
                 isOverspent ? Icons.calendar_month : Icons.savings_rounded,
                 color: accent,
+                size: 16,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
                     DateFormat('MMMM yyyy').format(month),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '$recordCount day${recordCount == 1 ? '' : 's'} tracked',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              formatPeso(savings),
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: accent,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: accentBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: accentBorder),
               ),
+              child: Text(
+                badgeText,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: accent,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ],
         ),

@@ -11,6 +11,7 @@ import '../together/together_screen.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/services/update_service.dart';
+import '../../core/widgets/budget_ai_assistant.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -51,7 +52,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final bool budgetExpired = _isBudgetExpired(state.settings);
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          IndexedStack(index: _index, children: _pages),
+          const Positioned.fill(
+            child: BudgetAiAssistant(),
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
