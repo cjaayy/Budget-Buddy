@@ -126,6 +126,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   final Uuid _uuid = const Uuid();
   Timer? _midnightCheckTimer;
   DateTime? _simulatedDateTime;
+  DateTime? _lastSettledDate;
 
   DateTime get now => _simulatedDateTime ?? DateTime.now();
   bool get isTimeSimulated => _simulatedDateTime != null;
@@ -143,19 +144,29 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final bool shouldForce = is12AM || isNewDay;
 
     _simulatedDateTime = dateTime;
-    await syncDateAndCheckMidnightReset(forceReset: shouldForce);
+    await syncDateAndCheckMidnightReset(
+      forceReset: shouldForce,
+      endingDateOverride: shouldForce ? currentTodayStart : null,
+    );
   }
 
   Future<void> simulateMidnightReset() async {
     final DateTime current = now;
+    final DateTime endingDay =
+        DateTime(current.year, current.month, current.day);
     final DateTime nextDayMidnight =
         DateTime(current.year, current.month, current.day + 1, 0, 0, 0);
     _simulatedDateTime = nextDayMidnight;
-    await syncDateAndCheckMidnightReset(forceReset: true);
+    await syncDateAndCheckMidnightReset(
+      forceReset: true,
+      endingDateOverride: endingDay,
+    );
   }
 
   Future<void> fastForwardOneDay() async {
     final DateTime current = now;
+    final DateTime endingDay =
+        DateTime(current.year, current.month, current.day);
     final DateTime nextDay = DateTime(
       current.year,
       current.month,
@@ -165,7 +176,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       current.second,
     );
     _simulatedDateTime = nextDay;
-    await syncDateAndCheckMidnightReset();
+    await syncDateAndCheckMidnightReset(
+      forceReset: true,
+      endingDateOverride: endingDay,
+    );
   }
 
   Future<void> setSimulatedTimeTo1159PM() async {
@@ -515,7 +529,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     return !createdAt.add(cycle).isAfter(now);
   }
 
-  Future<void> syncDateAndCheckMidnightReset({bool forceReset = false}) async {
+  Future<void> syncDateAndCheckMidnightReset({
+    bool forceReset = false,
+    DateTime? endingDateOverride,
+  }) async {
     final DateTime currentNow = now;
     final DateTime todayStart =
         DateTime(currentNow.year, currentNow.month, currentNow.day);
@@ -531,22 +548,65 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
     if (forceReset || (lastDailyStart != null && lastDailyStart.isBefore(todayStart))) {
       // 0. Settle the ending day's budget surplus & debt before clearing today
-      final DateTime endingDay = lastDailyStart ?? todayStart;
-      final BudgetEntry? endingEntry = state.budgetEntries
-          .cast<BudgetEntry?>()
-          .firstWhere(
-            (BudgetEntry? e) => e != null && _isSameDay(e.date, endingDay),
-            orElse: () => null,
-          );
-      final double endingBudget =
-          endingEntry?.amount ?? (state.settings.dailyLimit ?? 0.0);
-      final double endingExpenses = state.dailySpent;
+      final List<DateTime> daysToSettle = <DateTime>[];
 
-      if (endingBudget > 0 || endingExpenses > 0) {
-        applyDailyBudgetSurplusAndDebt(
-          budget: endingBudget,
-          expenses: endingExpenses,
+      if (endingDateOverride != null) {
+        daysToSettle.add(DateTime(
+          endingDateOverride.year,
+          endingDateOverride.month,
+          endingDateOverride.day,
+        ));
+      } else if (lastDailyStart != null && lastDailyStart.isBefore(todayStart)) {
+        DateTime cursor = DateTime(
+          lastDailyStart.year,
+          lastDailyStart.month,
+          lastDailyStart.day,
         );
+        final DateTime endBeforeToday =
+            todayStart.subtract(const Duration(days: 1));
+        while (!cursor.isAfter(endBeforeToday)) {
+          daysToSettle.add(cursor);
+          cursor = DateTime(cursor.year, cursor.month, cursor.day + 1);
+        }
+      } else if (forceReset) {
+        // Same-day force reset: settle today before clearing
+        daysToSettle.add(lastDailyStart ?? todayStart);
+      }
+
+      for (final DateTime day in daysToSettle) {
+        if (_lastSettledDate != null && _isSameDay(day, _lastSettledDate!)) {
+          continue; // Already settled, do not re-settle!
+        }
+
+        final BudgetEntry? entry = state.budgetEntries
+            .cast<BudgetEntry?>()
+            .firstWhere(
+              (BudgetEntry? e) => e != null && _isSameDay(e.date, day),
+              orElse: () => null,
+            );
+
+        // If this is the active day before reset, allow fallback to dailyLimit.
+        // If this is an unconfigured past day without a budget entry, budget is 0.0.
+        final bool isCurrentActiveDay = _isSameDay(day, todayStart) ||
+            (endingDateOverride != null && _isSameDay(day, endingDateOverride));
+
+        final double dayBudget = entry?.amount ??
+            (isCurrentActiveDay ? (state.settings.dailyLimit ?? 0.0) : 0.0);
+
+        final double dayExpenses = state.expenses
+            .where((ExpenseEntry expense) =>
+                expense.source != 'togetherSpend' &&
+                _isSameDay(expense.dateTime, day))
+            .fold(0.0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+
+        if (dayBudget > 0 || dayExpenses > 0) {
+          applyDailyBudgetSurplusAndDebt(
+            budget: dayBudget,
+            expenses: dayExpenses,
+          );
+        }
+
+        _lastSettledDate = day;
       }
 
       // 1. Archive elapsed periods up to today before clearing
@@ -778,8 +838,19 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void updateBudget(BudgetSettings settings) {
+    final double? daily = settings.dailyLimit;
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    List<BudgetEntry> updatedEntries = state.budgetEntries;
+    if (daily != null && daily > 0) {
+      updatedEntries = <BudgetEntry>[
+        ...state.budgetEntries.where((e) => !_isSameDay(e.date, today)),
+        BudgetEntry(date: today, amount: daily),
+      ];
+    }
     state = state.copyWith(
       settings: settings.copyWith(hasConfiguredBudget: settings.hasActiveLimit),
+      budgetEntries: updatedEntries,
+      dailyPeriodStart: state.dailyPeriodStart ?? today,
     );
     _persist();
   }
@@ -1106,6 +1177,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   Future<void> resetApp() async {
     _simulatedDateTime = null;
+    _lastSettledDate = null;
     final DateTime currentRealNow = DateTime.now();
     final DateTime currentDayStart =
         DateTime(currentRealNow.year, currentRealNow.month, currentRealNow.day);

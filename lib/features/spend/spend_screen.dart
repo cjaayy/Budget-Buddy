@@ -497,7 +497,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           amount: amount,
           category: category,
           note: _withSpendTag(note),
-          dateTime: DateTime.now(),
+          dateTime: ref.read(budgetBuddyControllerProvider.notifier).now,
           source: widget.isTogetherOnly ? 'togetherSpend' : 'manual',
           spendCategory: title,
         );

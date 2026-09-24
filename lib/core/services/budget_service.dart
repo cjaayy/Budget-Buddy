@@ -33,6 +33,7 @@ class BudgetService {
     final List<ExpenseEntry> primaryExpenses = _expensesSince(
       state.expenses,
       _periodStart(primaryPeriod, current),
+      now: current,
     );
 
     if (!state.settings.hasActiveLimit &&
@@ -344,11 +345,12 @@ class BudgetService {
   }
 
   List<ExpenseEntry> _expensesSince(
-      List<ExpenseEntry> expenses, DateTime start) {
+      List<ExpenseEntry> expenses, DateTime start, {DateTime? now}) {
+    final DateTime current = now ?? DateTime.now();
     return expenses
         .where((ExpenseEntry expense) =>
             !expense.dateTime.isBefore(start) &&
-            !expense.dateTime.isAfter(DateTime.now()))
+            !expense.dateTime.isAfter(current))
         .toList();
   }
 }

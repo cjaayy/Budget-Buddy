@@ -218,7 +218,11 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                                 amount: meal.estimatedPrice,
                                                 category: BudgetCategory.food,
                                                 note: meal.note,
-                                                dateTime: DateTime.now(),
+                                                dateTime: ref
+                                                    .read(
+                                                        budgetBuddyControllerProvider
+                                                            .notifier)
+                                                    .now,
                                               );
                                           final double remaining = ref
                                               .read(budgetSummaryProvider)

@@ -462,5 +462,106 @@ void main() {
 
       controller.dispose();
     });
+
+    test('budget left goes to savings only (not full budget) and is NOT added to next day budget', () async {
+      repo.storedState = BudgetBuddyState.initial();
+
+      final controller = BudgetBuddyController(
+        repository: repo,
+        service: service,
+        notificationService: notificationService,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // User sets budget ₱200 today
+      controller.recordDailyBudget(amount: 200);
+
+      // User spends ₱100 today
+      controller.addExpense(
+        title: 'Lunch',
+        amount: 100,
+        category: BudgetCategory.food,
+      );
+
+      expect(controller.state.settings.dailyLimit, equals(200.0));
+      expect(controller.state.dailySpent, equals(100.0));
+      expect(controller.summary.remainingBalance, equals(100.0));
+
+      // Day ends: simulate midnight reset
+      await controller.simulateMidnightReset();
+
+      // Only the ₱100 left goes to totalSavings (NOT ₱200!)
+      expect(controller.state.totalSavings, equals(100.0));
+      expect(controller.state.savingsDebt, equals(0.0));
+
+      // Today's budget is reset to 0/null (starts fresh, 100 savings is NOT added to today's budget)
+      expect(controller.state.settings.dailyLimit, isNull);
+      expect(controller.state.dailySpent, equals(0.0));
+
+      // On the new day, user adds again ₱200 (or any budget)
+      controller.recordDailyBudget(amount: 200);
+
+      // Today's budget is exactly ₱200 (the ₱100 savings is NOT added to today's budget)
+      expect(controller.state.settings.dailyLimit, equals(200.0));
+      expect(controller.summary.totalBudget, equals(200.0));
+      expect(controller.summary.remainingBalance, equals(200.0));
+      // Savings remains strictly in savings
+      expect(controller.state.totalSavings, equals(100.0));
+
+      controller.dispose();
+    });
+
+    test('Day 1 has 12 left (100 budget, 88 spent); Day 2 has no new budget; 12am reset does NOT copy 100 into savings', () async {
+      repo.storedState = BudgetBuddyState.initial();
+
+      final controller = BudgetBuddyController(
+        repository: repo,
+        service: service,
+        notificationService: notificationService,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // Day 1: User sets budget ₱100
+      controller.recordDailyBudget(amount: 100);
+
+      // Day 1: User spends ₱88 -> ₱12 left
+      controller.addExpense(
+        title: 'Lunch',
+        amount: 88,
+        category: BudgetCategory.food,
+      );
+
+      expect(controller.state.settings.dailyLimit, equals(100.0));
+      expect(controller.state.dailySpent, equals(88.0));
+      expect(controller.summary.remainingBalance, equals(12.0));
+
+      // Day 1 ends: 12:00 AM Midnight auto reset rolls over to Day 2
+      await controller.simulateMidnightReset();
+
+      // Only the ₱12 left was settled into totalSavings (NOT ₱100!)
+      expect(controller.state.totalSavings, equals(12.0));
+      expect(controller.state.savingsDebt, equals(0.0));
+
+      // Day 2 has started: budget is null (unset), spending is 0
+      expect(controller.state.settings.dailyLimit, isNull);
+      expect(controller.state.dailySpent, equals(0.0));
+
+      // User does NOT put again a new budget for today (Day 2)
+
+      // Day 2 ends: 12:00 AM Midnight auto reset rolls over to Day 3
+      await controller.simulateMidnightReset();
+
+      // Total savings MUST REMAIN ₱12! It must NOT copy the ₱100 from yesterday's budget!
+      expect(controller.state.totalSavings, equals(12.0));
+      expect(controller.state.savingsDebt, equals(0.0));
+      expect(controller.state.settings.dailyLimit, isNull);
+      expect(controller.state.dailySpent, equals(0.0));
+
+      // History records check
+      final records = controller.state.dailyRecords;
+      expect(records.length, greaterThanOrEqualTo(2));
+
+      controller.dispose();
+    });
   });
 }

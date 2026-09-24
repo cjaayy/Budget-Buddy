@@ -623,6 +623,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                         TextButton.icon(
                             onPressed: () => Navigator.of(sheetContext).pop(),
                             icon: const Icon(Icons.arrow_back_rounded),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF991B1B),
+                            ),
                             label: const Text('Back')),
                       Expanded(
                         child: Text(DateFormat('EEEE, MMM d, yyyy').format(day),
@@ -1014,7 +1017,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                               amount:
                                   double.tryParse(amountController.text) ?? 0,
                               category: category,
-                              dateTime: existing?.dateTime ?? DateTime.now(),
+                              dateTime: existing?.dateTime ?? controller.now,
                               note: noteController.text.trim(),
                               source: source,
                             );
