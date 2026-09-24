@@ -698,9 +698,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: palette.goldBg,
+                color: palette.gold,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: palette.goldBorder),
               ),
               child: Row(
                 children: <Widget>[
@@ -708,7 +707,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     widget.isTogetherOnly
                         ? Icons.group_outlined
                         : Icons.calendar_today_rounded,
-                    color: palette.gold,
+                    color: Colors.white,
                     size: 18,
                   ),
                   const SizedBox(width: 10),
@@ -717,19 +716,19 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       widget.isTogetherOnly
                           ? 'No Budget Together expenses logged today.'
                           : 'No expenses logged for today yet.',
-                      style: TextStyle(
-                        color: palette.gold,
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  Text(
+                  const Text(
                     '₱0',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
-                      color: palette.gold,
+                      color: Colors.white,
                     ),
                   ),
                 ],
@@ -806,16 +805,15 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: palette.goldBg,
+                  color: palette.gold,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: palette.goldBorder),
                 ),
                 child: Text(
                   '${pastDays.length} past days',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: palette.gold,
+                    color: Colors.white,
                   ),
                 ),
               ),

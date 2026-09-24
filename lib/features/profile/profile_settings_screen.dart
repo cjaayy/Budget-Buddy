@@ -13,14 +13,34 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
-import '../../core/services/notification_service.dart';
 import '../../core/services/budget_service.dart';
 import '../../core/widgets/budget_cards.dart';
-import '../../core/widgets/section_title.dart';
 import '../../core/services/update_service.dart';
 import '../../core/widgets/update_dialog.dart';
 import '../auth/auth_screen.dart';
 import '../splash/splash_screen.dart';
+
+/// Palette defining the unified 3 primary design colors: Dark Red, Gold, and Dark Green.
+class _SettingsPalette {
+  const _SettingsPalette(this.isDark);
+
+  final bool isDark;
+
+  Color get darkRed => const Color(0xFF991B1B);
+  Color get darkRedBg =>
+      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+
+  Color get gold => const Color(0xFFD97706);
+  Color get goldBg =>
+      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
+
+  Color get darkGreen => const Color(0xFF0F766E);
+  Color get darkGreenBg =>
+      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
+}
 
 class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -104,53 +124,107 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = BudgetService().computeSummary(state);
+    final DateTime currentClock =
+        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final _SettingsPalette palette = _SettingsPalette(isDark);
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SectionTitle(
-                title: 'Settings',
-                subtitle: 'Profile, preferences, and data controls.',
-              ),
+              _buildHeader(context, currentClock),
               const SizedBox(height: 12),
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: <Widget>[
-                    SectionCard(
+                    // 1. Account & Preferences Card
+                    Container(
+                      clipBehavior: Clip.antiAlias,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color ??
+                            Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(alpha: 0.3),
+                        ),
+                      ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.person_outline_rounded),
-                            title: const Text('Profile'),
-                            subtitle: const Text('Edit your name'),
-                            trailing: const Icon(Icons.chevron_right_rounded),
+                          Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.person_rounded,
+                                size: 16,
+                                color: palette.gold,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Account',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildSettingsTile(
+                            context: context,
+                            title: 'Profile',
+                            subtitle: state.profile.displayName.trim().isNotEmpty &&
+                                    state.profile.displayName != 'Budget Buddy'
+                                ? state.profile.displayName
+                                : 'Edit your profile name',
+                            icon: Icons.person_outline_rounded,
+                            iconColor: palette.gold,
+                            iconBg: palette.goldBg,
+                            iconBorder: palette.goldBorder,
                             onTap: () => _openProfileMenu(context, state),
                           ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.tune_rounded),
-                            title: const Text('Preferences'),
-                            subtitle:
-                                const Text('Notifications and summary options'),
-                            trailing: const Icon(Icons.chevron_right_rounded),
-                            onTap: () => _showPreferencesSheet(context, state),
+                          Divider(
+                            height: 1,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(alpha: 0.2),
                           ),
-                          const Divider(height: 1),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.storage_rounded),
-                            title: const Text('Data'),
-                            subtitle:
-                                const Text('Export, backup, reset, and logout'),
-                            trailing: const Icon(Icons.chevron_right_rounded),
+                          _buildSettingsTile(
+                            context: context,
+                            title: 'Preferences',
+                            subtitle: 'Reset to 0 and budget preferences',
+                            icon: Icons.tune_rounded,
+                            iconColor: palette.darkGreen,
+                            iconBg: palette.darkGreenBg,
+                            iconBorder: palette.darkGreenBorder,
+                            onTap: () =>
+                                _showPreferencesSheet(context, state, palette),
+                          ),
+                          Divider(
+                            height: 1,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(alpha: 0.2),
+                          ),
+                          _buildSettingsTile(
+                            context: context,
+                            title: 'Data',
+                            subtitle: 'Export, backup, reset, and clear',
+                            icon: Icons.storage_rounded,
+                            iconColor: palette.darkGreen,
+                            iconBg: palette.darkGreenBg,
+                            iconBorder: palette.darkGreenBorder,
                             onTap: () =>
                                 _showDataSheet(context, state, summary),
                           ),
@@ -158,39 +232,68 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    SectionCard(
+
+                    // 2. Appearance Card
+                    Container(
+                      clipBehavior: Clip.antiAlias,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color ??
+                            Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(alpha: 0.3),
+                        ),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            'APPEARANCE',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                          Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.palette_rounded,
+                                size: 16,
+                                color: palette.darkGreen,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Appearance',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              state.themeMode == ThemeMode.dark
-                                  ? Icons.dark_mode_rounded
-                                  : Icons.light_mode_rounded,
-                            ),
-                            title: const Text('Dark Mode'),
-                            subtitle: Text(
-                              state.themeMode == ThemeMode.dark
-                                  ? 'Dark theme enabled'
-                                  : 'Light theme enabled',
-                            ),
+                          _buildSettingsTile(
+                            context: context,
+                            title: 'Dark Mode',
+                            subtitle: state.themeMode == ThemeMode.dark
+                                ? 'Dark theme enabled'
+                                : 'Light theme enabled',
+                            icon: state.themeMode == ThemeMode.dark
+                                ? Icons.dark_mode_rounded
+                                : Icons.light_mode_rounded,
+                            iconColor: palette.darkGreen,
+                            iconBg: palette.darkGreenBg,
+                            iconBorder: palette.darkGreenBorder,
                             trailing: Switch(
                               value: state.themeMode == ThemeMode.dark,
+                              activeColor: palette.darkGreen,
                               onChanged: (bool isDark) {
                                 ref
                                     .read(
                                         budgetBuddyControllerProvider.notifier)
                                     .setThemeMode(
-                                      isDark ? ThemeMode.dark : ThemeMode.light,
+                                      isDark
+                                          ? ThemeMode.dark
+                                          : ThemeMode.light,
                                     );
                               },
                             ),
@@ -199,41 +302,55 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    SectionCard(
+
+                    // 3. About & Updates Card
+                    Container(
+                      clipBehavior: Clip.antiAlias,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color ??
+                            Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(alpha: 0.3),
+                        ),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            'ABOUT & UPDATES',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                          Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 16,
+                                color: palette.gold,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'About & Updates',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer
-                                    .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.system_update_rounded,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 22,
-                              ),
-                            ),
-                            title: const Text('App Updates'),
-                            subtitle: Text(
-                              _appVersion != null
-                                  ? 'Version ${_appVersion!.version} (Build ${_appVersion!.buildNumber})'
-                                  : 'Budget Buddy v1.0.0',
-                            ),
+                          _buildSettingsTile(
+                            context: context,
+                            title: 'App Updates',
+                            subtitle: _appVersion != null
+                                ? 'Version ${_appVersion!.version} (Build ${_appVersion!.buildNumber})'
+                                : 'Budget Buddy v1.0.0',
+                            icon: Icons.system_update_rounded,
+                            iconColor: palette.gold,
+                            iconBg: palette.goldBg,
+                            iconBorder: palette.goldBorder,
                             trailing: _isCheckingUpdate
                                 ? const SizedBox(
                                     width: 24,
@@ -259,7 +376,20 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     ),
                     const SizedBox(height: 12),
                     if (kDebugMode) ...<Widget>[
-                      SectionCard(
+                      Container(
+                        clipBehavior: Clip.antiAlias,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardTheme.color ??
+                              Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(alpha: 0.3),
+                          ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -658,17 +788,29 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    SectionCard(
-                      child: Column(
-                        children: <Widget>[
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.logout_rounded),
-                            title: const Text('Logout'),
-                            subtitle: const Text('Sign out of your account'),
-                            onTap: () => _confirmLogout(context),
-                          ),
-                        ],
+                    Container(
+                      clipBehavior: Clip.antiAlias,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color ??
+                            Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: _buildSettingsTile(
+                        context: context,
+                        title: 'Logout',
+                        subtitle: 'Sign out of your account',
+                        icon: Icons.logout_rounded,
+                        iconColor: palette.darkRed,
+                        iconBg: palette.darkRedBg,
+                        iconBorder: palette.darkRedBorder,
+                        onTap: () => _confirmLogout(context),
                       ),
                     ),
                   ],
@@ -676,6 +818,96 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Compact Header matching app design language
+  Widget _buildHeader(BuildContext context, DateTime currentClock) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Settings',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, MMM d').format(currentClock),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+      ],
+    );
+  }
+
+  /// Clean settings tile with badge icon, bold title, subtitle, and chevron
+  Widget _buildSettingsTile({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required Color iconBorder,
+    VoidCallback? onTap,
+    Widget? trailing,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+        child: Row(
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: iconBorder),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null)
+              trailing
+            else if (onTap != null)
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+          ],
         ),
       ),
     );
@@ -806,17 +1038,19 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   void _showPreferencesSheet(
     BuildContext parentContext,
     BudgetBuddyState state,
+    _SettingsPalette palette,
   ) {
     showModalBottomSheet<void>(
       context: parentContext,
       showDragHandle: false,
       isScrollControlled: true,
       builder: (BuildContext context) {
+        final ThemeData theme = Theme.of(context);
         return SafeArea(
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               20,
-              8,
+              12,
               20,
               20 + MediaQuery.of(context).viewInsets.bottom,
             ),
@@ -830,440 +1064,125 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     maxHeight: MediaQuery.of(context).size.height * 0.9,
                   ),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
+                      // Modal Header with solid green back button
                       Row(
                         children: <Widget>[
-                          IconButton(
+                          FilledButton.icon(
                             onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.arrow_back_rounded),
+                            icon:
+                                const Icon(Icons.arrow_back_rounded, size: 16),
+                            label: const Text(
+                              'Back',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: palette.darkGreen,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
                           ),
                           Expanded(
                             child: Text(
                               'Preferences',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 48),
+                          const SizedBox(width: 64),
                         ],
                       ),
-                      Text(
-                        'Notifications and summary options',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: IconButton(
-                                  onPressed: () async {
-                                    final NotificationService notifier =
-                                        modalRef
-                                            .read(notificationServiceProvider);
-                                    await notifier.showBudgetReminder(
-                                      title: 'Overspend alert (Demo)',
-                                      body:
-                                          'Demo: You spent ₱620 today — ₱120 over your daily limit.',
-                                    );
-                                    if (mounted) {
-                                      _showDemoSentModal(
-                                        context,
-                                        title: 'Demo Sent',
-                                        message:
-                                            'Overspend alert demo was sent to your phone.',
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.play_arrow_rounded),
-                                  tooltip: 'Demo overspend alert',
-                                ),
-                                title: const Text('Overspend Alerts'),
-                                subtitle: const Text(
-                                    'Notify when spending is getting close to or exceeds the budget.'),
-                                trailing: Switch(
-                                  value: settings
-                                      .budgetWarningNotificationsEnabled,
-                                  onChanged: (bool value) async {
-                                    final bool confirmed =
-                                        await _showToggleConfirmationModal(
-                                      context,
-                                      settingLabel: 'Overspend Alerts',
-                                      nextValue: value,
-                                    );
-                                    if (!mounted || !confirmed) {
-                                      return;
-                                    }
-                                    modalRef
-                                        .read(budgetBuddyControllerProvider
-                                            .notifier)
-                                        .updateProfilePreferences(
-                                            budgetWarningNotificationsEnabled:
-                                                value);
-                                    if (mounted) {
-                                      _showToggleSuccessModal(
-                                        context,
-                                        settingLabel: 'Overspend Alerts',
-                                        nextValue: value,
-                                      );
-                                    }
-                                  },
-                                ),
-                              ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: IconButton(
-                                  onPressed: () async {
-                                    final NotificationService notifier =
-                                        modalRef
-                                            .read(notificationServiceProvider);
-                                    await notifier.showEndOfDaySummary(
-                                      title: 'End-of-day summary (Demo)',
-                                      body: settings
-                                              .includeYesterdaySpentInSummary
-                                          ? 'Demo: Today ₱450. Yesterday ₱520.'
-                                          : 'Demo: Today ₱450.',
-                                    );
-                                    if (mounted) {
-                                      _showDemoSentModal(
-                                        context,
-                                        title: 'Demo Sent',
-                                        message:
-                                            'End-of-day summary demo was sent to your phone.',
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.play_arrow_rounded),
-                                  tooltip: 'Demo Summary',
-                                ),
-                                title: const Text('End-of-day summary'),
-                                subtitle: const Text(
-                                    'Receive a summary when the day ends (includes yesterday\'s spent).'),
-                                trailing: Switch(
-                                  value: settings.summaryNotificationsEnabled,
-                                  onChanged: (bool value) async {
-                                    final bool confirmed =
-                                        await _showToggleConfirmationModal(
-                                      context,
-                                      settingLabel: 'End-of-day summary',
-                                      nextValue: value,
-                                    );
-                                    if (!mounted || !confirmed) {
-                                      return;
-                                    }
-                                    modalRef
-                                        .read(budgetBuddyControllerProvider
-                                            .notifier)
-                                        .updateProfilePreferences(
-                                            summaryNotificationsEnabled: value);
-                                    if (mounted) {
-                                      _showToggleSuccessModal(
-                                        context,
-                                        settingLabel: 'End-of-day summary',
-                                        nextValue: value,
-                                      );
-                                    }
-                                  },
-                                ),
-                              ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: IconButton(
-                                  onPressed: () async {
-                                    final NotificationService notifier =
-                                        modalRef
-                                            .read(notificationServiceProvider);
-                                    await notifier.showBudgetReminder(
-                                      title: 'Midnight reset (Demo)',
-                                      body:
-                                          'Demo: Today\'s budget has been reset to ₱500.',
-                                    );
-                                    if (mounted) {
-                                      _showDemoSentModal(
-                                        context,
-                                        title: 'Demo Sent',
-                                        message:
-                                            'Midnight reset demo was sent to your phone.',
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.play_arrow_rounded),
-                                  tooltip: 'Demo midnight reset',
-                                ),
-                                title: const Text(
-                                    'Notify when today\'s budget resets'),
-                                subtitle: const Text(
-                                    'Receive a notification when today\'s budget resets at midnight.'),
-                                trailing: Switch(
-                                  value: settings.notifyOnDailyReset,
-                                  onChanged: (bool value) async {
-                                    final bool confirmed =
-                                        await _showToggleConfirmationModal(
-                                      context,
-                                      settingLabel: 'Midnight reset notifications',
-                                      nextValue: value,
-                                    );
-                                    if (!context.mounted || !confirmed) {
-                                      return;
-                                    }
-                                    modalRef
-                                        .read(budgetBuddyControllerProvider
-                                            .notifier)
-                                        .updateProfilePreferences(
-                                            notifyOnDailyReset: value);
-                                    if (context.mounted) {
-                                      _showToggleSuccessModal(
-                                        context,
-                                        settingLabel:
-                                            'Midnight reset notifications',
-                                        nextValue: value,
-                                      );
-                                    }
-                                  },
-                                ),
-                              ),
-                              const Divider(height: 1),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                  modalRef
-                                              .watch(
-                                                  budgetBuddyControllerProvider)
-                                              .themeMode ==
-                                          ThemeMode.dark
-                                      ? Icons.dark_mode_rounded
-                                      : Icons.light_mode_rounded,
-                                ),
-                                title: const Text('Dark Mode Theme'),
-                                subtitle: const Text(
-                                    'Switch between light mode and dark mode theme.'),
-                                trailing: Switch(
-                                  value: modalRef
-                                          .watch(budgetBuddyControllerProvider)
-                                          .themeMode ==
-                                      ThemeMode.dark,
-                                  onChanged: (bool isDark) {
-                                    modalRef
-                                        .read(budgetBuddyControllerProvider
-                                            .notifier)
-                                        .setThemeMode(
-                                          isDark
-                                              ? ThemeMode.dark
-                                              : ThemeMode.light,
-                                        );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
+                      const SizedBox(height: 16),
+
+                      // Reset to 0 Preference Tile Container
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant
+                                .withValues(alpha: 0.25),
                           ),
                         ),
+                        child: Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: palette.darkGreenBg,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: palette.darkGreenBorder),
+                              ),
+                              child: Icon(
+                                Icons.restart_alt_rounded,
+                                color: palette.darkGreen,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  const Text(
+                                    'Reset to 0',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Reset today's budget to 0 at 12:00 AM",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Switch(
+                              value: settings.notifyOnDailyReset,
+                              activeColor: palette.darkGreen,
+                              onChanged: (bool value) {
+                                modalRef
+                                    .read(
+                                        budgetBuddyControllerProvider.notifier)
+                                    .updateProfilePreferences(
+                                      notifyOnDailyReset: value,
+                                    );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 12),
                     ],
                   ),
                 );
               },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showDemoSentModal(
-    BuildContext parentContext, {
-    required String title,
-    required String message,
-  }) {
-    showModalBottomSheet<void>(
-      context: parentContext,
-      showDragHandle: false,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              20 + MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    ),
-                    Expanded(
-                      child: Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<bool> _showToggleConfirmationModal(
-    BuildContext parentContext, {
-    required String settingLabel,
-    required bool nextValue,
-  }) async {
-    final bool? confirmed = await showModalBottomSheet<bool>(
-      context: parentContext,
-      showDragHandle: false,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              20 + MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Confirm Change',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Turn ${nextValue ? 'on' : 'off'} "$settingLabel"?',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('Confirm'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    return confirmed ?? false;
-  }
-
-  void _showToggleSuccessModal(
-    BuildContext parentContext, {
-    required String settingLabel,
-    required bool nextValue,
-  }) {
-    showModalBottomSheet<void>(
-      context: parentContext,
-      showDragHandle: false,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              20 + MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Success',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '"$settingLabel" is now ${nextValue ? 'on' : 'off'}.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('OK'),
-                  ),
-                ),
-              ],
             ),
           ),
         );
@@ -2100,6 +2019,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF991B1B),
+                foregroundColor: Colors.white,
+              ),
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Logout'),
             ),
