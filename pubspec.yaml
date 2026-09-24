@@ -2,7 +2,7 @@
 description: BudgetBuddy is a modern Flutter budgeting assistant for Android.
 publish_to: "none"
 
-version: 1.0.0+1
+version: 1.5.5+155
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -45,4 +45,5 @@ flutter:
   assets:
     - version.json
     - assets/
+
 
