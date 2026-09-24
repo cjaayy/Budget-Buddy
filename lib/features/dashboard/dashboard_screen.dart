@@ -351,7 +351,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(width: 6),
               Text(
-                isDaily ? 'Daily Overview' : 'Monthly Overview',
+                isDaily ? 'Today\'s Overview' : 'Monthly Overview',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -378,7 +378,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _CompactMetricTile(
-                      label: isDaily ? 'Daily Budget' : 'Month Budget',
+                      label: isDaily ? 'Today\'s Budget' : 'Month Budget',
                       value: formatPeso(totalBudget),
                       bgColor: palette.gold,
                       icon: Icons.account_balance_wallet_rounded,
@@ -387,7 +387,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _CompactMetricTile(
-                      label: isDaily ? 'Daily Spent' : 'Month Spent',
+                      label: isDaily ? 'Today\'s Spent' : 'Month Spent',
                       value: formatPeso(spent),
                       bgColor: isOver
                           ? palette.darkRed
@@ -488,7 +488,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Daily',
+                      'Today',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight:

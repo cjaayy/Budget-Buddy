@@ -270,7 +270,7 @@ class TogetherScreen extends ConsumerWidget {
                     _buildHubTile(
                       context,
                       title: 'Tab Savings',
-                      subtitle: 'Track daily and monthly savings progress',
+                      subtitle: 'Track today\'s and monthly savings progress',
                       icon: Icons.savings_rounded,
                       accentColor: palette.gold,
                       accentBg: palette.goldBg,

@@ -334,7 +334,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Daily Budget',
+          'Today\'s Budget',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
@@ -651,7 +651,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           size: 16, color: palette.darkGreen),
                       const SizedBox(width: 6),
                       Text(
-                        'Daily Spending',
+                        'Today\'s Spending',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,

@@ -646,9 +646,9 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       // 4. Notify if notifyOnDailyReset is enabled
       if (state.settings.notifyOnDailyReset) {
         _notificationService.showBudgetReminder(
-          title: 'Daily Budget Reset',
+          title: 'Today\'s Budget Reset',
           body:
-              'A new day has started! Your daily budget and today\'s entries have reset.',
+              'A new day has started! Today\'s budget and entries have reset.',
         );
       }
 

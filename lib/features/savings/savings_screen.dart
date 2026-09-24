@@ -296,7 +296,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               Expanded(
                 child: _CompactMetricTile(
                   label: _activeSection == SavingsSection.daily
-                      ? 'Daily Saved'
+                      ? 'Today Saved'
                       : 'Monthly Saved',
                   value:
                       (isDeficit ? '-' : '') + formatPeso(netSavings.abs()),
@@ -434,7 +434,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Daily',
+                      'Today',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: _activeSection == SavingsSection.daily
@@ -538,7 +538,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               const SizedBox(width: 6),
               Text(
                 _activeSection == SavingsSection.daily
-                    ? 'Daily Records'
+                    ? 'Today\'s Records'
                     : 'Monthly Records',
                 style: TextStyle(
                   fontSize: 13,
@@ -556,7 +556,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 child: Text(
                   widget.isTogetherOnly
                       ? 'No Budget Together savings records yet. Set a budget in Budget Together to start tracking tab savings.'
-                      : 'No savings records yet. Set a budget to start tracking your daily and monthly savings.',
+                      : 'No savings records yet. Set a budget to start tracking your savings.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,

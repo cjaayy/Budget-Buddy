@@ -63,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Smart daily budget companion',
+                'Smart budget companion',
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge

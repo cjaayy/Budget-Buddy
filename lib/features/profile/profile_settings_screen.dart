@@ -984,33 +984,33 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                         modalRef
                                             .read(notificationServiceProvider);
                                     await notifier.showBudgetReminder(
-                                      title: 'Daily reset (Demo)',
+                                      title: 'Midnight reset (Demo)',
                                       body:
-                                          'Demo: Your daily budget has been reset to ₱500.',
+                                          'Demo: Today\'s budget has been reset to ₱500.',
                                     );
                                     if (mounted) {
                                       _showDemoSentModal(
                                         context,
                                         title: 'Demo Sent',
                                         message:
-                                            'Daily reset demo was sent to your phone.',
+                                            'Midnight reset demo was sent to your phone.',
                                       );
                                     }
                                   },
                                   icon: const Icon(Icons.play_arrow_rounded),
-                                  tooltip: 'Demo daily reset',
+                                  tooltip: 'Demo midnight reset',
                                 ),
                                 title: const Text(
-                                    'Notify when daily budget resets'),
+                                    'Notify when today\'s budget resets'),
                                 subtitle: const Text(
-                                    'Receive a notification when the daily budget resets.'),
+                                    'Receive a notification when today\'s budget resets at midnight.'),
                                 trailing: Switch(
                                   value: settings.notifyOnDailyReset,
                                   onChanged: (bool value) async {
                                     final bool confirmed =
                                         await _showToggleConfirmationModal(
                                       context,
-                                      settingLabel: 'Daily reset notifications',
+                                      settingLabel: 'Midnight reset notifications',
                                       nextValue: value,
                                     );
                                     if (!context.mounted || !confirmed) {
@@ -1025,7 +1025,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       _showToggleSuccessModal(
                                         context,
                                         settingLabel:
-                                            'Daily reset notifications',
+                                            'Midnight reset notifications',
                                         nextValue: value,
                                       );
                                     }

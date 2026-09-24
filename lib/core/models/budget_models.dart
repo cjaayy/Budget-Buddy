@@ -123,7 +123,7 @@ enum BudgetPeriod { daily, weekly, monthly }
 
 extension BudgetPeriodX on BudgetPeriod {
   String get label => switch (this) {
-        BudgetPeriod.daily => 'Daily',
+        BudgetPeriod.daily => 'Today',
         BudgetPeriod.weekly => 'Weekly',
         BudgetPeriod.monthly => 'Monthly',
       };
@@ -153,7 +153,7 @@ extension NotificationFrequencyX on NotificationFrequency {
 
 extension DashboardPeriodX on DashboardPeriod {
   String get label => switch (this) {
-        DashboardPeriod.daily => 'Daily',
+        DashboardPeriod.daily => 'Today',
         DashboardPeriod.weekly => 'Weekly',
         DashboardPeriod.monthly => 'Monthly',
       };

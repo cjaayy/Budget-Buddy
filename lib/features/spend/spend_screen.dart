@@ -172,14 +172,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             title: Text(
               widget.isTogetherOnly
                   ? 'Budget Together Required'
-                  : 'Daily Budget Required',
+                  : 'Today\'s Budget Required',
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
             content: Text(
               widget.isTogetherOnly
                   ? 'You cannot log expenses until you set a Budget Together amount. Please set a budget first.'
-                  : 'You cannot log expenses until you set a daily budget. Please set a budget first.',
+                  : 'You cannot log expenses until you set today\'s budget. Please set a budget first.',
               textAlign: TextAlign.center,
             ),
             actions: <Widget>[
@@ -481,7 +481,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                       size: 16, color: palette.darkGreen),
                   const SizedBox(width: 6),
                   Text(
-                    'Daily Spending',
+                    'Today\'s Spending',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

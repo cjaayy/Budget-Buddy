@@ -86,7 +86,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     const SizedBox(height: 8),
                     Text('Current progress: ${formatPeso(summary.savings)}'),
                     const SizedBox(height: 4),
-                    Text('Daily save target: ${formatPeso(dailySaveTarget)}'),
+                    Text('Today\'s save target: ${formatPeso(dailySaveTarget)}'),
                   ],
                   const SizedBox(height: 12),
                   SizedBox(
@@ -212,7 +212,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Daily, weekly, and monthly saved vs overspent history.',
+            'Today, weekly, and monthly saved vs overspent history.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -570,7 +570,7 @@ enum _ReportsTab { daily, weekly, monthly }
 
 extension _ReportsTabX on _ReportsTab {
   String get label => switch (this) {
-        _ReportsTab.daily => 'Daily',
+        _ReportsTab.daily => 'Today',
         _ReportsTab.weekly => 'Weekly',
         _ReportsTab.monthly => 'Monthly',
       };

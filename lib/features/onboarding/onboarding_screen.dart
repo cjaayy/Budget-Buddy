@@ -19,7 +19,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.account_balance_wallet_rounded,
       title: 'Track every peso',
       description:
-          'Set daily limits for food, transport, and gala plans in one clean view.',
+          'Set today\'s limits for food, transport, and gala plans in one clean view.',
     ),
     _OnboardingStep(
       icon: Icons.restaurant_menu_rounded,

@@ -151,11 +151,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             ),
             title: Text(widget.isTogetherOnly
                 ? 'Budget Together Required'
-                : 'Daily Budget Required'),
+                : 'Today\'s Budget Required'),
             content: Text(
               widget.isTogetherOnly
                   ? 'You cannot log expenses until you set a Budget Together amount. Please set a budget first.'
-                  : 'You cannot log expenses until you set a daily budget. Please set a budget first.',
+                  : 'You cannot log expenses until you set today\'s budget. Please set a budget first.',
               textAlign: TextAlign.center,
             ),
             actions: <Widget>[
@@ -463,7 +463,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   const SizedBox(width: 6),
                   Text(
                     isDaily
-                        ? 'Daily Expense Overview'
+                        ? 'Today\'s Expense Overview'
                         : 'Monthly Expense Overview',
                     style: TextStyle(
                       fontSize: 13,
@@ -580,7 +580,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Daily',
+                      'Today',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: _activeSection == ExpenseSection.daily
@@ -794,7 +794,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   Icon(Icons.history_rounded, size: 16, color: palette.gold),
                   const SizedBox(width: 6),
                   Text(
-                    'Daily History',
+                    'History',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -2482,7 +2482,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                 size: 14, color: palette.darkRed),
                             const SizedBox(width: 8),
                             Text(
-                              '% of Daily Budget',
+                              '% of Today\'s Budget',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
