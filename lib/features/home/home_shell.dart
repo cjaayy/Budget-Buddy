@@ -37,6 +37,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     DashboardScreen(
       onGetStarted: () => setState(() => _index = 1),
       onOpenSpend: () => setState(() => _index = 2),
+      onOpenExpenses: () => setState(() => _index = 3),
+      onOpenSavings: () => setState(() => _index = 4),
     ),
     const BudgetPlannerScreen(),
     const SpendScreen(),
