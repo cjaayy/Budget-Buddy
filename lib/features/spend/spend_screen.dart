@@ -1032,282 +1032,445 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           builder: (BuildContext context, StateSetter setModalState) {
             final double currentAmount =
                 double.tryParse(amountController.text) ?? 0;
+            final double totalPending = _pendingSpends.fold(
+                0.0, (sum, item) => sum + item.amount);
+            final double grandTotal = totalPending + currentAmount;
+            final int grandCount =
+                _pendingSpends.length + (currentAmount > 0 ? 1 : 0);
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 14,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.88,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: option.color.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 14,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: option.color.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child:
+                                  Icon(option.icon, color: option.color, size: 18),
                             ),
-                            child:
-                                Icon(option.icon, color: option.color, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              option.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 1-Click Quick Add Presets
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          '1-Click Quick Add Presets:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(sheetContext)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            option.title,
-                            style: const TextStyle(
+                        ),
+                        Text(
+                          'Tap to set amount',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: palette.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 3x2 Grid of Presets with solid background & high-contrast visible numbers
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: 2.1,
+                      children: quickPresets.map((double preset) {
+                        final bool isSelected = currentAmount == preset;
+                        final Color btnBg =
+                            isSelected ? palette.darkGreen : palette.gold;
+
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                amountController.text =
+                                    preset.toStringAsFixed(0);
+                                amountController.selection =
+                                    TextSelection.fromPosition(
+                                  TextPosition(
+                                      offset: amountController.text.length),
+                                );
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                color: btnBg,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: <BoxShadow>[
+                                  BoxShadow(
+                                    color: btnBg.withValues(alpha: 0.35),
+                                    blurRadius: 5,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: <Widget>[
+                                  Icon(
+                                    isSelected
+                                        ? Icons.check_circle_rounded
+                                        : Icons.add_rounded,
+                                    size: 15,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '₱${preset.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: -0.2,
+                                      shadows: <Shadow>[
+                                        Shadow(
+                                          color: Colors.black26,
+                                          blurRadius: 2,
+                                          offset: Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Custom Amount Input
+                    TextField(
+                      controller: amountController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) {
+                        setModalState(() {});
+                      },
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: palette.gold,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        prefixIcon: Container(
+                          padding: const EdgeInsets.only(left: 12, right: 6),
+                          alignment: Alignment.centerLeft,
+                          width: 32,
+                          child: Text(
+                            '₱',
+                            style: TextStyle(
+                              fontSize: 20,
                               fontWeight: FontWeight.w800,
-                              fontSize: 16,
+                              color: palette.gold,
+                            ),
+                          ),
+                        ),
+                        labelText: 'Custom Amount',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: palette.gold, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: noteController,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        labelText: 'Note (Optional)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Action Buttons: Add to Queue OR Log Now (All at Once)
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              final double amount =
+                                  double.tryParse(amountController.text) ?? 0;
+                              if (amount <= 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Enter or pick an amount greater than 0.'),
+                                  ),
+                                );
+                                return;
+                              }
+                              _addToQueue(
+                                title: option.title,
+                                amount: amount,
+                                category: option.budgetCategory,
+                                color: option.color,
+                                icon: option.icon,
+                                note: noteController.text.trim(),
+                              );
+                              setModalState(() {
+                                amountController.clear();
+                                noteController.clear();
+                              });
+                            },
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: const Text('Add to Queue'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: palette.gold,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(42),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              final double amount =
+                                  double.tryParse(amountController.text) ?? 0;
+                              if (amount <= 0 && _pendingSpends.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Enter or select an amount to log.'),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (amount > 0) {
+                                _addToQueue(
+                                  title: option.title,
+                                  amount: amount,
+                                  category: option.budgetCategory,
+                                  color: option.color,
+                                  icon: option.icon,
+                                  note: noteController.text.trim(),
+                                );
+                              }
+                              Navigator.of(sheetContext).pop();
+                              _logAllPendingSpends(context, palette);
+                            },
+                            icon: const Icon(Icons.check_circle_rounded, size: 16),
+                            label: Text(
+                              grandCount > 0
+                                  ? 'Log Now (${grandCount == 1 ? '1 item' : '$grandCount items'})'
+                                  : 'Log Now',
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: palette.darkGreen,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(42),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Queued Spends List inside sheet ("in tap put the list of queue to it")
+                    if (_pendingSpends.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Icon(Icons.playlist_add_check_rounded,
+                                  size: 16, color: palette.darkGreen),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Queued Spends (${_pendingSpends.length})',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(sheetContext)
+                                      .colorScheme
+                                      .onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            formatPeso(totalPending),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: palette.gold,
                             ),
                           ),
                         ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 1-Click Quick Add Presets
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(
-                        '1-Click Quick Add Presets:',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(sheetContext)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
-                      ),
-                      Text(
-                        'Tap to set amount',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: palette.gold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 3x2 Grid of Presets with solid background & high-contrast visible numbers
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 2.1,
-                    children: quickPresets.map((double preset) {
-                      final bool isSelected = currentAmount == preset;
-                      final Color btnBg =
-                          isSelected ? palette.darkGreen : palette.gold;
-
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            setModalState(() {
-                              amountController.text =
-                                  preset.toStringAsFixed(0);
-                              amountController.selection =
-                                  TextSelection.fromPosition(
-                                TextPosition(
-                                    offset: amountController.text.length),
-                              );
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              color: btnBg,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: <BoxShadow>[
-                                BoxShadow(
-                                  color: btnBg.withValues(alpha: 0.35),
-                                  blurRadius: 5,
-                                  offset: const Offset(0, 2),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _pendingSpends.length,
+                          separatorBuilder: (BuildContext context, int index) =>
+                              const SizedBox(height: 6),
+                          itemBuilder: (BuildContext context, int index) {
+                            final _PendingSpendItem item = _pendingSpends[index];
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(sheetContext).cardTheme.color ??
+                                    Theme.of(sheetContext).cardColor,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: Theme.of(sheetContext)
+                                      .colorScheme
+                                      .outlineVariant
+                                      .withValues(alpha: 0.3),
                                 ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: <Widget>[
-                                Icon(
-                                  isSelected
-                                      ? Icons.check_circle_rounded
-                                      : Icons.add_rounded,
-                                  size: 15,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '₱${preset.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: -0.2,
-                                    shadows: <Shadow>[
-                                      Shadow(
-                                        color: Colors.black26,
-                                        blurRadius: 2,
-                                        offset: Offset(0, 1),
-                                      ),
-                                    ],
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: item.color.withValues(alpha: 0.14),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(item.icon,
+                                        size: 14, color: item.color),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Custom Amount Input
-                  TextField(
-                    controller: amountController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) {
-                      setModalState(() {});
-                    },
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: palette.gold,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: Container(
-                        padding: const EdgeInsets.only(left: 12, right: 6),
-                        alignment: Alignment.centerLeft,
-                        width: 32,
-                        child: Text(
-                          '₱',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: palette.gold,
-                          ),
-                        ),
-                      ),
-                      labelText: 'Custom Amount',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: palette.gold, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: noteController,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      labelText: 'Note (Optional)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Action Buttons: Add to Queue OR Log Now
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            final double amount =
-                                double.tryParse(amountController.text) ?? 0;
-                            if (amount <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Enter a valid amount greater than 0.'),
-                                ),
-                              );
-                              return;
-                            }
-                            _addToQueue(
-                              title: option.title,
-                              amount: amount,
-                              category: option.budgetCategory,
-                              color: option.color,
-                              icon: option.icon,
-                              note: noteController.text.trim(),
-                            );
-                            Navigator.of(sheetContext).pop();
-                          },
-                          icon: const Icon(Icons.add_rounded, size: 16),
-                          label: const Text('Add to Queue'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: palette.gold,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(42),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            final double amount =
-                                double.tryParse(amountController.text) ?? 0;
-                            if (amount <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Enter a valid amount greater than 0.'),
-                                ),
-                              );
-                              return;
-                            }
-                            Navigator.of(sheetContext).pop();
-                            _logSingleSpend(
-                              context,
-                              title: option.title,
-                              amount: amount,
-                              category: option.budgetCategory,
-                              note: noteController.text.trim(),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          item.title,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        if (item.note.isNotEmpty)
+                                          Text(
+                                            item.note,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(sheetContext)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: palette.goldBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: palette.goldBorder),
+                                    ),
+                                    child: Text(
+                                      formatPeso(item.amount),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        color: palette.gold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () {
+                                      _removeFromQueue(item.id);
+                                      setModalState(() {});
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: palette.darkRedBg,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Icon(
+                                        Icons.close_rounded,
+                                        size: 14,
+                                        color: palette.darkRed,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             );
                           },
-                          icon: const Icon(Icons.check_rounded, size: 16),
-                          label: const Text('Log Now'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: palette.darkGreen,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(42),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
                         ),
                       ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -1508,13 +1671,25 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
                         Navigator.of(sheetContext).pop();
                         if (existing == null) {
-                          _logSingleSpend(
-                            context,
-                            title: title,
-                            amount: amount,
-                            category: selectedCategory,
-                            note: noteController.text.trim(),
-                          );
+                          if (_pendingSpends.isNotEmpty) {
+                            _addToQueue(
+                              title: title,
+                              amount: amount,
+                              category: selectedCategory,
+                              color: palette.darkGreen,
+                              icon: Icons.receipt_long_rounded,
+                              note: noteController.text.trim(),
+                            );
+                            _logAllPendingSpends(context, palette);
+                          } else {
+                            _logSingleSpend(
+                              context,
+                              title: title,
+                              amount: amount,
+                              category: selectedCategory,
+                              note: noteController.text.trim(),
+                            );
+                          }
                           return;
                         }
 
