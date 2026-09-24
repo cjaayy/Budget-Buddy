@@ -1277,6 +1277,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   }) {
     final ThemeData theme = Theme.of(context);
     final String displayNote = _cleanNote(expense.note);
+    final Color iconColor = _expenseColorForExpense(expense);
+    final IconData iconData = _expenseIconForExpense(expense);
+    final String title = _displayTitle(expense);
+    final String subtitle = _expenseSubtitleText(expense, displayNote);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1296,12 +1300,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: expense.category.color.withValues(alpha: 0.12),
+                  color: iconColor.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  _expenseIconForExpense(expense),
-                  color: expense.category.color,
+                  iconData,
+                  color: iconColor,
                   size: 16,
                 ),
               ),
@@ -1311,7 +1315,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      expense.title,
+                      title,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
@@ -1319,9 +1323,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      displayNote.isNotEmpty
-                          ? '${expense.category.label} • $displayNote'
-                          : expense.category.label,
+                      subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1483,10 +1485,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
   List<ExpenseEntry> _expensesForDay(
       List<ExpenseEntry> expenses, DateTime day) {
-    return expenses
+    final List<ExpenseEntry> dayExpenses = expenses
         .where((ExpenseEntry expense) =>
             DateUtils.isSameDay(expense.dateTime, day))
         .toList();
+    final Set<String> seenIds = <String>{};
+    return dayExpenses.where((ExpenseEntry e) => seenIds.add(e.id)).toList();
   }
 
   List<ExpenseEntry> _expensesForMonth(
@@ -2225,7 +2229,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                 child: Row(
                                   children: <Widget>[
                                     Icon(_expenseCategoryIcon(item),
-                                        size: 16, color: item.color),
+                                        size: 16,
+                                        color: _spendCategoryColorForCategory(
+                                            item)),
                                     const SizedBox(width: 8),
                                     Text(item.label),
                                   ],
@@ -2359,6 +2365,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         final String displayNote = _cleanNote(expense.note);
         final String sourceLabel = _sourceLabel(expense.source);
         final IconData sourceIcon = _sourceIcon(expense.source);
+        final Color iconColor = _expenseColorForExpense(expense);
+        final IconData iconData = _expenseIconForExpense(expense);
+        final String title = _displayTitle(expense);
 
         return Container(
           decoration: BoxDecoration(
@@ -2431,13 +2440,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: expense.category.color
-                                  .withValues(alpha: 0.16),
+                              color: iconColor.withValues(alpha: 0.16),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              _expenseIconForExpense(expense),
-                              color: expense.category.color,
+                              iconData,
+                              color: iconColor,
                               size: 20,
                             ),
                           ),
@@ -2447,7 +2455,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  expense.title,
+                                  title,
                                   style: const TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w800,
@@ -2484,23 +2492,25 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                         ],
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: expense.category.color
-                                            .withValues(alpha: 0.14),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        expense.category.label,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: expense.category.color,
+                                    if (!_isCategoryDuplicate(expense.title,
+                                        expense.category, expense.spendCategory))
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: iconColor.withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          expense.category.label,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: iconColor,
+                                          ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               ],
@@ -2615,11 +2625,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       const Divider(height: 1),
                       _buildDetailRow(
                         theme: theme,
-                        icon: _expenseCategoryIcon(expense.category),
-                        iconColor: expense.category.color,
+                        icon: iconData,
+                        iconColor: iconColor,
                         label: 'Category',
                         value: expense.category.label,
-                        valueColor: expense.category.color,
+                        valueColor: iconColor,
                       ),
                       if (expense.spendCategory.trim().isNotEmpty) ...<Widget>[
                         const Divider(height: 1),
@@ -2911,30 +2921,80 @@ String _formatDayLabel(DateTime dateTime) {
 }
 
 IconData _expenseIconForExpense(ExpenseEntry expense) {
-  final String selectedCategory = expense.spendCategory.trim().toLowerCase();
-  if (selectedCategory.isNotEmpty) {
-    return switch (selectedCategory) {
-      'food & drinks' => Icons.restaurant_rounded,
-      'transport' => Icons.directions_bus_rounded,
-      'shopping' => Icons.shopping_bag_rounded,
-      'leisure & gala' => Icons.celebration_rounded,
-      'health' => Icons.health_and_safety_rounded,
-      'bills & utilities' => Icons.receipt_long_rounded,
-      'custom' => Icons.edit_rounded,
-      _ => _expenseCategoryIcon(expense.category),
-    };
+  final String key = (expense.spendCategory.isNotEmpty
+          ? expense.spendCategory
+          : expense.title)
+      .trim()
+      .toLowerCase();
+
+  if (key.contains('transport')) {
+    return Icons.directions_bus_rounded;
+  }
+  if (key.contains('food') || key.contains('drink')) {
+    return Icons.restaurant_rounded;
+  }
+  if (key.contains('shop')) {
+    return Icons.shopping_bag_rounded;
+  }
+  if (key.contains('leisure') ||
+      key.contains('gala') ||
+      key.contains('entertain')) {
+    return Icons.celebration_rounded;
+  }
+  if (key.contains('health') || key.contains('medic')) {
+    return Icons.health_and_safety_rounded;
+  }
+  if (key.contains('bill') || key.contains('utilit')) {
+    return Icons.receipt_long_rounded;
+  }
+  if (key.contains('custom')) {
+    return Icons.edit_rounded;
   }
 
-  final String normalizedTitle = expense.title.trim().toLowerCase();
-  return switch (normalizedTitle) {
-    'food & drinks' => Icons.restaurant_rounded,
-    'transport' => Icons.directions_bus_rounded,
-    'shopping' => Icons.shopping_bag_rounded,
-    'leisure & gala' => Icons.celebration_rounded,
-    'health' => Icons.health_and_safety_rounded,
-    'bills & utilities' => Icons.receipt_long_rounded,
-    'custom' => Icons.edit_rounded,
-    _ => _expenseCategoryIcon(expense.category),
+  return _expenseCategoryIcon(expense.category);
+}
+
+Color _expenseColorForExpense(ExpenseEntry expense) {
+  final String key = (expense.spendCategory.isNotEmpty
+          ? expense.spendCategory
+          : expense.title)
+      .trim()
+      .toLowerCase();
+
+  if (key.contains('transport')) {
+    return const Color(0xFF0F766E); // Dark Green (Spend screen Transport)
+  }
+  if (key.contains('food') || key.contains('drink')) {
+    return const Color(0xFFD97706); // Gold (Spend screen Food & Drinks)
+  }
+  if (key.contains('shop')) {
+    return const Color(0xFF991B1B); // Dark Red (Spend screen Shopping)
+  }
+  if (key.contains('leisure') ||
+      key.contains('gala') ||
+      key.contains('entertain')) {
+    return const Color(0xFFD97706); // Gold (Spend screen Leisure & Gala)
+  }
+  if (key.contains('health') || key.contains('medic')) {
+    return const Color(0xFF0F766E); // Dark Green (Spend screen Health)
+  }
+  if (key.contains('bill') || key.contains('utilit')) {
+    return const Color(0xFF991B1B); // Dark Red (Spend screen Bills & Utilities)
+  }
+  if (key.contains('custom')) {
+    return const Color(0xFF0F766E); // Dark Green
+  }
+
+  return _spendCategoryColorForCategory(expense.category);
+}
+
+Color _spendCategoryColorForCategory(BudgetCategory category) {
+  return switch (category) {
+    BudgetCategory.food => const Color(0xFFD97706),
+    BudgetCategory.transportation => const Color(0xFF0F766E),
+    BudgetCategory.shopping => const Color(0xFF991B1B),
+    BudgetCategory.entertainment => const Color(0xFFD97706),
+    BudgetCategory.miscellaneous => const Color(0xFF0F766E),
   };
 }
 
@@ -2944,8 +3004,97 @@ IconData _expenseCategoryIcon(BudgetCategory category) {
     BudgetCategory.transportation => Icons.directions_bus_rounded,
     BudgetCategory.entertainment => Icons.celebration_rounded,
     BudgetCategory.shopping => Icons.shopping_bag_rounded,
-    BudgetCategory.miscellaneous => Icons.edit_rounded,
+    BudgetCategory.miscellaneous => Icons.receipt_long_rounded,
   };
+}
+
+String _displayTitle(ExpenseEntry expense) {
+  final String trimmed = expense.title.trim();
+  if (trimmed.toLowerCase() == 'transportation') {
+    return 'Transport';
+  }
+  return trimmed.isEmpty ? 'Expense' : trimmed;
+}
+
+bool _isCategoryDuplicate(
+  String title,
+  BudgetCategory category,
+  String spendCategory,
+) {
+  final String t = title.trim().toLowerCase();
+  final String c = category.label.trim().toLowerCase();
+  final String sc = spendCategory.trim().toLowerCase();
+
+  // Specifically transport / transportation
+  if ((t.contains('transport') || sc.contains('transport')) &&
+      c.contains('transport')) {
+    return true;
+  }
+  // Food / food & drinks
+  if ((t.contains('food') || sc.contains('food')) && c.contains('food')) {
+    return true;
+  }
+  // Shopping
+  if (t == 'shopping' || (c == 'shopping' && (t == c || sc == 'shopping'))) {
+    return true;
+  }
+  // Entertainment / Leisure
+  if ((t.contains('leisure') ||
+          t.contains('gala') ||
+          t.contains('entertain') ||
+          sc.contains('leisure') ||
+          sc.contains('gala') ||
+          sc.contains('entertain')) &&
+      c.contains('entertain')) {
+    return true;
+  }
+  // Health
+  if ((t.contains('health') || sc.contains('health')) &&
+      (c.contains('misc') || c.contains('health'))) {
+    return true;
+  }
+  // Bills & Utilities
+  if ((t.contains('bill') || sc.contains('bill')) &&
+      (c.contains('misc') || c.contains('bill'))) {
+    return true;
+  }
+  // Exact or containment match
+  if (t == c || sc == c) {
+    return true;
+  }
+  if (t.length <= 15 && (t.contains(c) || c.contains(t))) {
+    return true;
+  }
+  return false;
+}
+
+String _expenseSubtitleText(ExpenseEntry expense, String displayNote) {
+  final bool isDuplicate = _isCategoryDuplicate(
+    expense.title,
+    expense.category,
+    expense.spendCategory,
+  );
+
+  String cleanNote = displayNote.trim();
+  if (cleanNote.toLowerCase() == 'transport' ||
+      cleanNote.toLowerCase() == 'transportation' ||
+      cleanNote.toLowerCase() == expense.title.trim().toLowerCase()) {
+    cleanNote = '';
+  }
+
+  final String timeStr = DateFormat('h:mm a').format(expense.dateTime);
+
+  if (isDuplicate) {
+    if (cleanNote.isNotEmpty) {
+      return cleanNote;
+    }
+    return timeStr;
+  } else {
+    if (cleanNote.isNotEmpty) {
+      return '${expense.category.label} • $cleanNote';
+    }
+    return '${expense.category.label} • $timeStr';
+  }
 }
 
 String _sourceLabel(String source) {
