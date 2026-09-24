@@ -772,21 +772,23 @@ class ActivitySuggestion {
 class DailyRecord {
   const DailyRecord({
     required this.date,
-    this.budget = 0.0,
+    double? budget,
     required this.totalSpent,
     required this.remainingBalance,
     required this.savings,
     required this.biggestExpenseCategory,
     required this.categoryTotals,
-  });
+  }) : _budget = budget;
 
   final DateTime date;
-  final double budget;
+  final double? _budget;
   final double totalSpent;
   final double remainingBalance;
   final double savings;
   final String biggestExpenseCategory;
   final Map<String, double> categoryTotals;
+
+  double get budget => _budget ?? (totalSpent + remainingBalance);
 
   bool get isZeroActivity =>
       budget <= 0.0 && totalSpent <= 0.0 && savings == 0.0;
@@ -1106,7 +1108,10 @@ class BudgetBuddyState {
     required this.weeklyPeriodStart,
     required this.monthlyPeriodStart,
     required this.periodReports,
-  });
+    double? savingsDebt = 0.0,
+    double? totalSavings = 0.0,
+  })  : _savingsDebt = savingsDebt,
+        _totalSavings = totalSavings;
 
   final BudgetSettings settings;
   final List<ExpenseEntry> expenses;
@@ -1132,6 +1137,11 @@ class BudgetBuddyState {
   final DateTime? weeklyPeriodStart;
   final DateTime? monthlyPeriodStart;
   final List<PeriodReport> periodReports;
+  final double? _savingsDebt;
+  final double? _totalSavings;
+
+  double get savingsDebt => _savingsDebt ?? 0.0;
+  double get totalSavings => _totalSavings ?? 0.0;
 
   factory BudgetBuddyState.initial() {
     return BudgetBuddyState(
@@ -1159,6 +1169,8 @@ class BudgetBuddyState {
       weeklyPeriodStart: null,
       monthlyPeriodStart: null,
       periodReports: const <PeriodReport>[],
+      savingsDebt: 0.0,
+      totalSavings: 0.0,
     );
   }
 
@@ -1187,6 +1199,8 @@ class BudgetBuddyState {
     Object? weeklyPeriodStart = _weeklyPeriodStartSentinel,
     Object? monthlyPeriodStart = _monthlyPeriodStartSentinel,
     List<PeriodReport>? periodReports,
+    double? savingsDebt,
+    double? totalSavings,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -1227,6 +1241,8 @@ class BudgetBuddyState {
               ? this.monthlyPeriodStart
               : monthlyPeriodStart as DateTime?,
       periodReports: periodReports ?? this.periodReports,
+      savingsDebt: savingsDebt ?? this.savingsDebt,
+      totalSavings: totalSavings ?? this.totalSavings,
     );
   }
 
@@ -1271,6 +1287,8 @@ class BudgetBuddyState {
       'monthlyPeriodStart': monthlyPeriodStart?.toIso8601String(),
       'periodReports':
           periodReports.map((PeriodReport report) => report.toJson()).toList(),
+      'savingsDebt': savingsDebt,
+      'totalSavings': totalSavings,
     };
   }
 
@@ -1348,6 +1366,8 @@ class BudgetBuddyState {
                   PeriodReport.fromJson((item as Map).cast<String, dynamic>()))
               .toList() ??
           const <PeriodReport>[],
+      savingsDebt: (json['savingsDebt'] as num?)?.toDouble() ?? 0.0,
+      totalSavings: (json['totalSavings'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

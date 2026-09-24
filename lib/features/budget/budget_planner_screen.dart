@@ -729,6 +729,38 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                       : 'Budget is not set. Expenses will count as untracked.'),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
+                            if (state.savingsDebt > 0) ...<Widget>[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF991B1B)
+                                      .withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: const Color(0xFF991B1B)
+                                          .withValues(alpha: 0.25)),
+                                ),
+                                child: Row(
+                                  children: <Widget>[
+                                    const Icon(Icons.info_outline_rounded,
+                                        size: 16, color: Color(0xFF991B1B)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Past savings debt: ${formatPeso(state.savingsDebt)}. Today\'s surplus will pay this off first.',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF991B1B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

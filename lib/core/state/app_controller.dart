@@ -181,6 +181,67 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     await syncDateAndCheckMidnightReset();
   }
 
+  double get savingsDebt => state.savingsDebt;
+  double get totalSavings => state.totalSavings;
+
+  /// Applies the budget surplus & savings debt logic:
+  /// - If Today's Budget > Today's Expenses:
+  ///     surplus = Today's Budget - Today's Expenses.
+  ///     If savingsDebt > 0: Deduct surplus from savingsDebt first to pay off past over-budget debt.
+  ///     Any leftover surplus after paying off debt goes to totalSavings.
+  /// - If Today's Expenses > Today's Budget:
+  ///     Add the over-budget difference to savingsDebt.
+  void applyDailyBudgetSurplusAndDebt({
+    required double budget,
+    required double expenses,
+  }) {
+    double currentDebt = state.savingsDebt;
+    double currentSavings = state.totalSavings;
+
+    if (budget > expenses) {
+      final double surplus = budget - expenses;
+      if (currentDebt > 0) {
+        if (surplus >= currentDebt) {
+          final double leftoverSurplus = surplus - currentDebt;
+          currentDebt = 0.0;
+          currentSavings += leftoverSurplus;
+        } else {
+          currentDebt -= surplus;
+        }
+      } else {
+        currentSavings += surplus;
+      }
+    } else if (expenses > budget) {
+      final double overBudget = expenses - budget;
+      currentDebt += overBudget;
+    }
+
+    state = state.copyWith(
+      savingsDebt: currentDebt,
+      totalSavings: currentSavings,
+    );
+    _persist();
+  }
+
+  /// Settle today's budget surplus & debt using today's active budget and today's expenses.
+  void settleTodayBudgetSurplusAndDebt() {
+    final double budget = state.settings.dailyLimit ?? 0.0;
+    final double expenses = state.dailySpent;
+    applyDailyBudgetSurplusAndDebt(budget: budget, expenses: expenses);
+  }
+
+  /// Sets savings debt directly (useful for testing or initial adjustments).
+  void setSavingsDebt(double debt) {
+    state = state.copyWith(savingsDebt: debt < 0 ? 0.0 : debt);
+    _persist();
+  }
+
+  /// Sets total savings directly (useful for testing or initial adjustments).
+  void setTotalSavings(double savings) {
+    state = state.copyWith(totalSavings: savings < 0 ? 0.0 : savings);
+    _persist();
+  }
+
   BudgetSummary get summary => _service.computeSummary(
         state.copyWith(
           expenses: state.expenses
@@ -469,6 +530,25 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     }
 
     if (forceReset || (lastDailyStart != null && lastDailyStart.isBefore(todayStart))) {
+      // 0. Settle the ending day's budget surplus & debt before clearing today
+      final DateTime endingDay = lastDailyStart ?? todayStart;
+      final BudgetEntry? endingEntry = state.budgetEntries
+          .cast<BudgetEntry?>()
+          .firstWhere(
+            (BudgetEntry? e) => e != null && _isSameDay(e.date, endingDay),
+            orElse: () => null,
+          );
+      final double endingBudget =
+          endingEntry?.amount ?? (state.settings.dailyLimit ?? 0.0);
+      final double endingExpenses = state.dailySpent;
+
+      if (endingBudget > 0 || endingExpenses > 0) {
+        applyDailyBudgetSurplusAndDebt(
+          budget: endingBudget,
+          expenses: endingExpenses,
+        );
+      }
+
       // 1. Archive elapsed periods up to today before clearing
       _archiveElapsedPeriods(now);
 

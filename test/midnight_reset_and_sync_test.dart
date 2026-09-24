@@ -371,5 +371,96 @@ void main() {
 
       controller.dispose();
     });
+
+    test('Budget Surplus & Savings Debt Logic: maintains savingsDebt and totalSavings correctly', () async {
+      repo.storedState = BudgetBuddyState.initial();
+
+      final controller = BudgetBuddyController(
+        repository: repo,
+        service: service,
+        notificationService: notificationService,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.state.savingsDebt, equals(0.0));
+      expect(controller.state.totalSavings, equals(0.0));
+
+      // 1. If Today's Expenses > Today's Budget: add over-budget difference to savingsDebt
+      // Example: Budget = 500, Expenses = 700 -> over by 200
+      controller.applyDailyBudgetSurplusAndDebt(budget: 500, expenses: 700);
+      expect(controller.state.savingsDebt, equals(200.0));
+      expect(controller.state.totalSavings, equals(0.0));
+
+      // 2. If Today's Budget > Today's Expenses (e.g. user set budget 500 and had 0 expense):
+      // Calculate surplus = 500 - 0 = 500.
+      // Deduct surplus from savingsDebt first (200 debt paid off -> debt = 0).
+      // Leftover surplus (500 - 200 = 300) goes to totalSavings.
+      controller.applyDailyBudgetSurplusAndDebt(budget: 500, expenses: 0);
+      expect(controller.state.savingsDebt, equals(0.0));
+      expect(controller.state.totalSavings, equals(300.0));
+
+      // 3. Additional surplus when savingsDebt is 0 goes straight to totalSavings
+      // Example: Budget = 400, Expenses = 100 -> surplus 300
+      controller.applyDailyBudgetSurplusAndDebt(budget: 400, expenses: 100);
+      expect(controller.state.savingsDebt, equals(0.0));
+      expect(controller.state.totalSavings, equals(600.0));
+
+      // 4. Over-budget again: Expenses = 600, Budget = 400 -> over by 200 added to savingsDebt
+      controller.applyDailyBudgetSurplusAndDebt(budget: 400, expenses: 600);
+      expect(controller.state.savingsDebt, equals(200.0));
+      expect(controller.state.totalSavings, equals(600.0));
+
+      // 5. Partial debt payoff: Budget = 300, Expenses = 200 -> surplus 100
+      // 100 deducted from savingsDebt (200 - 100 = 100 remaining debt), 0 leftover for totalSavings
+      controller.applyDailyBudgetSurplusAndDebt(budget: 300, expenses: 200);
+      expect(controller.state.savingsDebt, equals(100.0));
+      expect(controller.state.totalSavings, equals(600.0));
+
+      controller.dispose();
+    });
+
+    test('Budget Surplus & Savings Debt: automatic settlement on midnight reset', () async {
+      repo.storedState = BudgetBuddyState.initial();
+
+      final controller = BudgetBuddyController(
+        repository: repo,
+        service: service,
+        notificationService: notificationService,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final DateTime today = controller.now;
+      final DateTime todayDate = DateTime(today.year, today.month, today.day);
+
+      // Day 1: Budget 500, Expenses 700 (over-budget by 200)
+      controller.recordDailyBudget(amount: 500);
+      controller.addExpense(
+        title: 'Dinner',
+        amount: 700,
+        category: BudgetCategory.food,
+      );
+
+      expect(controller.state.dailySpent, equals(700.0));
+
+      // Day 1 ends: simulate midnight reset
+      await controller.simulateMidnightReset();
+
+      // savingsDebt is now 200, totalSavings is 0
+      expect(controller.state.savingsDebt, equals(200.0));
+      expect(controller.state.totalSavings, equals(0.0));
+      expect(controller.state.dailySpent, equals(0.0));
+
+      // Day 2: User sets budget 500 and has 0 expenses (exact user example!)
+      controller.recordDailyBudget(amount: 500);
+
+      // Day 2 ends: simulate midnight reset
+      await controller.simulateMidnightReset();
+
+      // Surplus was 500. It paid off the 200 debt, leaving 300 in totalSavings!
+      expect(controller.state.savingsDebt, equals(0.0));
+      expect(controller.state.totalSavings, equals(300.0));
+
+      controller.dispose();
+    });
   });
 }
