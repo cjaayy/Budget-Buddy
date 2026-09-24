@@ -18,20 +18,20 @@ class _ExpensePalette {
   // Dark Red: expenses, overspent alert, delete/cancel actions
   Color get darkRed => const Color(0xFF991B1B);
   Color get darkRedBg =>
-      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.22 : 0.12);
+  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.30);
 
   // Gold: target budget amounts, zero-activity badges, history counts, monthly overview
   Color get gold => const Color(0xFFD97706);
   Color get goldBg =>
-      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
+      const Color(0xFFD97706).withValues(alpha: isDark ? 0.22 : 0.12);
+  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.30);
 
   // Dark Green: remaining safe balance, on-track status, save/update actions
   Color get darkGreen => const Color(0xFF0F766E);
   Color get darkGreenBg =>
-      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
+      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.22 : 0.12);
+  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.30);
 }
 
 /// Compact Metric Tile for Budget, Spent, and Remaining matching other screens
@@ -1343,12 +1343,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           ),
           const SizedBox(height: 10),
 
-          // Action Buttons: Edit, Delete, Details
+          // Action Buttons: Edit (Full Gold), Delete (Full Dark Red), Details (Full Dark Green)
           Row(
             children: <Widget>[
               Expanded(
-                child: FilledButton.tonal(
+                child: FilledButton(
                   style: FilledButton.styleFrom(
+                    backgroundColor: palette.gold,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
@@ -1356,17 +1358,26 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ),
                   onPressed: onEdit,
-                  child: const Text('Edit',
-                      style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const <Widget>[
+                      Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text('Edit',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: FilledButton.tonal(
+                child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: palette.darkRedBg,
-                    foregroundColor: palette.darkRed,
+                    backgroundColor: palette.darkRed,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
@@ -1374,15 +1385,27 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ),
                   onPressed: onDelete,
-                  child: const Text('Delete',
-                      style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const <Widget>[
+                      Icon(Icons.delete_outline_rounded,
+                          size: 13, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text('Delete',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: FilledButton.tonal(
+                child: FilledButton(
                   style: FilledButton.styleFrom(
+                    backgroundColor: palette.darkGreen,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
@@ -1390,9 +1413,19 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ),
                   onPressed: onDetails,
-                  child: const Text('Details',
-                      style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const <Widget>[
+                      Icon(Icons.info_outline_rounded,
+                          size: 13, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text('Details',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -2288,6 +2321,14 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     _ExpensePalette palette,
   ) async {
     final BuildContext localContext = context;
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double dailyBudget = widget.isTogetherOnly
+        ? state.togetherBudget
+        : state.settings.totalDailyBudget;
+    final double? percentOfDaily =
+        dailyBudget > 0 ? (expense.amount / dailyBudget) * 100 : null;
+    final double categoryLimit =
+        _categoryLimit(expense.category, state.settings);
 
     await showModalBottomSheet<void>(
       context: localContext,
@@ -2300,6 +2341,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       builder: (BuildContext sheetContext) {
         final ThemeData theme = Theme.of(sheetContext);
         final String displayNote = _cleanNote(expense.note);
+        final String sourceLabel = _sourceLabel(expense.source);
+        final IconData sourceIcon = _sourceIcon(expense.source);
 
         return Container(
           decoration: BoxDecoration(
@@ -2317,9 +2360,32 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                // Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
+                    FilledButton.tonalIcon(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                      label: const Text(
+                        'Back',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: palette.darkGreenBg,
+                        foregroundColor: palette.darkGreen,
+                        side: BorderSide(color: palette.darkGreenBorder),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
                     Text(
                       'Expense Details',
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -2332,74 +2398,434 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // Hero Card: Title, Amount, Badges
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: palette.darkRedBg,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: palette.darkRedBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(
-                        expense.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: expense.category.color
+                                  .withValues(alpha: 0.16),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _expenseIconForExpense(expense),
+                              color: expense.category.color,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  expense.title,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: <Widget>[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: palette.goldBg,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                            color: palette.goldBorder),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          Icon(sourceIcon,
+                                              size: 11, color: palette.gold),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            sourceLabel,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: palette.gold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: expense.category.color
+                                            .withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        expense.category.label,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: expense.category.color,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        formatPeso(expense.amount),
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: palette.darkRed,
-                        ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Amount Spent',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatPeso(expense.amount),
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                  color: palette.darkRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (percentOfDaily != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: palette.darkRedBg,
+                                borderRadius: BorderRadius.circular(8),
+                                border:
+                                    Border.all(color: palette.darkRedBorder),
+                              ),
+                              child: Text(
+                                '${percentOfDaily.toStringAsFixed(1)}% of daily',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: palette.darkRed,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  'Category: ${expense.category.label}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Date: ${DateFormat('MMMM d, yyyy h:mm a').format(expense.dateTime)}',
-                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                ),
-                if (displayNote.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Note: $displayNote',
-                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                SizedBox(
+
+                // Organized Details Card
+                Container(
                   width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: palette.darkGreen,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.cardTheme.color ?? theme.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Icon(Icons.format_list_bulleted_rounded,
+                              size: 15, color: palette.gold),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Transaction Information',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(height: 1),
+                      _buildDetailRow(
+                        theme: theme,
+                        icon: Icons.calendar_today_rounded,
+                        iconColor: palette.gold,
+                        label: 'Date',
+                        value: DateFormat('EEEE, MMM d, yyyy')
+                            .format(expense.dateTime),
+                      ),
+                      const Divider(height: 1),
+                      _buildDetailRow(
+                        theme: theme,
+                        icon: Icons.access_time_rounded,
+                        iconColor: palette.gold,
+                        label: 'Time',
+                        value: DateFormat('h:mm a').format(expense.dateTime),
+                      ),
+                      const Divider(height: 1),
+                      _buildDetailRow(
+                        theme: theme,
+                        icon: _expenseCategoryIcon(expense.category),
+                        iconColor: expense.category.color,
+                        label: 'Category',
+                        value: expense.category.label,
+                        valueColor: expense.category.color,
+                      ),
+                      if (expense.spendCategory.trim().isNotEmpty) ...<Widget>[
+                        const Divider(height: 1),
+                        _buildDetailRow(
+                          theme: theme,
+                          icon: _expenseIconForExpense(expense),
+                          iconColor: palette.darkGreen,
+                          label: 'Spend Tag',
+                          value: expense.spendCategory.trim(),
+                        ),
+                      ],
+                      if (categoryLimit > 0) ...<Widget>[
+                        const Divider(height: 1),
+                        _buildDetailRow(
+                          theme: theme,
+                          icon: Icons.pie_chart_outline_rounded,
+                          iconColor: palette.gold,
+                          label: 'Category Budget',
+                          value: formatPeso(categoryLimit),
+                        ),
+                      ],
+                      const Divider(height: 1),
+                      _buildDetailRow(
+                        theme: theme,
+                        icon: sourceIcon,
+                        iconColor: palette.darkGreen,
+                        label: 'Logged Via',
+                        value: sourceLabel,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Note / Remarks Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.cardTheme.color ?? theme.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Icon(Icons.notes_rounded,
+                              size: 15, color: palette.gold),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Remarks / Note',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        displayNote.isNotEmpty
+                            ? displayNote
+                            : 'No remarks added for this expense.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: displayNote.isEmpty
+                              ? FontStyle.italic
+                              : FontStyle.normal,
+                          color: displayNote.isNotEmpty
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Bottom Action Buttons: Edit, Delete, Done
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.gold,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          _showExpenseDialog(ref, existing: expense);
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const <Widget>[
+                            Icon(Icons.edit_rounded,
+                                size: 14, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text('Edit',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white)),
+                          ],
+                        ),
                       ),
                     ),
-                    child: const Text('Close'),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.darkRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.of(sheetContext).pop();
+                          final bool shouldDelete =
+                              await _confirmDeleteExpense(context, palette);
+                          if (!mounted || !shouldDelete) return;
+                          ref
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .deleteExpense(expense.id);
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const <Widget>[
+                            Icon(Icons.delete_outline_rounded,
+                                size: 14, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text('Delete',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.darkGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        child: const Text('Done',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDetailRow({
+    required ThemeData theme,
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 13, color: iconColor),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2509,3 +2935,23 @@ IconData _expenseCategoryIcon(BudgetCategory category) {
     BudgetCategory.miscellaneous => Icons.edit_rounded,
   };
 }
+
+String _sourceLabel(String source) {
+  return switch (source) {
+    'togetherSpend' => 'Budget Together',
+    'quick_spend' || 'spend_screen' || 'spend' => 'Quick Spend',
+    'meal' => 'Meal Plan',
+    'manual' => 'Manual Log',
+    _ => source.isEmpty ? 'Manual Log' : source,
+  };
+}
+
+IconData _sourceIcon(String source) {
+  return switch (source) {
+    'togetherSpend' => Icons.group_rounded,
+    'quick_spend' || 'spend_screen' || 'spend' => Icons.bolt_rounded,
+    'meal' => Icons.restaurant_rounded,
+    _ => Icons.edit_note_rounded,
+  };
+}
+
