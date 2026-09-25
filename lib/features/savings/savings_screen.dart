@@ -3158,12 +3158,20 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final String statusText;
     if (isZeroActivity) {
       statusText = 'No budget configured';
+    } else if (record.budget <= 0 && record.totalSpent > 0) {
+      statusText = 'Spent ${formatPeso(record.totalSpent)} • No budget configured';
     } else if (isOverspent) {
       statusText = 'Over budget by ${formatPeso(record.savings.abs())}';
     } else if (record.savings > 0) {
-      statusText = isToday
-          ? 'Saved ${formatPeso(record.savings)} for today\'s budget'
-          : 'Saved ${formatPeso(record.savings)} from daily budget';
+      if (record.totalSpent == 0) {
+        statusText = isToday
+            ? 'Full budget unspent (${formatPeso(record.budget)}) added to savings'
+            : 'Full budget unspent (${formatPeso(record.budget)}) saved';
+      } else {
+        statusText = isToday
+            ? 'Saved ${formatPeso(record.savings)} for today\'s budget'
+            : 'Saved ${formatPeso(record.savings)} from daily budget';
+      }
     } else {
       statusText = 'Spent all ${formatPeso(record.budget)} (Exact)';
     }
@@ -3487,9 +3495,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               ? 'Budget ₱0 • Spent ₱0 • ₱0 balance'
                               : (record.budget > 0
                                   ? (record.savings > 0
-                                      ? (isToday
-                                          ? 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)} added to today\'s savings'
-                                          : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)} added to savings vault')
+                                      ? (record.totalSpent == 0
+                                          ? (isToday
+                                              ? 'Full budget unspent (${formatPeso(record.budget)}) • Added to today\'s savings'
+                                              : 'Full budget unspent (${formatPeso(record.budget)}) • Saved to vault')
+                                          : (isToday
+                                              ? 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)} added to today\'s savings'
+                                              : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)} added to savings vault'))
                                       : (record.savings < 0
                                           ? 'Spent ${formatPeso(record.totalSpent)} • Over by ${formatPeso(record.savings.abs())}'
                                           : 'Spent ${formatPeso(record.totalSpent)} of ${formatPeso(record.budget)} (Exact)'))
@@ -3756,7 +3768,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       // Only use dailyLimit as the budget if the user explicitly set a BudgetEntry
       // for today. If they haven't set a budget today, treat budget as 0 so no
       // fake "pending savings" appears.
-      final double todayBudget = entry?.amount ?? 0.0;
+      final double todayBudget =
+          entry?.amount ?? (state.settings.dailyLimit ?? 0.0);
 
       final List<ExpenseEntry> todayExpenses = state.expenses
           .where((ExpenseEntry e) =>

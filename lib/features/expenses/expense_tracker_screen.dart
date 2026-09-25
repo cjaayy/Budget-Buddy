@@ -48,12 +48,9 @@ class _ExpensesTokens {
       color.withValues(alpha: alpha);
 }
 
-enum _DateFilterOption {
-  thisMonth,
-  today,
-  last7Days,
-  allTime,
-  custom,
+enum _ExpenseViewMode {
+  daily,
+  monthly,
 }
 
 class ExpenseTrackerScreen extends ConsumerStatefulWidget {
@@ -69,8 +66,9 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   final TextEditingController _searchController = TextEditingController();
   BudgetCategory? _selectedCategory;
-  _DateFilterOption _dateFilter = _DateFilterOption.thisMonth;
-  DateTimeRange? _customDateRange;
+  _ExpenseViewMode _viewMode = _ExpenseViewMode.daily;
+  DateTime? _selectedMonth;
+  DateTime? _selectedDay;
 
   @override
   void dispose() {
@@ -92,22 +90,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     return note.replaceAll('[SPEND]', '').trim();
   }
 
-  String _dateFilterLabel(_DateFilterOption option) {
-    return switch (option) {
-      _DateFilterOption.thisMonth => 'This Month',
-      _DateFilterOption.today => 'Today',
-      _DateFilterOption.last7Days => 'Last 7 Days',
-      _DateFilterOption.allTime => 'All Time',
-      _DateFilterOption.custom => _customDateRange != null
-          ? '${DateFormat('MMM d').format(_customDateRange!.start)} - ${DateFormat('MMM d').format(_customDateRange!.end)}'
-          : 'Custom Range',
-    };
-  }
-
   List<ExpenseEntry> _filterExpenses(
     List<ExpenseEntry> allExpenses,
-    DateTime currentClock,
-  ) {
+    DateTime currentClock, {
+    bool forceTodayOnly = false,
+  }) {
     final String query = _searchController.text.trim().toLowerCase();
 
     return allExpenses.where((ExpenseEntry expense) {
@@ -124,37 +111,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         return false;
       }
 
-      // Date range filter
-      final DateTime eDate = expense.dateTime;
-      final DateTime today =
-          DateTime(currentClock.year, currentClock.month, currentClock.day);
-      final DateTime eDay = DateTime(eDate.year, eDate.month, eDate.day);
-
-      switch (_dateFilter) {
-        case _DateFilterOption.today:
-          if (eDay != today) return false;
-          break;
-        case _DateFilterOption.thisMonth:
-          if (eDate.year != currentClock.year ||
-              eDate.month != currentClock.month) {
-            return false;
-          }
-          break;
-        case _DateFilterOption.last7Days:
-          final DateTime sevenDaysAgo = today.subtract(const Duration(days: 7));
-          if (eDay.isBefore(sevenDaysAgo) || eDay.isAfter(today)) return false;
-          break;
-        case _DateFilterOption.custom:
-          if (_customDateRange != null) {
-            final DateTime start = DateTime(_customDateRange!.start.year,
-                _customDateRange!.start.month, _customDateRange!.start.day);
-            final DateTime end = DateTime(_customDateRange!.end.year,
-                _customDateRange!.end.month, _customDateRange!.end.day);
-            if (eDay.isBefore(start) || eDay.isAfter(end)) return false;
-          }
-          break;
-        case _DateFilterOption.allTime:
-          break;
+      // Daily view: enforce today only
+      if (forceTodayOnly) {
+        final DateTime today =
+            DateTime(currentClock.year, currentClock.month, currentClock.day);
+        final DateTime eDay = DateTime(
+            expense.dateTime.year, expense.dateTime.month, expense.dateTime.day);
+        if (eDay != today) return false;
       }
 
       // Text query filter
@@ -177,47 +140,25 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           b.dateTime.compareTo(a.dateTime));
   }
 
-  Map<DateTime, List<ExpenseEntry>> _groupByDay(List<ExpenseEntry> list) {
-    final Map<DateTime, List<ExpenseEntry>> grouped =
-        <DateTime, List<ExpenseEntry>>{};
+  Map<DateTime, Map<DateTime, List<ExpenseEntry>>> _groupExpensesByMonthAndDay(
+    List<ExpenseEntry> list,
+  ) {
+    final Map<DateTime, Map<DateTime, List<ExpenseEntry>>> grouped =
+        <DateTime, Map<DateTime, List<ExpenseEntry>>>{};
+
     for (final ExpenseEntry item in list) {
+      final DateTime monthKey =
+          DateTime(item.dateTime.year, item.dateTime.month);
       final DateTime dayKey =
           DateTime(item.dateTime.year, item.dateTime.month, item.dateTime.day);
-      grouped.putIfAbsent(dayKey, () => <ExpenseEntry>[]).add(item);
+
+      grouped
+          .putIfAbsent(monthKey, () => <DateTime, List<ExpenseEntry>>{})
+          .putIfAbsent(dayKey, () => <ExpenseEntry>[])
+          .add(item);
     }
+
     return grouped;
-  }
-
-  Future<void> _pickCustomDateRange() async {
-    final DateTime now = DateTime.now();
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 3),
-      lastDate: DateTime(now.year + 1),
-      initialDateRange: _customDateRange ??
-          DateTimeRange(
-            start: now.subtract(const Duration(days: 30)),
-            end: now,
-          ),
-      builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: _ExpensesTokens.safeGreen,
-                  onPrimary: Colors.white,
-                ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        _customDateRange = picked;
-        _dateFilter = _DateFilterOption.custom;
-      });
-    }
   }
 
   @override
@@ -227,22 +168,85 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _ExpensesTokens tokens = _ExpensesTokens(isDark);
 
-    final List<ExpenseEntry> filteredExpenses =
-        _filterExpenses(state.expenses, currentClock);
-    final double totalFilteredAmount = filteredExpenses.fold<double>(
-        0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+    final bool isDaily = _viewMode == _ExpenseViewMode.daily;
+    final List<ExpenseEntry> displayExpenses = _filterExpenses(
+      state.expenses,
+      currentClock,
+      forceTodayOnly: isDaily,
+    );
 
-    final Map<DateTime, List<ExpenseEntry>> groupedExpenses =
-        _groupByDay(filteredExpenses);
-    final List<DateTime> sortedDays = groupedExpenses.keys.toList()
+    final Map<DateTime, Map<DateTime, List<ExpenseEntry>>> monthDayGroups =
+        _groupExpensesByMonthAndDay(displayExpenses);
+    final List<DateTime> sortedMonths = monthDayGroups.keys.toList()
       ..sort((DateTime a, DateTime b) => b.compareTo(a));
+
+    // Reconcile selection state if filtered or deleted
+    if (_selectedMonth != null && !monthDayGroups.containsKey(_selectedMonth)) {
+      _selectedMonth = null;
+      _selectedDay = null;
+    } else if (_selectedMonth != null && _selectedDay != null) {
+      final Map<DateTime, List<ExpenseEntry>>? daysMap =
+          monthDayGroups[_selectedMonth];
+      if (daysMap == null || !daysMap.containsKey(_selectedDay)) {
+        _selectedDay = null;
+      }
+    }
+
+    // Determine summary card amounts and labels based on view mode and active selection
+    final double summaryTotalAmount;
+    final int summaryCount;
+    final String summaryLabel;
+    final String summaryPillText;
+
+    if (isDaily) {
+      summaryTotalAmount = displayExpenses.fold<double>(
+          0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+      summaryCount = displayExpenses.length;
+      summaryLabel = "Today's Total Outlays";
+      summaryPillText =
+          '$summaryCount ${summaryCount == 1 ? "expense today" : "expenses today"}';
+    } else if (_selectedMonth != null && _selectedDay != null) {
+      final List<ExpenseEntry> dayItems =
+          monthDayGroups[_selectedMonth]?[_selectedDay] ?? <ExpenseEntry>[];
+      summaryTotalAmount = dayItems.fold<double>(
+          0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+      summaryCount = dayItems.length;
+      summaryLabel =
+          'Spent on ${DateFormat("MMMM d, yyyy").format(_selectedDay!)}';
+      summaryPillText =
+          '$summaryCount ${summaryCount == 1 ? "expense" : "expenses"}';
+    } else if (_selectedMonth != null) {
+      final Map<DateTime, List<ExpenseEntry>> daysMap =
+          monthDayGroups[_selectedMonth] ?? <DateTime, List<ExpenseEntry>>{};
+      summaryTotalAmount = daysMap.values.fold<double>(
+        0.0,
+        (double sum, List<ExpenseEntry> list) =>
+            sum +
+            list.fold<double>(0.0, (double s, ExpenseEntry e) => s + e.amount),
+      );
+      summaryCount = daysMap.values.fold<int>(
+        0,
+        (int count, List<ExpenseEntry> list) => count + list.length,
+      );
+      summaryLabel =
+          'Total Spent in ${DateFormat("MMMM yyyy").format(_selectedMonth!)}';
+      summaryPillText =
+          '$summaryCount ${summaryCount == 1 ? "expense" : "expenses"}';
+    } else {
+      summaryTotalAmount = displayExpenses.fold<double>(
+          0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+      summaryCount = displayExpenses.length;
+      summaryLabel = 'Monthly Log Outlays';
+      summaryPillText =
+          '$summaryCount ${summaryCount == 1 ? "expense" : "expenses"}';
+    }
 
     return Scaffold(
       backgroundColor: tokens.scaffoldBg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: <Widget>[
-            // 1. Header & Search Bar
+            // 1. Header, Segmented Toggle, Search, Filter & Summary Card
             SliverToBoxAdapter(
               child: Padding(
                 padding:
@@ -251,7 +255,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     // Back button if in together mode
-                    if (widget.isTogetherOnly && Navigator.of(context).canPop()) ...<Widget>[
+                    if (widget.isTogetherOnly &&
+                        Navigator.of(context).canPop()) ...<Widget>[
                       Align(
                         alignment: Alignment.centerLeft,
                         child: FilledButton.icon(
@@ -277,72 +282,365 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     _buildHeader(context, currentClock, tokens),
                     const SizedBox(height: 12),
 
+                    // Daily vs Monthly Segmented View Toggle
+                    _buildViewModeToggle(tokens),
+                    const SizedBox(height: 12),
+
                     // Search Input Field
                     _buildSearchBar(tokens),
                     const SizedBox(height: 12),
 
-                    // 2. Filter Section (Categories & Date Range)
-                    _buildFilterSection(tokens),
+                    // Category Filter Chips
+                    _buildCategoryFilterRow(tokens),
                     const SizedBox(height: 12),
 
-                    // 3. Filtered Total Summary Bento Card
+                    // Filtered Total Summary Bento Card
                     _buildFilteredSummaryCard(
-                      totalAmount: totalFilteredAmount,
-                      count: filteredExpenses.length,
+                      totalAmount: summaryTotalAmount,
+                      count: summaryCount,
                       tokens: tokens,
+                      customLabel: summaryLabel,
+                      customPillText: summaryPillText,
                     ),
                   ],
                 ),
               ),
             ),
 
-            // 4. Chronological Transaction History List
-            if (filteredExpenses.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildEmptyState(tokens),
+            // 2. Content Slivers based on view mode and selection
+            if (isDaily) ...<Widget>[
+              if (displayExpenses.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildEmptyDailyState(tokens),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (BuildContext context, int index) {
+                        final ExpenseEntry expense = displayExpenses[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _buildTransactionTile(
+                            context,
+                            expense: expense,
+                            tokens: tokens,
+                          ),
+                        );
+                      },
+                      childCount: displayExpenses.length,
+                    ),
+                  ),
                 ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (BuildContext context, int index) {
-                      final DateTime day = sortedDays[index];
-                      final List<ExpenseEntry> dayItems =
-                          groupedExpenses[day] ?? <ExpenseEntry>[];
-                      final double dayTotal = dayItems.fold<double>(
-                          0.0, (double sum, ExpenseEntry e) => sum + e.amount);
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          // Day Header Row
-                          _buildDayHeader(day, dayTotal, currentClock, tokens),
-                          const SizedBox(height: 8),
-
-                          // Transaction Cards for this day
-                          ...dayItems.map((ExpenseEntry expense) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _buildTransactionTile(
-                                context,
-                                expense: expense,
-                                tokens: tokens,
+            ] else if (_selectedMonth == null) ...<Widget>[
+              // Monthly View - Tier 1: Months List
+              if (sortedMonths.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildEmptyState(tokens),
+                  ),
+                )
+              else ...<Widget>[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: Row(
+                      children: <Widget>[
+                        Text(
+                          'Available Months',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Tap a month to view days',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (BuildContext context, int index) {
+                        final DateTime month = sortedMonths[index];
+                        final Map<DateTime, List<ExpenseEntry>> daysMap =
+                            monthDayGroups[month] ??
+                                <DateTime, List<ExpenseEntry>>{};
+                        return _buildMonthCard(
+                          context: context,
+                          month: month,
+                          daysMap: daysMap,
+                          tokens: tokens,
+                          onTap: () {
+                            setState(() {
+                              _selectedMonth = month;
+                              _selectedDay = null;
+                            });
+                          },
+                        );
+                      },
+                      childCount: sortedMonths.length,
+                    ),
+                  ),
+                ),
+              ],
+            ] else if (_selectedDay == null) ...<Widget>[
+              // Monthly View - Tier 2: Days in Selected Month
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    children: <Widget>[
+                      FilledButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedMonth = null;
+                            _selectedDay = null;
+                          });
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded,
+                            size: 15, color: Colors.white),
+                        label: const Text('All Months'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _ExpensesTokens.safeGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              DateFormat('MMMM yyyy').format(_selectedMonth!),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: tokens.textPrimary,
                               ),
-                            );
-                          }),
-                          const SizedBox(height: 8),
-                        ],
-                      );
-                    },
-                    childCount: sortedDays.length,
+                            ),
+                            Text(
+                              'Select a day to view spending',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                color: tokens.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              Builder(
+                builder: (BuildContext context) {
+                  final Map<DateTime, List<ExpenseEntry>> daysMap =
+                      monthDayGroups[_selectedMonth] ??
+                          <DateTime, List<ExpenseEntry>>{};
+                  final List<DateTime> sortedDays = daysMap.keys.toList()
+                    ..sort((DateTime a, DateTime b) => b.compareTo(a));
+
+                  if (sortedDays.isEmpty) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildEmptyState(tokens),
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (BuildContext context, int index) {
+                          final DateTime day = sortedDays[index];
+                          final List<ExpenseEntry> dayItems =
+                              daysMap[day] ?? <ExpenseEntry>[];
+                          return _buildDayCard(
+                            context: context,
+                            day: day,
+                            dayItems: dayItems,
+                            currentClock: currentClock,
+                            tokens: tokens,
+                            onTap: () {
+                              setState(() {
+                                _selectedDay = day;
+                              });
+                            },
+                          );
+                        },
+                        childCount: sortedDays.length,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ] else ...<Widget>[
+              // Monthly View - Tier 3: Day Spent & Transactions
+              Builder(
+                builder: (BuildContext context) {
+                  final Map<DateTime, List<ExpenseEntry>> daysMap =
+                      monthDayGroups[_selectedMonth] ??
+                          <DateTime, List<ExpenseEntry>>{};
+                  final List<DateTime> sortedDays = daysMap.keys.toList()
+                    ..sort((DateTime a, DateTime b) => b.compareTo(a));
+                  final List<ExpenseEntry> dayItems =
+                      daysMap[_selectedDay] ?? <ExpenseEntry>[];
+
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              FilledButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedDay = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.arrow_back_rounded,
+                                    size: 15, color: Colors.white),
+                                label: Text(
+                                    'Days in ${DateFormat('MMMM').format(_selectedMonth!)}'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _ExpensesTokens.safeGreen,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  visualDensity: VisualDensity.compact,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedMonth = null;
+                                    _selectedDay = null;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: _ExpensesTokens.safeGreen,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                child: const Text(
+                                  'All Months',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          // Horizontal quick day selector
+                          _buildDayChipsRow(
+                            sortedDays: sortedDays,
+                            selectedDay: _selectedDay!,
+                            currentClock: currentClock,
+                            tokens: tokens,
+                            onSelect: (DateTime d) {
+                              setState(() {
+                                _selectedDay = d;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.receipt_long_rounded,
+                                size: 16,
+                                color: _ExpensesTokens.expenseRed,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Spent on ${DateFormat('EEEE, MMMM d').format(_selectedDay!)}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: tokens.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Builder(
+                builder: (BuildContext context) {
+                  final List<ExpenseEntry> dayItems =
+                      monthDayGroups[_selectedMonth]?[_selectedDay] ??
+                          <ExpenseEntry>[];
+
+                  if (dayItems.isEmpty) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildEmptyState(tokens),
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (BuildContext context, int index) {
+                          final ExpenseEntry expense = dayItems[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildTransactionTile(
+                              context,
+                              expense: expense,
+                              tokens: tokens,
+                            ),
+                          );
+                        },
+                        childCount: dayItems.length,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       ),
@@ -397,6 +695,121 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
+  /// View Mode Toggle: Today's Expense vs Monthly Expense
+  Widget _buildViewModeToggle(_ExpensesTokens tokens) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: tokens.subCardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tokens.cardBorder, width: 1.0),
+      ),
+      child: Row(
+        children: <Widget>[
+          // 1. Today's Expense
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                if (_viewMode != _ExpenseViewMode.daily) {
+                  setState(() => _viewMode = _ExpenseViewMode.daily);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _viewMode == _ExpenseViewMode.daily
+                      ? _ExpensesTokens.safeGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.today_rounded,
+                      size: 14,
+                      color: _viewMode == _ExpenseViewMode.daily
+                          ? Colors.white
+                          : tokens.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Today's Expense",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: _viewMode == _ExpenseViewMode.daily
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: _viewMode == _ExpenseViewMode.daily
+                            ? Colors.white
+                            : tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+
+          // 2. Monthly Expense
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                setState(() {
+                  if (_viewMode == _ExpenseViewMode.monthly) {
+                    _selectedMonth = null;
+                    _selectedDay = null;
+                  } else {
+                    _viewMode = _ExpenseViewMode.monthly;
+                  }
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _viewMode == _ExpenseViewMode.monthly
+                      ? _ExpensesTokens.safeGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      size: 14,
+                      color: _viewMode == _ExpenseViewMode.monthly
+                          ? Colors.white
+                          : tokens.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Monthly Expense',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: _viewMode == _ExpenseViewMode.monthly
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: _viewMode == _ExpenseViewMode.monthly
+                            ? Colors.white
+                            : tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Search Bar with Instant Clear Button
   Widget _buildSearchBar(_ExpensesTokens tokens) {
     return Container(
@@ -418,7 +831,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           border: InputBorder.none,
-          hintText: 'Search expenses by name, category, or note...',
+          hintText: _viewMode == _ExpenseViewMode.daily
+              ? "Search today's expenses..."
+              : 'Search expenses by name, category, or note...',
           hintStyle: GoogleFonts.plusJakartaSans(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
@@ -444,95 +859,31 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
-  /// 2. Filter Section: Category Capsule Chips & Date Range Selector
-  Widget _buildFilterSection(_ExpensesTokens tokens) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        // Date Range Selector Row
-        Row(
-          children: <Widget>[
-            Text(
-              'Date Filter:',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: tokens.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Popup Menu or Date Range Trigger
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _showDateFilterSheet(tokens),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: tokens.subCardBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: tokens.cardBorder, width: 1.0),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Icon(
-                        Icons.calendar_today_rounded,
-                        size: 13,
-                        color: _ExpensesTokens.safeGreen,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _dateFilterLabel(_dateFilter),
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: tokens.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 15,
-                        color: tokens.textSecondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Horizontal Category Capsule List
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: <Widget>[
-              // 'All' Chip
-              _buildCategoryChip(
-                label: 'All',
-                isSelected: _selectedCategory == null,
-                icon: Icons.all_inclusive_rounded,
-                onTap: () => setState(() => _selectedCategory = null),
-                tokens: tokens,
-              ),
-              ...BudgetCategory.values.map((BudgetCategory category) {
-                return _buildCategoryChip(
-                  label: category.label,
-                  isSelected: _selectedCategory == category,
-                  icon: _iconForCategory(category),
-                  onTap: () => setState(() => _selectedCategory = category),
-                  tokens: tokens,
-                );
-              }),
-            ],
+  /// Category Filter Row
+  Widget _buildCategoryFilterRow(_ExpensesTokens tokens) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          // 'All' Chip
+          _buildCategoryChip(
+            label: 'All Categories',
+            isSelected: _selectedCategory == null,
+            icon: Icons.all_inclusive_rounded,
+            onTap: () => setState(() => _selectedCategory = null),
+            tokens: tokens,
           ),
-        ),
-      ],
+          ...BudgetCategory.values.map((BudgetCategory category) {
+            return _buildCategoryChip(
+              label: category.label,
+              isSelected: _selectedCategory == category,
+              icon: _iconForCategory(category),
+              onTap: () => setState(() => _selectedCategory = category),
+              tokens: tokens,
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -590,95 +941,23 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
-  /// Date Filter Selection Modal Bottom Sheet
-  void _showDateFilterSheet(_ExpensesTokens tokens) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: tokens.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: tokens.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Select Date Filter',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: tokens.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...<MapEntry<_DateFilterOption, String>>[
-                  const MapEntry(_DateFilterOption.thisMonth, 'This Month'),
-                  const MapEntry(_DateFilterOption.today, 'Today'),
-                  const MapEntry(_DateFilterOption.last7Days, 'Last 7 Days'),
-                  const MapEntry(_DateFilterOption.allTime, 'All Time'),
-                  const MapEntry(_DateFilterOption.custom, 'Custom Date Range...'),
-                ].map((entry) {
-                  final bool isSelected = _dateFilter == entry.key;
-
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      entry.value,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13.5,
-                        fontWeight:
-                            isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isSelected
-                            ? _ExpensesTokens.safeGreen
-                            : tokens.textPrimary,
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded,
-                            size: 18, color: _ExpensesTokens.safeGreen)
-                        : null,
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      if (entry.key == _DateFilterOption.custom) {
-                        _pickCustomDateRange();
-                      } else {
-                        setState(() {
-                          _dateFilter = entry.key;
-                        });
-                      }
-                    },
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// 3. Filtered Total Summary Bento Card
+  /// Summary Bento Card
   Widget _buildFilteredSummaryCard({
     required double totalAmount,
     required int count,
     required _ExpensesTokens tokens,
+    String? customLabel,
+    String? customPillText,
   }) {
+    final String label = customLabel ??
+        (_viewMode == _ExpenseViewMode.daily
+            ? "Today's Total Outlays"
+            : 'Monthly Log Outlays');
+    final String pillText = customPillText ??
+        (_viewMode == _ExpenseViewMode.daily
+            ? '$count ${count == 1 ? "expense today" : "expenses today"}'
+            : '$count ${count == 1 ? "expense" : "expenses"}');
+
     return BentoCard(
       padding: const EdgeInsets.all(16),
       borderRadius: 20,
@@ -703,7 +982,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Total Outlays (${_dateFilterLabel(_dateFilter)})',
+                  label,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -728,7 +1007,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             ),
           ),
           SoftPill(
-            text: 'Showing $count ${count == 1 ? "expense" : "expenses"}',
+            text: pillText,
             color: _ExpensesTokens.budgetGold,
             fontSize: 11,
           ),
@@ -737,43 +1016,390 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 
-  /// Day Header Row
-  Widget _buildDayHeader(
-    DateTime day,
-    double dayTotal,
-    DateTime currentClock,
-    _ExpensesTokens tokens,
-  ) {
+  /// Month Card (Tier 1: List of months)
+  Widget _buildMonthCard({
+    required BuildContext context,
+    required DateTime month,
+    required Map<DateTime, List<ExpenseEntry>> daysMap,
+    required _ExpensesTokens tokens,
+    required VoidCallback onTap,
+  }) {
+    final List<DateTime> sortedDays = daysMap.keys.toList()
+      ..sort((DateTime a, DateTime b) => b.compareTo(a));
+
+    final double monthTotal = daysMap.values.fold<double>(
+      0.0,
+      (double sum, List<ExpenseEntry> list) =>
+          sum +
+          list.fold<double>(0.0, (double s, ExpenseEntry e) => s + e.amount),
+    );
+
+    final int totalMonthItems = daysMap.values.fold<int>(
+      0,
+      (int count, List<ExpenseEntry> list) => count + list.length,
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: tokens.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tokens.cardBorder, width: 1.0),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: tokens.tint(_ExpensesTokens.budgetGold, 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.calendar_month_rounded,
+                    size: 20,
+                    color: _ExpensesTokens.budgetGold,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        DateFormat('MMMM yyyy').format(month),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${sortedDays.length} ${sortedDays.length == 1 ? "active day" : "active days"} • $totalMonthItems ${totalMonthItems == 1 ? "expense" : "expenses"}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    Text(
+                      '- ${formatPeso(monthTotal)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: _ExpensesTokens.expenseRed,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'View Days',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: _ExpensesTokens.safeGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 10,
+                          color: _ExpensesTokens.safeGreen,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Day Card (Tier 2: List of days in the selected month)
+  Widget _buildDayCard({
+    required BuildContext context,
+    required DateTime day,
+    required List<ExpenseEntry> dayItems,
+    required DateTime currentClock,
+    required _ExpensesTokens tokens,
+    required VoidCallback onTap,
+  }) {
+    final double dayTotal = dayItems.fold<double>(
+        0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+
     final DateTime today =
         DateTime(currentClock.year, currentClock.month, currentClock.day);
     final DateTime yesterday = today.subtract(const Duration(days: 1));
+    final bool isToday = DateUtils.isSameDay(day, today);
+    final bool isYesterday = DateUtils.isSameDay(day, yesterday);
 
-    final String dayLabel = DateUtils.isSameDay(day, today)
-        ? 'Today'
-        : (DateUtils.isSameDay(day, yesterday)
-            ? 'Yesterday'
-            : DateFormat('EEEE, MMM d').format(day));
+    final String dayLabel = isToday
+        ? 'Today, ${DateFormat('MMMM d').format(day)}'
+        : (isYesterday
+            ? 'Yesterday, ${DateFormat('MMMM d').format(day)}'
+            : DateFormat('EEEE, MMMM d').format(day));
 
-    return Row(
-      children: <Widget>[
-        Text(
-          dayLabel,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: tokens.textSecondary,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: tokens.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isToday
+              ? _ExpensesTokens.safeGreen.withValues(alpha: 0.40)
+              : tokens.cardBorder,
+          width: 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: tokens.tint(
+                      isToday
+                          ? _ExpensesTokens.safeGreen
+                          : _ExpensesTokens.budgetGold,
+                      0.12,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isToday ? Icons.today_rounded : Icons.event_note_rounded,
+                    size: 16,
+                    color: isToday
+                        ? _ExpensesTokens.safeGreen
+                        : _ExpensesTokens.budgetGold,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        dayLabel,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${dayItems.length} ${dayItems.length == 1 ? "expense" : "expenses"} logged',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    Text(
+                      '- ${formatPeso(dayTotal)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: _ExpensesTokens.expenseRed,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'View Spent',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: _ExpensesTokens.safeGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 9,
+                          color: _ExpensesTokens.safeGreen,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        const Spacer(),
-        Text(
-          'Total: ${formatPeso(dayTotal)}',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: tokens.textPrimary,
-          ),
+      ),
+    );
+  }
+
+  /// Horizontal Quick Day Switcher (Tier 3)
+  Widget _buildDayChipsRow({
+    required List<DateTime> sortedDays,
+    required DateTime selectedDay,
+    required DateTime currentClock,
+    required _ExpensesTokens tokens,
+    required ValueChanged<DateTime> onSelect,
+  }) {
+    if (sortedDays.length <= 1) return const SizedBox.shrink();
+
+    final DateTime today =
+        DateTime(currentClock.year, currentClock.month, currentClock.day);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: sortedDays.map((DateTime d) {
+          final bool isSelected = DateUtils.isSameDay(d, selectedDay);
+          final bool isToday = DateUtils.isSameDay(d, today);
+          final String chipLabel = isToday
+              ? 'Today (${DateFormat('d').format(d)})'
+              : DateFormat('MMM d').format(d);
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onSelect(d),
+                borderRadius: BorderRadius.circular(20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? _ExpensesTokens.safeGreen
+                        : tokens.subCardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? _ExpensesTokens.safeGreen
+                          : tokens.cardBorder,
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Text(
+                    chipLabel,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight:
+                          isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected ? Colors.white : tokens.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// Empty State for Daily View
+  Widget _buildEmptyDailyState(_ExpensesTokens tokens) {
+    return Center(
+      child: BentoCard(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        borderRadius: 20,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: tokens.tint(_ExpensesTokens.expenseRed, 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                size: 32,
+                color: _ExpensesTokens.expenseRed,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'No Expenses Today',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: tokens.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _searchController.text.isNotEmpty || _selectedCategory != null
+                  ? 'No expenses today match your search or filter.'
+                  : "You haven't spent anything today. Keep up the good savings!",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: tokens.textSecondary,
+              ),
+            ),
+            if (_searchController.text.isNotEmpty ||
+                _selectedCategory != null) ...<Widget>[
+              const SizedBox(height: 16),
+              FilledButton.tonal(
+                onPressed: () {
+                  setState(() {
+                    _searchController.clear();
+                    _selectedCategory = null;
+                  });
+                },
+                child: Text(
+                  'Reset Filters',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1556,7 +2182,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   setState(() {
                     _searchController.clear();
                     _selectedCategory = null;
-                    _dateFilter = _DateFilterOption.allTime;
                   });
                 },
                 child: Text(

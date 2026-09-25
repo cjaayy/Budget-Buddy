@@ -846,8 +846,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       if (existingIndex < 0) {
         // Missing day! Backfill record
         updatedRecords.add(newRecord);
-      } else if (_isSameDay(cursor, today)) {
-        // Update today's record with active data
+      } else {
+        // Update record with active data
         updatedRecords[existingIndex] = newRecord;
       }
 
@@ -1159,13 +1159,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         .where((BudgetEntry entry) => !_isSameDay(entry.date, targetDate))
         .toList();
 
-    // When budget is reset, also reset today's spend because there is no budget to spend
-    final List<ExpenseEntry> remainingExpenses = state.expenses
-        .where((ExpenseEntry entry) => !_isSameDay(entry.dateTime, targetDate))
-        .toList();
-
     state = state.copyWith(
-      expenses: remainingExpenses,
       budgetEntries: updatedEntries,
       dailySpent: 0,
       dailyPeriodStart: targetDate,
