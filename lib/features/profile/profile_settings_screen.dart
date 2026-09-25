@@ -505,15 +505,12 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     );
   }
 
-  // 3. Financial & Budget Defaults
+  // 3. Financial & Currency Settings
   Widget _buildFinancialDefaultsBentoCard(
     BuildContext context,
     BudgetBuddyState state,
     _SettingsPalette palette,
   ) {
-    final BudgetSettings settings = state.settings;
-    final double? dailyLimit = settings.dailyLimit;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -526,9 +523,9 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
         children: <Widget>[
           _buildSectionHeader(
             context: context,
-            title: 'Financial & Budget Defaults',
+            title: 'Financial & Regional Defaults',
             icon: Icons.account_balance_wallet_rounded,
-            accentColor: palette.gold,
+            accentColor: palette.darkGreen,
           ),
           const SizedBox(height: 8),
 
@@ -559,91 +556,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               ),
             ),
             onTap: () => _showCurrencyDialog(context, palette),
-          ),
-          Divider(height: 1, color: palette.borderColor),
-
-          // Default Daily Budget Limit
-          _buildBentoTile(
-            context: context,
-            title: 'Default Daily Budget Limit',
-            subtitle: dailyLimit != null && dailyLimit > 0
-                ? 'Standard target: ₱${dailyLimit.toStringAsFixed(0)}'
-                : 'No standard daily target configured',
-            icon: Icons.trending_up_rounded,
-            iconColor: palette.gold,
-            iconBg: palette.goldBg,
-            iconBorder: palette.goldBorder,
-            trailing: FilledButton(
-              onPressed: () =>
-                  _showEditDailyBudgetDialog(context, state, palette),
-              style: FilledButton.styleFrom(
-                backgroundColor: palette.gold,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                dailyLimit != null && dailyLimit > 0 ? 'Edit' : 'Set',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            onTap: () => _showEditDailyBudgetDialog(context, state, palette),
-          ),
-          Divider(height: 1, color: palette.borderColor),
-
-          // Budget Rollover & Lock Options
-          _buildBentoTile(
-            context: context,
-            title: 'Auto-Reset at Midnight (12:00 AM)',
-            subtitle: 'Reset active today budget & spent back to 0',
-            icon: Icons.nightlight_round,
-            iconColor: palette.darkGreen,
-            iconBg: palette.darkGreenBg,
-            iconBorder: palette.darkGreenBorder,
-            trailing: Switch(
-              value: settings.notifyOnDailyReset,
-              activeColor: palette.darkGreen,
-              onChanged: (bool value) {
-                ref
-                    .read(budgetBuddyControllerProvider.notifier)
-                    .updateProfilePreferences(
-                      notifyOnDailyReset: value,
-                    );
-              },
-            ),
-          ),
-          Divider(height: 1, color: palette.borderColor),
-
-          _buildBentoTile(
-            context: context,
-            title: 'Auto-Renew Budget Rollover',
-            subtitle: 'Retain standard daily limit upon daily rollover',
-            icon: Icons.autorenew_rounded,
-            iconColor: palette.darkGreen,
-            iconBg: palette.darkGreenBg,
-            iconBorder: palette.darkGreenBorder,
-            trailing: Switch(
-              value: settings.autoRenewBudget,
-              activeColor: palette.darkGreen,
-              onChanged: (bool value) {
-                ref
-                    .read(budgetBuddyControllerProvider.notifier)
-                    .updateBudget(
-                      settings.copyWith(autoRenewBudget: value),
-                    );
-              },
-            ),
           ),
         ],
       ),
@@ -1507,142 +1419,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     );
   }
 
-  void _showEditDailyBudgetDialog(
-    BuildContext context,
-    BudgetBuddyState state,
-    _SettingsPalette palette,
-  ) {
-    final TextEditingController controller = TextEditingController(
-      text: state.settings.dailyLimit != null && state.settings.dailyLimit! > 0
-          ? state.settings.dailyLimit!.toStringAsFixed(0)
-          : '',
-    );
 
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: palette.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: palette.goldBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: palette.goldBorder),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: palette.gold,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Daily Budget Limit',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                'Set your standard target budget for each day. Transactions will count against this baseline limit.',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: <TextInputFormatter>[
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                ],
-                decoration: InputDecoration(
-                  prefixText: '₱ ',
-                  prefixStyle: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: palette.gold,
-                  ),
-                  labelText: 'Daily Target (₱)',
-                  hintText: 'e.g. 500',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: palette.darkGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-              ),
-              onPressed: () {
-                final String text = controller.text.trim();
-                final double? newLimit =
-                    text.isEmpty ? null : double.tryParse(text);
-                ref.read(budgetBuddyControllerProvider.notifier).updateBudget(
-                      state.settings.copyWith(
-                        dailyLimit: newLimit,
-                      ),
-                    );
-                Navigator.of(dialogContext).pop();
-                showAppAlert(
-                  context,
-                  message: newLimit != null
-                      ? 'Default daily budget set to ₱${newLimit.toStringAsFixed(0)}.'
-                      : 'Daily budget limit cleared.',
-                  title: 'Budget Updated',
-                  icon: Icons.check_circle_outline_rounded,
-                  accentColor: palette.darkGreen,
-                );
-              },
-              child: Text(
-                'Save',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   Future<void> _backupSnapshot(
       BuildContext context, BudgetBuddyState state) async {
