@@ -1095,13 +1095,17 @@ class VaultLogEntry {
     required this.amount,
     required this.description,
     required this.dateTime,
-  });
+    bool? isTogether = false,
+  }) : _isTogether = isTogether ?? false;
 
   final String id;
   final VaultLogType type;
   final double amount;
   final String description;
   final DateTime dateTime;
+  final bool? _isTogether;
+
+  bool get isTogether => _isTogether ?? false;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -1109,6 +1113,7 @@ class VaultLogEntry {
         'amount': amount,
         'description': description,
         'dateTime': dateTime.toIso8601String(),
+        'isTogether': isTogether,
       };
 
   factory VaultLogEntry.fromJson(Map<String, dynamic> json) => VaultLogEntry(
@@ -1121,6 +1126,7 @@ class VaultLogEntry {
         description: json['description'] as String? ?? '',
         dateTime: DateTime.tryParse(json['dateTime'] as String? ?? '') ??
             DateTime.now(),
+        isTogether: json['isTogether'] as bool? ?? false,
       );
 }
 

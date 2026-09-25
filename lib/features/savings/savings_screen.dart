@@ -73,6 +73,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _SavingsTokens tokens = _SavingsTokens(isDark);
 
+    final List<VaultLogEntry> filteredVaultLogs = state.vaultLog.where((VaultLogEntry log) {
+      final bool isTogetherLog = (log.isTogether == true) ||
+          log.description.toLowerCase().contains('together');
+      return widget.isTogetherOnly ? isTogetherLog : !isTogetherLog;
+    }).toList();
+
     final List<DailyRecord> records = _getRecords(state, currentClock);
     final List<DateTime> availableMonths = _availableMonths(records);
 
@@ -229,7 +235,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             const SizedBox(width: 8),
                             Text(
                               _activeSection == SavingsSection.logs
-                                  ? 'Vault Activity & Logs'
+                                  ? (widget.isTogetherOnly
+                                      ? 'Together Vault Activity & Logs'
+                                      : 'Vault Activity & Logs')
                                   : 'Historical Balance Logs',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16,
@@ -248,11 +256,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     _buildSectionToggle(
                       context,
                       tokens,
-                      logCount: state.vaultLog.length,
+                      logCount: filteredVaultLogs.length,
                     ),
                     const SizedBox(height: 12),
 
-                    // History Bento Card with Records & Vault Logs
                     // History Bento Card with Records & Vault Logs
                     Builder(
                       builder: (BuildContext _) {
@@ -268,7 +275,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           availableMonths: pastMonths,
                           currentClock: currentClock,
                           tokens: tokens,
-                          vaultLogs: state.vaultLog,
+                          vaultLogs: filteredVaultLogs,
                         );
                       },
                     ),
@@ -1085,7 +1092,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         .read(budgetBuddyControllerProvider.notifier)
                         .setTotalSavings(
                           currentVault + amount,
-                          logDescription: 'Manual deposit to vault',
+                          logDescription: widget.isTogetherOnly
+                              ? 'Manual deposit to together vault'
+                              : 'Manual deposit to vault',
+                          isTogether: widget.isTogetherOnly,
                         );
 
                     if (dialogContext.mounted) {
@@ -2474,8 +2484,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                   .paySavingsDebt(
                                     amount: currentPayDebtAmount,
                                     deductFromBudget: true,
-                                    description:
-                                        'Deficit paid using today\'s budget allowance',
+                                    description: widget.isTogetherOnly
+                                        ? 'Deficit paid using today\'s together budget allowance'
+                                        : 'Deficit paid using today\'s budget allowance',
+                                    isTogether: widget.isTogetherOnly,
                                   );
                               if (widget.isTogetherOnly) {
                                 final double newTogether = (currentTodayBudget -
@@ -2514,8 +2526,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     .paySavingsDebt(
                                       amount: debtCover,
                                       deductFromBudget: false,
-                                      description:
-                                          'Deficit paid using settled savings vault',
+                                      description: widget.isTogetherOnly
+                                          ? 'Together deficit paid using settled savings vault'
+                                          : 'Deficit paid using settled savings vault',
+                                      isTogether: widget.isTogetherOnly,
                                     );
                               }
                               if (remainingPayment > 0) {
@@ -2539,8 +2553,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     .addVaultLog(
                                       type: VaultLogType.payDebt,
                                       amount: remainingPayment,
-                                      description:
-                                          'Today\'s deficit paid using settled savings vault',
+                                      description: widget.isTogetherOnly
+                                          ? 'Today\'s together deficit paid using settled savings vault'
+                                          : 'Today\'s deficit paid using settled savings vault',
+                                      isTogether: widget.isTogetherOnly,
                                     );
                               }
                               ref
@@ -2565,8 +2581,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     .paySavingsDebt(
                                       amount: debtCover,
                                       deductFromBudget: false,
-                                      description:
-                                          'Direct deficit payment (cash / external)',
+                                      description: widget.isTogetherOnly
+                                          ? 'Direct together deficit payment (cash / external)'
+                                          : 'Direct deficit payment (cash / external)',
+                                      isTogether: widget.isTogetherOnly,
                                     );
                               }
                               if (remainingPayment > 0) {
@@ -2590,8 +2608,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     .addVaultLog(
                                       type: VaultLogType.payDebt,
                                       amount: remainingPayment,
-                                      description:
-                                          'Today\'s deficit paid via direct payment (cash / external)',
+                                      description: widget.isTogetherOnly
+                                          ? 'Today\'s together deficit paid via direct payment (cash / external)'
+                                          : 'Today\'s deficit paid via direct payment (cash / external)',
+                                      isTogether: widget.isTogetherOnly,
                                     );
                               }
                             }
@@ -2951,7 +2971,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'No Vault Activity Yet',
+                widget.isTogetherOnly
+                    ? 'No Together Vault Activity Yet'
+                    : 'No Vault Activity Yet',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -2960,7 +2982,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Transactions such as vault deposits, withdrawals, auto-saved budget surplus, and deficit payments will appear here.',
+                widget.isTogetherOnly
+                    ? 'Shared transactions such as together vault deposits, withdrawals, and deficit payments will appear here.'
+                    : 'Transactions such as vault deposits, withdrawals, auto-saved budget surplus, and deficit payments will appear here.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 11.5,

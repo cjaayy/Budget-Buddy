@@ -258,6 +258,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     required VaultLogType type,
     required double amount,
     required String description,
+    bool isTogether = false,
   }) {
     if (amount <= 0) return;
     final VaultLogEntry entry = VaultLogEntry(
@@ -266,6 +267,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       amount: amount,
       description: description,
       dateTime: now,
+      isTogether: isTogether,
     );
     final List<VaultLogEntry> updated =
         <VaultLogEntry>[entry, ...state.vaultLog];
@@ -284,7 +286,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   /// Sets total savings directly (manual deposit — logs as deposit).
-  void setTotalSavings(double savings, {String? logDescription}) {
+  void setTotalSavings(double savings, {String? logDescription, bool isTogether = false}) {
     final double prev = state.totalSavings;
     final double newVal = savings < 0 ? 0.0 : savings;
     state = state.copyWith(totalSavings: newVal);
@@ -294,6 +296,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         type: VaultLogType.deposit,
         amount: newVal - prev,
         description: logDescription,
+        isTogether: isTogether,
       );
     }
   }
@@ -303,16 +306,24 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     required double amount,
     bool deductFromBudget = false,
     String? description,
+    bool isTogether = false,
   }) {
     if (amount <= 0) return;
     final double currentDebt = state.savingsDebt;
     final double newDebt = (currentDebt - amount).clamp(0.0, double.infinity);
 
     if (deductFromBudget) {
-      final double currentBudget = state.settings.dailyLimit ?? 0.0;
-      final double newBudget =
-          (currentBudget - amount).clamp(0.0, double.infinity);
-      recordDailyBudget(amount: newBudget);
+      if (isTogether) {
+        final double currentTogether = state.togetherBudget;
+        final double newTogether =
+            (currentTogether - amount).clamp(0.0, double.infinity);
+        setTogetherBudget(newTogether);
+      } else {
+        final double currentBudget = state.settings.dailyLimit ?? 0.0;
+        final double newBudget =
+            (currentBudget - amount).clamp(0.0, double.infinity);
+        recordDailyBudget(amount: newBudget);
+      }
     }
 
     setSavingsDebt(newDebt);
@@ -321,8 +332,13 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       amount: amount,
       description: description ??
           (deductFromBudget
-              ? 'Debt payment from today\'s budget allowance'
-              : 'Debt payment from savings vault / direct'),
+              ? (isTogether
+                  ? 'Together debt payment from today\'s budget allowance'
+                  : 'Debt payment from today\'s budget allowance')
+              : (isTogether
+                  ? 'Together debt payment from savings vault / direct'
+                  : 'Debt payment from savings vault / direct')),
+      isTogether: isTogether,
     );
   }
 
@@ -349,13 +365,19 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       addVaultLog(
         type: VaultLogType.withdraw,
         amount: amount,
-        description: 'Withdrawn from vault → added to today\'s budget',
+        description: isTogether
+            ? 'Withdrawn from vault → added to today\'s together budget'
+            : 'Withdrawn from vault → added to today\'s budget',
+        isTogether: isTogether,
       );
     } else {
       addVaultLog(
         type: VaultLogType.withdraw,
         amount: amount,
-        description: 'Cash out from vault (external)',
+        description: isTogether
+            ? 'Cash out from together vault (external)'
+            : 'Cash out from vault (external)',
+        isTogether: isTogether,
       );
     }
     _persist();
