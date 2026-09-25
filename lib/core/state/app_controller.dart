@@ -74,6 +74,24 @@ final budgetTogetherSummaryProvider =
         .fold(0, (double sum, ExpenseEntry expense) => sum + expense.amount);
   }
 
+  final double grossDailyTogetherSpent = sumSince(dailyStart);
+  final double togetherOverspent = togetherBudget > 0
+      ? (grossDailyTogetherSpent - togetherBudget).clamp(0.0, double.infinity)
+      : grossDailyTogetherSpent;
+  final double togetherPaidDebt = state.vaultLog
+      .where((VaultLogEntry log) =>
+          log.type == VaultLogType.payDebt &&
+          (log.isTogether == true ||
+              log.description.toLowerCase().contains('together')) &&
+          log.description.toLowerCase().contains('deficit payment') &&
+          DateUtils.isSameDay(log.dateTime, now))
+      .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+  final double togetherDebtRelief =
+      togetherPaidDebt.clamp(0.0, togetherOverspent);
+  final double netDailyTogetherSpent =
+      (grossDailyTogetherSpent - togetherDebtRelief)
+          .clamp(0.0, double.infinity);
+
   final BudgetBuddyState togetherState = state.copyWith(
     settings: state.settings.copyWith(
       dailyLimit: togetherBudget,
@@ -82,9 +100,11 @@ final budgetTogetherSummaryProvider =
       hasConfiguredBudget: togetherBudget > 0,
     ),
     expenses: spendExpenses,
-    dailySpent: sumSince(dailyStart),
-    weeklySpent: sumSince(weeklyStart),
-    monthlySpent: sumSince(monthlyStart),
+    dailySpent: netDailyTogetherSpent,
+    weeklySpent: (sumSince(weeklyStart) - togetherDebtRelief)
+        .clamp(0.0, double.infinity),
+    monthlySpent: (sumSince(monthlyStart) - togetherDebtRelief)
+        .clamp(0.0, double.infinity),
     budgetEntries: <BudgetEntry>[],
   );
 
@@ -584,10 +604,36 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final DateTime monthlyStart =
         state.monthlyPeriodStart ?? _periodStart(BudgetPeriod.monthly, now);
 
+    final double grossDailySpent = _sumExpensesSince(dailyStart, now);
+    final double grossWeeklySpent = _sumExpensesSince(weeklyStart, now);
+    final double grossMonthlySpent = _sumExpensesSince(monthlyStart, now);
+
+    final double todayBudget = state.settings.dailyLimit ?? 0.0;
+    final double todayPaidDebt = state.vaultLog
+        .where((VaultLogEntry log) =>
+            log.type == VaultLogType.payDebt &&
+            log.isTogether != true &&
+            !log.description.toLowerCase().contains('together') &&
+            log.description.toLowerCase().contains('deficit payment') &&
+            DateUtils.isSameDay(log.dateTime, now))
+        .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+    final double dailyOverspent = todayBudget > 0
+        ? (grossDailySpent - todayBudget).clamp(0.0, double.infinity)
+        : grossDailySpent;
+    final double dailyDebtRelief = todayPaidDebt.clamp(0.0, dailyOverspent);
+
+    final double netDailySpent =
+        (grossDailySpent - dailyDebtRelief).clamp(0.0, double.infinity);
+    final double netWeeklySpent =
+        (grossWeeklySpent - dailyDebtRelief).clamp(0.0, double.infinity);
+    final double netMonthlySpent =
+        (grossMonthlySpent - dailyDebtRelief).clamp(0.0, double.infinity);
+
     state = state.copyWith(
-      dailySpent: _sumExpensesSince(dailyStart, now),
-      weeklySpent: _sumExpensesSince(weeklyStart, now),
-      monthlySpent: _sumExpensesSince(monthlyStart, now),
+      dailySpent: netDailySpent,
+      weeklySpent: netWeeklySpent,
+      monthlySpent: netMonthlySpent,
       dailyPeriodStart: dailyStart,
       weeklyPeriodStart: weeklyStart,
       monthlyPeriodStart: monthlyStart,
@@ -742,10 +788,26 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
             .fold(0.0,
                 (double sum, ExpenseEntry expense) => sum + expense.amount);
 
-        if (dayBudget > 0 || dayExpenses > 0) {
+        final double dayPaidDebt = state.vaultLog
+            .where((VaultLogEntry log) =>
+                log.type == VaultLogType.payDebt &&
+                log.isTogether != true &&
+                !log.description.toLowerCase().contains('together') &&
+                log.description.toLowerCase().contains('deficit payment') &&
+                _isSameDay(log.dateTime, day))
+            .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+        final double dayOverspent = dayBudget > 0
+            ? (dayExpenses - dayBudget).clamp(0.0, double.infinity)
+            : dayExpenses;
+        final double dayDebtRelief = dayPaidDebt.clamp(0.0, dayOverspent);
+        final double effectiveDayExpenses =
+            (dayExpenses - dayDebtRelief).clamp(0.0, double.infinity);
+
+        if (dayBudget > 0 || effectiveDayExpenses > 0) {
           applyDailyBudgetSurplusAndDebt(
             budget: dayBudget,
-            expenses: dayExpenses,
+            expenses: effectiveDayExpenses,
           );
         }
 
@@ -920,6 +982,22 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       (double sum, ExpenseEntry expense) => sum + expense.amount,
     );
 
+    final double dayPaidDebt = state.vaultLog
+        .where((VaultLogEntry log) =>
+            log.type == VaultLogType.payDebt &&
+            log.isTogether != true &&
+            !log.description.toLowerCase().contains('together') &&
+            log.description.toLowerCase().contains('deficit payment') &&
+            _isSameDay(log.dateTime, dayStart))
+        .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+    final double dayOverspent = dayBudget > 0
+        ? (totalSpent - dayBudget).clamp(0.0, double.infinity)
+        : totalSpent;
+    final double dayDebtRelief = dayPaidDebt.clamp(0.0, dayOverspent);
+    final double effectiveSpent =
+        (totalSpent - dayDebtRelief).clamp(0.0, double.infinity);
+
     final Map<String, double> categoryTotals = <String, double>{
       for (final BudgetCategory category in BudgetCategory.values)
         category.label: 0.0,
@@ -938,16 +1016,16 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
             .label;
 
     final double remainingBalance = dayBudget > 0
-        ? (dayBudget - totalSpent)
-        : (totalSpent > 0 ? -totalSpent : 0.0);
+        ? (dayBudget - effectiveSpent)
+        : (effectiveSpent > 0 ? -effectiveSpent : 0.0);
     final double savings = dayBudget > 0
-        ? (dayBudget - totalSpent)
-        : (totalSpent > 0 ? -totalSpent : 0.0);
+        ? (dayBudget - effectiveSpent)
+        : (effectiveSpent > 0 ? -effectiveSpent : 0.0);
 
     return DailyRecord(
       date: dayStart,
       budget: dayBudget,
-      totalSpent: totalSpent,
+      totalSpent: effectiveSpent,
       remainingBalance: remainingBalance,
       savings: savings,
       biggestExpenseCategory: biggestExpenseCategory,

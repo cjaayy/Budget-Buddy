@@ -127,11 +127,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             : todayRecord.totalSpent)
         : 0.0;
 
+    final double effectiveTodayDeficit = todayDeficit;
+
+    final double effectiveTogetherDebt = dailyDeficits;
+
     final double effectiveBaseDebt = state.savingsDebt;
 
     final double debtAmount = widget.isTogetherOnly
-        ? dailyDeficits
-        : (effectiveBaseDebt + todayDeficit);
+        ? effectiveTogetherDebt
+        : (effectiveBaseDebt + effectiveTodayDeficit);
 
     final double togetherSpent = widget.isTogetherOnly
         ? state.expenses
@@ -385,6 +389,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         ? dailyRemainingSavings
         : (effectiveBaseSavings + todaySaved);
 
+    final List<VaultLogEntry> filteredVaultLogs = state.vaultLog.where((VaultLogEntry log) {
+      final bool isTogetherLog = (log.isTogether == true) ||
+          log.description.toLowerCase().contains('together');
+      return widget.isTogetherOnly ? isTogetherLog : !isTogetherLog;
+    }).toList();
+
     final double todayDeficit = (todayRecord != null &&
             ((todayRecord.budget > 0 && todayRecord.remainingBalance < 0) ||
                 (todayRecord.budget <= 0 && todayRecord.totalSpent > 0)))
@@ -393,11 +403,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             : todayRecord.totalSpent)
         : 0.0;
 
+    final double effectiveTodayDeficit = todayDeficit;
+
+    final double effectiveTogetherDebt = dailyDeficits;
+
     final double effectiveBaseDebt = state.savingsDebt;
 
     final double debtAmount = widget.isTogetherOnly
-        ? dailyDeficits
-        : (effectiveBaseDebt + todayDeficit);
+        ? effectiveTogetherDebt
+        : (effectiveBaseDebt + effectiveTodayDeficit);
 
     final bool hasDebt = debtAmount > 0;
 
@@ -1335,6 +1349,224 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     return result ?? false;
   }
 
+  /// Confirmation dialog before paying debt
+  Future<bool> _showPayDebtConfirmationDialog({
+    required BuildContext context,
+    required _SavingsTokens tokens,
+    required double amount,
+    required bool useSavings,
+    required double effectiveSavings,
+    required double effectiveDebt,
+  }) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final Color accentColor = _SavingsTokens.deficitRed;
+        final double remainingDebt =
+            (effectiveDebt - amount).clamp(0.0, double.infinity);
+
+        return AlertDialog(
+          backgroundColor: tokens.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: tokens.cardBorder, width: 1.0),
+          ),
+          title: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: tokens.tint(accentColor, 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.receipt_long_rounded,
+                  color: accentColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Confirm Debt Payment',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                useSavings
+                    ? 'Are you sure you want to pay this debt from your savings vault? This will deduct ${formatPeso(amount)} from your vault savings without touching today\'s budget plan.'
+                    : 'Are you sure you want to pay this debt using cash / external funds? This will not affect your savings or today\'s budget plan.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: tokens.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.subCardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Payment Amount',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          formatPeso(amount),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(color: tokens.cardBorder, height: 1),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Payment Method',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            useSavings ? 'Savings Vault' : 'Cash / External',
+                            textAlign: TextAlign.end,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: useSavings
+                                  ? _SavingsTokens.savingsGreen
+                                  : tokens.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(color: tokens.cardBorder, height: 1),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Remaining Debt',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          formatPeso(remainingDebt),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: remainingDebt <= 0
+                                ? _SavingsTokens.savingsGreen
+                                : _SavingsTokens.deficitRed,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (useSavings) ...<Widget>[
+                      const SizedBox(height: 8),
+                      Divider(color: tokens.cardBorder, height: 1),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Text(
+                            'Remaining Savings',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            formatPeso(
+                                (effectiveSavings - amount).clamp(0.0, double.infinity)),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: _SavingsTokens.savingsGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.check_rounded, size: 15, color: Colors.white),
+              label: Text(
+                'Confirm Payment',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
+
   /// Withdraw / Cover Deficit & Pay Debt Modal Bottom Sheet
   void _showWithdrawOrCoverDeficitSheet(
     BuildContext context, {
@@ -1357,11 +1589,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         : state.dailySpent;
     final double todayAvailableBudget =
         (currentTodayBudget - todaySpent).clamp(0.0, double.infinity);
-    final bool isOverBudgetToday = currentTodayBudget <= 0 ||
-        todaySpent >= currentTodayBudget ||
-        (currentTodayBudget - todaySpent) <= 0;
-    final bool canPayFromTodayBudget =
-        !isOverBudgetToday && todayAvailableBudget > 0;
     final bool hasDeficit = effectiveDebt > 0;
 
     int activeTab = (hasDeficit && initialTab == 1) ? 1 : initialTab;
@@ -1370,9 +1597,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         text: effectiveDebt > 0 ? effectiveDebt.toStringAsFixed(0) : '');
     bool addToTodayBudget = false;
     int withdrawSource = 0; // 0: Add to Today's Budget, 1: Cash Out / External
-    int debtPaymentSource = canPayFromTodayBudget
-        ? 0
-        : (effectiveSavings > 0 ? 1 : 2); // 0: From Today's Budget, 1: From Savings Vault, 2: Direct Payment
+    int debtPaymentMethod = effectiveSavings > 0 ? 0 : 1; // 0: Savings Vault, 1: Cash / External
 
     showModalBottomSheet<void>(
       context: context,
@@ -2000,7 +2225,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: canPayFromTodayBudget
+                                    color: todayAvailableBudget > 0
                                         ? _SavingsTokens.targetGold
                                         : _SavingsTokens.deficitRed,
                                   ),
@@ -2097,7 +2322,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ),
                       ] else ...<Widget>[
                         Text(
-                          'Choose Payment Source for Debt',
+                          'Payment Method',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -2106,229 +2331,158 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ),
                         const SizedBox(height: 8),
 
-                        // Option 0: Pay from Today's Budget
-                        InkWell(
-                          onTap: canPayFromTodayBudget
-                              ? () => setModalState(() => debtPaymentSource = 0)
-                              : () {
-                                  showAppAlert(
-                                    sheetContext,
-                                    message:
-                                        'You are overbudget today! Cannot pay deficit from today\'s budget allowance.',
-                                    title: 'Overbudget',
-                                    icon: Icons.warning_amber_rounded,
-                                    accentColor: _SavingsTokens.deficitRed,
-                                  );
-                                },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Opacity(
-                            opacity: canPayFromTodayBudget ? 1.0 : 0.45,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: debtPaymentSource == 0 && canPayFromTodayBudget
-                                    ? tokens.tint(_SavingsTokens.targetGold, 0.1)
-                                    : tokens.subCardBg,
+                        Row(
+                          children: <Widget>[
+                            // Option 0: Savings Vault
+                            Expanded(
+                              child: InkWell(
+                                onTap: effectiveSavings > 0
+                                    ? () => setModalState(
+                                        () => debtPaymentMethod = 0)
+                                    : () {
+                                        showAppAlert(
+                                          sheetContext,
+                                          message:
+                                              'You have no settled vault savings to pay from!',
+                                          title: 'No Savings',
+                                          icon: Icons.warning_amber_rounded,
+                                          accentColor: _SavingsTokens.deficitRed,
+                                        );
+                                      },
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: debtPaymentSource == 0 && canPayFromTodayBudget
-                                      ? _SavingsTokens.targetGold
-                                      : tokens.cardBorder,
-                                  width: debtPaymentSource == 0 && canPayFromTodayBudget
-                                      ? 1.5
-                                      : 1.0,
-                                ),
-                              ),
-                              child: Row(
-                                children: <Widget>[
-                                  Icon(
-                                    debtPaymentSource == 0 && canPayFromTodayBudget
-                                        ? Icons.radio_button_checked_rounded
-                                        : Icons.radio_button_off_rounded,
-                                    size: 16,
-                                    color: debtPaymentSource == 0 && canPayFromTodayBudget
-                                        ? _SavingsTokens.targetGold
-                                        : tokens.textMuted,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Opacity(
+                                  opacity: effectiveSavings > 0 ? 1.0 : 0.5,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: debtPaymentMethod == 0
+                                          ? tokens.tint(
+                                              _SavingsTokens.savingsGreen, 0.12)
+                                          : tokens.subCardBg,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: debtPaymentMethod == 0
+                                            ? _SavingsTokens.savingsGreen
+                                            : tokens.cardBorder,
+                                        width:
+                                            debtPaymentMethod == 0 ? 1.5 : 1.0,
+                                      ),
+                                    ),
+                                    child: Row(
                                       children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                            Text(
-                                              'Pay from Today\'s Budget Allowance',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 12.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: canPayFromTodayBudget
-                                                    ? tokens.textPrimary
-                                                    : tokens.textMuted,
-                                              ),
-                                            ),
-                                            if (!canPayFromTodayBudget) ...<Widget>[
-                                              const SizedBox(width: 6),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: _SavingsTokens.deficitRed
-                                                      .withValues(alpha: 0.15),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
+                                        Icon(
+                                          debtPaymentMethod == 0
+                                              ? Icons.radio_button_checked_rounded
+                                              : Icons.radio_button_off_rounded,
+                                          size: 15,
+                                          color: debtPaymentMethod == 0
+                                              ? _SavingsTokens.savingsGreen
+                                              : tokens.textMuted,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              Text(
+                                                'Savings Vault',
+                                                style:
+                                                    GoogleFonts.plusJakartaSans(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: tokens.textPrimary,
                                                 ),
-                                                child: Text(
-                                                  'Overbudget',
-                                                  style: GoogleFonts.plusJakartaSans(
-                                                    fontSize: 9.5,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: _SavingsTokens.deficitRed,
-                                                  ),
+                                              ),
+                                              Text(
+                                                formatPeso(effectiveSavings),
+                                                style:
+                                                    GoogleFonts.plusJakartaSans(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _SavingsTokens
+                                                      .savingsGreen,
                                                 ),
                                               ),
                                             ],
-                                          ],
-                                        ),
-                                        Text(
-                                          canPayFromTodayBudget
-                                              ? 'Deducts from today\'s remaining allowance (${formatPeso(todayAvailableBudget)} available)'
-                                              : 'Unavailable — You have no budget left today (Overbudget)',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 11,
-                                            color: canPayFromTodayBudget
-                                                ? tokens.textSecondary
-                                                : _SavingsTokens.deficitRed,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 6),
-
-                      // Option 1: Pay from Savings Vault
-                      InkWell(
-                        onTap: () => setModalState(() => debtPaymentSource = 1),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: debtPaymentSource == 1
-                                ? tokens.tint(_SavingsTokens.savingsGreen, 0.1)
-                                : tokens.subCardBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: debtPaymentSource == 1
-                                  ? _SavingsTokens.savingsGreen
-                                  : tokens.cardBorder,
-                              width: debtPaymentSource == 1 ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                debtPaymentSource == 1
-                                    ? Icons.radio_button_checked_rounded
-                                    : Icons.radio_button_off_rounded,
-                                size: 16,
-                                color: debtPaymentSource == 1
-                                    ? _SavingsTokens.savingsGreen
-                                    : tokens.textMuted,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      'Pay from Savings Vault',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: tokens.textPrimary,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Deducts from accumulated savings (${formatPeso(effectiveSavings)} available)',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        color: tokens.textSecondary,
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Option 2: Direct / External Payment
-                      InkWell(
-                        onTap: () => setModalState(() => debtPaymentSource = 2),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: debtPaymentSource == 2
-                                ? tokens.tint(_SavingsTokens.deficitRed, 0.1)
-                                : tokens.subCardBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: debtPaymentSource == 2
-                                  ? _SavingsTokens.deficitRed
-                                  : tokens.cardBorder,
-                              width: debtPaymentSource == 2 ? 1.5 : 1.0,
                             ),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                debtPaymentSource == 2
-                                    ? Icons.radio_button_checked_rounded
-                                    : Icons.radio_button_off_rounded,
-                                size: 16,
-                                color: debtPaymentSource == 2
-                                    ? _SavingsTokens.deficitRed
-                                    : tokens.textMuted,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      'Direct / External Payment',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: tokens.textPrimary,
-                                      ),
+                            const SizedBox(width: 8),
+
+                            // Option 1: Cash / External
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => setModalState(
+                                    () => debtPaymentMethod = 1),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: debtPaymentMethod == 1
+                                        ? tokens.tint(
+                                            _SavingsTokens.deficitRed, 0.12)
+                                        : tokens.subCardBg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: debtPaymentMethod == 1
+                                          ? _SavingsTokens.deficitRed
+                                          : tokens.cardBorder,
+                                      width: debtPaymentMethod == 1 ? 1.5 : 1.0,
                                     ),
-                                    Text(
-                                      'Pay down debt without touching today\'s budget or savings vault',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        color: tokens.textSecondary,
+                                  ),
+                                  child: Row(
+                                    children: <Widget>[
+                                      Icon(
+                                        debtPaymentMethod == 1
+                                            ? Icons.radio_button_checked_rounded
+                                            : Icons.radio_button_off_rounded,
+                                        size: 15,
+                                        color: debtPaymentMethod == 1
+                                            ? _SavingsTokens.deficitRed
+                                            : tokens.textMuted,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Text(
+                                              'Cash / External',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: tokens.textPrimary,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Direct payment',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontSize: 10.5,
+                                                color: tokens.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
                       Text(
                         'Payment Amount to Debt',
@@ -2411,7 +2565,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                       color: _SavingsTokens.deficitRed),
                                 ),
                                 child: Text(
-                                  'Full Deficit (${formatPeso(effectiveDebt)})',
+                                  'Pay in Full (${formatPeso(effectiveDebt)})',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -2430,18 +2584,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
                             if (effectiveDebt <= 0) {
                               showAppAlert(sheetContext, message: 'You have no running deficit to pay!', title: 'Alert', icon: Icons.warning_amber_rounded,
-
                                 accentColor: _SavingsTokens.deficitRed,
-
                               );
                               return;
                             }
                             if (currentPayDebtAmount <= 0) {
                               showAppAlert(sheetContext, message: 'Please enter an amount to pay towards debt.', title: 'Notice', icon: Icons.info_outline_rounded,
-
                               );
                               return;
                             }
@@ -2454,166 +2605,78 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               );
                               return;
                             }
+                            if (debtPaymentMethod == 0 &&
+                                effectiveSavings < currentPayDebtAmount) {
+                              showAppAlert(
+                                sheetContext,
+                                message:
+                                    'Payment (${formatPeso(currentPayDebtAmount)}) exceeds your vault savings (${formatPeso(effectiveSavings)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _SavingsTokens.deficitRed,
+                              );
+                              return;
+                            }
 
-                            if (debtPaymentSource == 0) {
-                              // From Today's Budget
-                              if (!canPayFromTodayBudget || todayAvailableBudget <= 0) {
-                                showAppAlert(
-                                  sheetContext,
-                                  message:
-                                      'You are overbudget today! Cannot pay deficit from today\'s budget allowance.',
-                                  title: 'Overbudget',
-                                  icon: Icons.warning_amber_rounded,
-                                  accentColor: _SavingsTokens.deficitRed,
-                                );
-                                return;
-                              }
-                              if (todayAvailableBudget < currentPayDebtAmount) {
-                                showAppAlert(
-                                  sheetContext,
-                                  message:
-                                      'Payment exceeds today\'s available budget allowance (${formatPeso(todayAvailableBudget)})!',
-                                  title: 'Alert',
-                                  icon: Icons.warning_amber_rounded,
-                                  accentColor: _SavingsTokens.deficitRed,
-                                );
-                                return;
-                              }
-                              ref
-                                  .read(budgetBuddyControllerProvider.notifier)
-                                  .paySavingsDebt(
-                                    amount: currentPayDebtAmount,
-                                    deductFromBudget: true,
-                                    description: widget.isTogetherOnly
-                                        ? 'Deficit paid using today\'s together budget allowance'
-                                        : 'Deficit paid using today\'s budget allowance',
-                                    isTogether: widget.isTogetherOnly,
-                                  );
-                              if (widget.isTogetherOnly) {
-                                final double newTogether = (currentTodayBudget -
-                                        currentPayDebtAmount)
-                                    .clamp(0.0, double.infinity);
-                                ref
-                                    .read(
-                                        budgetBuddyControllerProvider.notifier)
-                                    .setTogetherBudget(newTogether);
-                              }
-                            } else if (debtPaymentSource == 1) {
-                              // From Savings Vault
-                              if (effectiveSavings < currentPayDebtAmount) {
-                                showAppAlert(
-                                  sheetContext,
-                                  message:
-                                      'Payment exceeds vault savings (${formatPeso(effectiveSavings)})!',
-                                  title: 'Alert',
-                                  icon: Icons.warning_amber_rounded,
-                                  accentColor: _SavingsTokens.deficitRed,
-                                );
-                                return;
-                              }
-                              final double currentSavingsDebt =
-                                  state.savingsDebt;
-                              final double debtCover =
-                                  currentPayDebtAmount <= currentSavingsDebt
-                                      ? currentPayDebtAmount
-                                      : currentSavingsDebt;
-                              final double remainingPayment =
-                                  currentPayDebtAmount - debtCover;
+                            final bool confirmed =
+                                await _showPayDebtConfirmationDialog(
+                              context: sheetContext,
+                              tokens: tokens,
+                              amount: currentPayDebtAmount,
+                              useSavings: debtPaymentMethod == 0,
+                              effectiveSavings: effectiveSavings,
+                              effectiveDebt: effectiveDebt,
+                            );
+                            if (!confirmed) return;
 
-                              if (debtCover > 0) {
-                                ref
-                                    .read(budgetBuddyControllerProvider.notifier)
-                                    .paySavingsDebt(
-                                      amount: debtCover,
-                                      deductFromBudget: false,
-                                      description: widget.isTogetherOnly
-                                          ? 'Together deficit paid using settled savings vault'
-                                          : 'Deficit paid using settled savings vault',
-                                      isTogether: widget.isTogetherOnly,
-                                    );
-                              }
-                              if (remainingPayment > 0) {
-                                if (widget.isTogetherOnly) {
-                                  final double currentTogether =
-                                      state.togetherBudget;
-                                  ref
-                                      .read(budgetBuddyControllerProvider.notifier)
-                                      .setTogetherBudget(currentTogether +
-                                          remainingPayment);
-                                } else {
-                                  final double currentBudget =
-                                      state.settings.dailyLimit ?? 0.0;
-                                  ref
-                                      .read(budgetBuddyControllerProvider.notifier)
-                                      .recordDailyBudget(amount: currentBudget +
-                                          remainingPayment);
-                                }
-                                ref
-                                    .read(budgetBuddyControllerProvider.notifier)
-                                    .addVaultLog(
-                                      type: VaultLogType.payDebt,
-                                      amount: remainingPayment,
-                                      description: widget.isTogetherOnly
-                                          ? 'Today\'s together deficit paid using settled savings vault'
-                                          : 'Today\'s deficit paid using settled savings vault',
-                                      isTogether: widget.isTogetherOnly,
-                                    );
-                              }
+                            if (debtPaymentMethod == 0) {
                               ref
                                   .read(budgetBuddyControllerProvider.notifier)
                                   .setTotalSavings((effectiveSavings -
                                           currentPayDebtAmount)
                                       .clamp(0.0, double.infinity));
-                            } else {
-                              // Direct payment
-                              final double currentSavingsDebt =
-                                  state.savingsDebt;
-                              final double debtCover =
-                                  currentPayDebtAmount <= currentSavingsDebt
-                                      ? currentPayDebtAmount
-                                      : currentSavingsDebt;
-                              final double remainingPayment =
-                                  currentPayDebtAmount - debtCover;
+                            }
 
-                              if (debtCover > 0) {
-                                ref
-                                    .read(budgetBuddyControllerProvider.notifier)
-                                    .paySavingsDebt(
-                                      amount: debtCover,
-                                      deductFromBudget: false,
-                                      description: widget.isTogetherOnly
-                                          ? 'Direct together deficit payment (cash / external)'
-                                          : 'Direct deficit payment (cash / external)',
-                                      isTogether: widget.isTogetherOnly,
-                                    );
-                              }
-                              if (remainingPayment > 0) {
-                                if (widget.isTogetherOnly) {
-                                  final double currentTogether =
-                                      state.togetherBudget;
-                                  ref
-                                      .read(budgetBuddyControllerProvider.notifier)
-                                      .setTogetherBudget(currentTogether +
-                                          remainingPayment);
-                                } else {
-                                  final double currentBudget =
-                                      state.settings.dailyLimit ?? 0.0;
-                                  ref
-                                      .read(budgetBuddyControllerProvider.notifier)
-                                      .recordDailyBudget(amount: currentBudget +
-                                          remainingPayment);
-                                }
-                                ref
-                                    .read(budgetBuddyControllerProvider.notifier)
-                                    .addVaultLog(
-                                      type: VaultLogType.payDebt,
-                                      amount: remainingPayment,
-                                      description: widget.isTogetherOnly
-                                          ? 'Today\'s together deficit paid via direct payment (cash / external)'
-                                          : 'Today\'s deficit paid via direct payment (cash / external)',
-                                      isTogether: widget.isTogetherOnly,
-                                    );
-                              }
+                            final double currentSavingsDebt = state.savingsDebt;
+                            final double debtCover =
+                                currentPayDebtAmount <= currentSavingsDebt
+                                    ? currentPayDebtAmount
+                                    : currentSavingsDebt;
+                            final double remainingPayment =
+                                currentPayDebtAmount - debtCover;
+
+                            if (debtCover > 0) {
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .paySavingsDebt(
+                                    amount: debtCover,
+                                    deductFromBudget: false,
+                                    description: widget.isTogetherOnly
+                                        ? (debtPaymentMethod == 0
+                                            ? 'Together debt paid using savings vault'
+                                            : 'Direct together debt payment (cash / external)')
+                                        : (debtPaymentMethod == 0
+                                            ? 'Debt paid using savings vault'
+                                            : 'Direct debt payment (cash / external)'),
+                                    isTogether: widget.isTogetherOnly,
+                                  );
+                            }
+
+                            if (remainingPayment > 0) {
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .addVaultLog(
+                                    type: VaultLogType.payDebt,
+                                    amount: remainingPayment,
+                                    description: widget.isTogetherOnly
+                                        ? (debtPaymentMethod == 0
+                                            ? 'Together daily deficit payment using savings vault'
+                                            : 'Together daily deficit payment (cash / external)')
+                                        : (debtPaymentMethod == 0
+                                            ? 'Today\'s deficit payment using savings vault'
+                                            : 'Today\'s deficit payment (cash / external)'),
+                                    isTogether: widget.isTogetherOnly,
+                                  );
                             }
 
                             final double remainingDebt =
@@ -2622,7 +2685,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             Navigator.of(sheetContext).pop();
 
                             showAppAlert(context,
-                              message: 'Paid ${formatPeso(currentPayDebtAmount)} towards debt! Remaining deficit: ${formatPeso(remainingDebt)}.',
+                              message: remainingDebt <= 0
+                                  ? 'Debt paid in full (${formatPeso(currentPayDebtAmount)})! You have zero debt.'
+                                  : 'Paid ${formatPeso(currentPayDebtAmount)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
                               title: 'Success',
                               icon: Icons.check_circle_outline_rounded,
                               accentColor: _SavingsTokens.savingsGreen,
@@ -2631,7 +2696,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           icon: const Icon(Icons.check_circle_rounded,
                               size: 16, color: Colors.white),
                           label: Text(
-                            'Confirm Payment to Debt (${formatPeso(currentPayDebtAmount)})',
+                            currentPayDebtAmount >= effectiveDebt && effectiveDebt > 0
+                                ? 'Pay Debt in Full (${formatPeso(effectiveDebt)})'
+                                : 'Confirm Payment to Debt (${formatPeso(currentPayDebtAmount)})',
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
@@ -4007,13 +4074,29 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       final double todaySpent = todayExpenses.fold(
           0.0, (double sum, ExpenseEntry e) => sum + e.amount);
 
+      final double todayPaidDebt = state.vaultLog
+          .where((VaultLogEntry log) =>
+              log.type == VaultLogType.payDebt &&
+              log.isTogether != true &&
+              !log.description.toLowerCase().contains('together') &&
+              log.description.toLowerCase().contains('deficit payment') &&
+              DateUtils.isSameDay(log.dateTime, today))
+          .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+      final double todayOverspent = todayBudget > 0
+          ? (todaySpent - todayBudget).clamp(0.0, double.infinity)
+          : todaySpent;
+      final double debtRelief = todayPaidDebt.clamp(0.0, todayOverspent);
+      final double effectiveTodaySpent =
+          (todaySpent - debtRelief).clamp(0.0, double.infinity);
+
       final double remainingBalance = todayBudget > 0
-          ? (todayBudget - todaySpent)
-          : (todaySpent > 0 ? -todaySpent : 0.0);
+          ? (todayBudget - effectiveTodaySpent)
+          : (effectiveTodaySpent > 0 ? -effectiveTodaySpent : 0.0);
 
       final double savings = todayBudget > 0
-          ? (todayBudget - todaySpent)
-          : (todaySpent > 0 ? -todaySpent : 0.0);
+          ? (todayBudget - effectiveTodaySpent)
+          : (effectiveTodaySpent > 0 ? -effectiveTodaySpent : 0.0);
 
       final Map<String, double> todayCategoryTotals = <String, double>{
         for (final BudgetCategory category in BudgetCategory.values)
@@ -4036,7 +4119,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       final DailyRecord liveTodayRecord = DailyRecord(
         date: today,
         budget: todayBudget,
-        totalSpent: todaySpent,
+        totalSpent: effectiveTodaySpent,
         remainingBalance: remainingBalance,
         savings: savings,
         biggestExpenseCategory: biggestCategory,
@@ -4089,8 +4172,25 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       final double totalSpent =
           dayExpenses.fold(0, (double sum, ExpenseEntry e) => sum + e.amount);
       final double dayBudget = togetherBudget;
+
+      final double paidDebt = state.vaultLog
+          .where((VaultLogEntry log) =>
+              log.type == VaultLogType.payDebt &&
+              (log.isTogether == true ||
+                  log.description.toLowerCase().contains('together')) &&
+              log.description.toLowerCase().contains('deficit payment') &&
+              DateUtils.isSameDay(log.dateTime, date))
+          .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+      final double dayOverspent = dayBudget > 0
+          ? (totalSpent - dayBudget).clamp(0.0, double.infinity)
+          : totalSpent;
+      final double debtRelief = paidDebt.clamp(0.0, dayOverspent);
+      final double effectiveSpent =
+          (totalSpent - debtRelief).clamp(0.0, double.infinity);
+
       final double savings =
-          dayBudget > 0 ? dayBudget - totalSpent : -totalSpent;
+          dayBudget > 0 ? dayBudget - effectiveSpent : -effectiveSpent;
 
       final Map<String, double> categoryTotals = <String, double>{
         for (final BudgetCategory category in BudgetCategory.values)
@@ -4105,7 +4205,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         DailyRecord(
           date: date,
           budget: dayBudget,
-          totalSpent: totalSpent,
+          totalSpent: effectiveSpent,
           remainingBalance: savings,
           savings: savings,
           biggestExpenseCategory: dayExpenses.isEmpty
