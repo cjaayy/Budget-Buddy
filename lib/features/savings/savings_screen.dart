@@ -203,6 +203,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       context,
                       state: state,
                       tokens: tokens,
+                      settledVaultSavings: state.totalSavings,
                       savingsAmount: savingsAmount,
                       debtAmount: debtAmount,
                     ),
@@ -370,6 +371,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         ? state.totalSavings
         : pastDailySavings;
 
+    final double settledVaultSavings = state.totalSavings;
+
     final double savingsAmount = widget.isTogetherOnly
         ? dailyRemainingSavings
         : (effectiveBaseSavings + todaySaved);
@@ -480,7 +483,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        formatPeso(savingsAmount),
+                        widget.isTogetherOnly
+                            ? formatPeso(savingsAmount)
+                            : formatPeso(settledVaultSavings),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
@@ -490,20 +495,39 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      todaySaved > 0
-                          ? '+${formatPeso(todaySaved)} saved today from budget'
-                          : 'Accumulated daily savings',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: todaySaved > 0
-                            ? _SavingsTokens.savingsGreen
-                            : tokens.textMuted,
+                    if (!widget.isTogetherOnly && todaySaved > 0) ...<Widget>[
+                      Row(
+                        children: <Widget>[
+                          const Icon(Icons.lock_clock_rounded,
+                              size: 11,
+                              color: _SavingsTokens.targetGold),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              '+${formatPeso(todaySaved)} pending (unlocks midnight)',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: _SavingsTokens.targetGold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...<Widget>[
+                      Text(
+                        'Settled vault • withdrawable now',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -520,7 +544,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           context,
                           state: state,
                           tokens: tokens,
-                          savingsAmount: savingsAmount,
+                          settledVaultSavings: settledVaultSavings,
                           debtAmount: debtAmount,
                           initialTab: 1,
                         )
@@ -561,7 +585,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               context,
                               state: state,
                               tokens: tokens,
-                              savingsAmount: savingsAmount,
+                              settledVaultSavings: settledVaultSavings,
                               debtAmount: debtAmount,
                               initialTab: 1,
                             ),
@@ -709,10 +733,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     BuildContext context, {
     required BudgetBuddyState state,
     required _SavingsTokens tokens,
+    double? settledVaultSavings,
     double? savingsAmount,
     double? debtAmount,
   }) {
     final double effectiveDebt = debtAmount ?? state.savingsDebt;
+    final double effectiveSettled = settledVaultSavings ?? state.totalSavings;
     final bool hasDebt = effectiveDebt > 0;
 
     return Row(
@@ -750,7 +776,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               context,
               state: state,
               tokens: tokens,
-              savingsAmount: savingsAmount,
+              settledVaultSavings: effectiveSettled,
               debtAmount: effectiveDebt,
               initialTab: 0,
             ),
@@ -784,7 +810,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 context,
                 state: state,
                 tokens: tokens,
-                savingsAmount: savingsAmount,
+                settledVaultSavings: effectiveSettled,
                 debtAmount: effectiveDebt,
                 initialTab: 1,
               ),
@@ -1005,12 +1031,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     BuildContext context, {
     required BudgetBuddyState state,
     required _SavingsTokens tokens,
-    double? savingsAmount,
+    double? settledVaultSavings,
     double? debtAmount,
     int initialTab = 0,
   }) {
     final double effectiveDebt = debtAmount ?? state.savingsDebt;
-    final double effectiveSavings = savingsAmount ?? state.totalSavings;
+    // Only the settled vault (past committed days) is withdrawable — today's pending locks until midnight
+    final double effectiveSavings = settledVaultSavings ?? state.totalSavings;
     final double currentTodayBudget = widget.isTogetherOnly
         ? state.togetherBudget
         : (state.settings.dailyLimit ?? 0.0);
@@ -1205,7 +1232,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  'Vault Savings',
+                                  'Settled Vault',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -1220,6 +1247,23 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     fontWeight: FontWeight.w800,
                                     color: _SavingsTokens.savingsGreen,
                                   ),
+                                ),
+                                const SizedBox(height: 1),
+                                Row(
+                                  children: <Widget>[
+                                    const Icon(Icons.lock_clock_rounded,
+                                        size: 10,
+                                        color: _SavingsTokens.targetGold),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Today pending until midnight',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: _SavingsTokens.targetGold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
