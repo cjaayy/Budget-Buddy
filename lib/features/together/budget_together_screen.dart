@@ -1,107 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/budget_cards.dart';
 import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
-/// Palette defining the 3 primary design colors matching Daily Budget: Dark Red, Gold, and Dark Green.
-class _TogetherBudgetPalette {
-  const _TogetherBudgetPalette(this.isDark);
+/// Clean Modern Bento Tokens for Budget Together Screen matching Today's Budget Planner.
+class _TogetherBudgetTokens {
+  const _TogetherBudgetTokens(this.isDark);
 
   final bool isDark;
 
-  // Dark Red: expenses, overspent alert, debt, reset/cancel actions
-  Color get darkRed => const Color(0xFF991B1B);
-  Color get darkRedBg =>
-      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+  // Primary 3-Color Strict Palette
+  static const Color budgetGold = Color(0xFFD97706);
+  static const Color safeGreen = Color(0xFF0F766E);
+  static const Color expenseRed = Color(0xFF991B1B);
 
-  // Gold: target budget amounts, currency signs, presets, monthly overview
-  Color get gold => const Color(0xFFD97706);
-  Color get goldBg =>
-      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
+  // Surfaces & Borders
+  Color get scaffoldBg =>
+      isDark ? const Color(0xFF0B1120) : const Color(0xFFF8FAFC);
+  Color get cardBg =>
+      isDark ? const Color(0xFF111827) : const Color(0xFFFFFFFF);
+  Color get cardBorder =>
+      isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+  Color get subCardBg =>
+      isDark ? const Color(0xFF161F31) : const Color(0xFFF1F5F9);
+  Color get keyTileBg =>
+      isDark ? const Color(0xFF161F31) : const Color(0xFFF1F5F9);
 
-  // Dark Green: remaining safe balance, locked/active status, save/update actions
-  Color get darkGreen => const Color(0xFF0F766E);
-  Color get darkGreenBg =>
-      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
-}
+  // Text
+  Color get textPrimary =>
+      isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+  Color get textSecondary =>
+      isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get textMuted =>
+      isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
-/// Compact Metric Tile matching Daily Budget, Spend, and Savings screens
-class _CompactMetricTile extends StatelessWidget {
-  const _CompactMetricTile({
-    required this.label,
-    required this.value,
-    required this.bgColor,
-    this.icon,
-  });
-
-  final String label;
-  final String value;
-  final Color bgColor;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              if (icon != null) ...<Widget>[
-                Icon(
-                  icon,
-                  size: 12,
-                  color: Colors.white.withValues(alpha: 0.88),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                    color: Colors.white.withValues(alpha: 0.88),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Color tint(Color color, [double alpha = 0.10]) =>
+      color.withValues(alpha: alpha);
 }
 
 class BudgetTogetherScreen extends ConsumerStatefulWidget {
@@ -113,65 +54,168 @@ class BudgetTogetherScreen extends ConsumerStatefulWidget {
 }
 
 class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
-  late final TextEditingController _budgetController;
-  final FocusNode _focusNode = FocusNode();
-  final List<double> _quickPresets = const <double>[200, 300, 500, 1000, 1500];
-  bool _isUnlockedForEditing = false;
+  String _rawInput = '';
 
-  @override
-  void initState() {
-    super.initState();
-    _budgetController = TextEditingController();
-    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final double initialBudget = state.togetherBudget;
-    if (initialBudget > 0) {
-      _budgetController.text = initialBudget.toStringAsFixed(0);
+  double get _currentAmount => double.tryParse(_rawInput) ?? 0.0;
+
+  String _displayAmount() {
+    if (_rawInput.isEmpty) return '0.00';
+    if (_rawInput.contains('.')) {
+      final List<String> parts = _rawInput.split('.');
+      final double whole = double.tryParse(parts[0]) ?? 0;
+      final String wholeFormatted = NumberFormat('#,##0').format(whole);
+      return '$wholeFormatted.${parts[1]}';
+    } else {
+      final double whole = double.tryParse(_rawInput) ?? 0;
+      return NumberFormat('#,##0').format(whole);
     }
   }
 
-  @override
-  void dispose() {
-    _budgetController.dispose();
-    _focusNode.dispose();
-    super.dispose();
+  void _onKeypadTap(String value) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (value == '.') {
+        if (_rawInput.isEmpty) {
+          _rawInput = '0.';
+        } else if (!_rawInput.contains('.')) {
+          _rawInput += '.';
+        }
+      } else if (value == '00') {
+        if (_rawInput.isEmpty || _rawInput == '0') {
+          return;
+        }
+        if (_rawInput.contains('.')) {
+          final List<String> parts = _rawInput.split('.');
+          if (parts[1].isEmpty) {
+            _rawInput += '00';
+          } else if (parts[1].length == 1) {
+            _rawInput += '0';
+          }
+        } else {
+          if (_rawInput.length <= 8) {
+            _rawInput += '00';
+          }
+        }
+      } else {
+        if (_rawInput == '0') {
+          _rawInput = value;
+        } else if (_rawInput.contains('.')) {
+          final List<String> parts = _rawInput.split('.');
+          if (parts[1].length < 2) {
+            _rawInput += value;
+          }
+        } else {
+          if (_rawInput.length < 9) {
+            _rawInput += value;
+          }
+        }
+      }
+    });
   }
 
-  void _saveBudget() {
-    final String text = _budgetController.text.trim();
-    final double? amount = double.tryParse(text);
+  void _onBackspace() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (_rawInput.isNotEmpty) {
+        _rawInput = _rawInput.substring(0, _rawInput.length - 1);
+        if (_rawInput == '0') {
+          _rawInput = '';
+        }
+      }
+    });
+  }
 
-    if (amount == null || amount <= 0) {
-      showAppAlert(context, message: 'Please enter a valid budget amount greater than ₱0.', title: 'Notice', icon: Icons.info_outline_rounded,
+  void _onClear() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _rawInput = '';
+    });
+  }
 
+  void _onQuickAddAmount(double amount) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      final double nextAmount = _currentAmount + amount;
+      if (nextAmount == nextAmount.roundToDouble()) {
+        _rawInput = nextAmount.toStringAsFixed(0);
+      } else {
+        _rawInput = nextAmount.toStringAsFixed(2);
+      }
+    });
+  }
+
+  void _addBudget() {
+    final double amount = _currentAmount;
+    if (amount <= 0) {
+      showAppAlert(
+        context,
+        message:
+            'Please enter an amount on the keypad greater than ₱0 to add to Budget Together.',
+        title: 'Notice',
+        icon: Icons.info_outline_rounded,
       );
       return;
     }
 
-    _focusNode.unfocus();
-    ref.read(budgetBuddyControllerProvider.notifier).setTogetherBudget(amount);
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double currentBudget = state.togetherBudget;
+    final double newTotal = currentBudget + amount;
+
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .setTogetherBudget(newTotal);
 
     setState(() {
-      _isUnlockedForEditing = false;
+      _rawInput = '';
     });
 
-    showAppAlert(context,
-      message: 'Budget Together set to ${formatPeso(amount)}!',
+    showAppAlert(
+      context,
+      message: 'Budget Together increased to ${formatPeso(newTotal)}!',
       title: 'Success',
       icon: Icons.check_circle_outline_rounded,
-      accentColor: const Color(0xFF0F766E),
+      accentColor: _TogetherBudgetTokens.safeGreen,
     );
   }
 
-  void _resetBudget() {
-    _focusNode.unfocus();
-    showDialog<void>(
+  void _editBudget() {
+    final double amount = _currentAmount;
+    if (amount <= 0) {
+      showAppAlert(
+        context,
+        message:
+            'Please enter a valid budget amount on the keypad greater than ₱0.',
+        title: 'Notice',
+        icon: Icons.info_outline_rounded,
+      );
+      return;
+    }
+
+    ref.read(budgetBuddyControllerProvider.notifier).setTogetherBudget(amount);
+
+    setState(() {
+      _rawInput = '';
+    });
+
+    showAppAlert(
+      context,
+      message: 'Budget Together set to ${formatPeso(amount)}!',
+      title: 'Success',
+      icon: Icons.check_circle_outline_rounded,
+      accentColor: _TogetherBudgetTokens.safeGreen,
+    );
+  }
+
+  Future<void> _resetBudget() async {
+    final bool? confirmed = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           icon: const Icon(Icons.restart_alt_rounded,
-              color: Color(0xFF991B1B), size: 36),
+              color: _TogetherBudgetTokens.expenseRed, size: 36),
           title: const Text('Reset Tab Budget',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           content: const Text(
@@ -180,7 +224,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
           ),
           actions: <Widget>[
             FilledButton.icon(
-              onPressed: () => Navigator.of(dialogContext).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
               icon: const Icon(Icons.close_rounded, size: 14),
               label: const Text('Cancel'),
               style: FilledButton.styleFrom(
@@ -192,25 +236,11 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
               ),
             ),
             FilledButton.icon(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _budgetController.clear();
-                ref
-                    .read(budgetBuddyControllerProvider.notifier)
-                    .setTogetherBudget(0);
-                setState(() {
-                  _isUnlockedForEditing = false;
-                });
-                showAppAlert(context, message: 'Budget Together has been reset to ₱0.', title: 'Alert', icon: Icons.warning_amber_rounded,
-
-                  accentColor: Color(0xFF991B1B),
-
-                );
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(true),
               icon: const Icon(Icons.delete_outline_rounded, size: 14),
               label: const Text('Reset'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF991B1B),
+                backgroundColor: _TogetherBudgetTokens.expenseRed,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -221,27 +251,21 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
         );
       },
     );
-  }
 
-  void _applyPreset(double amount) {
-    _budgetController.text = amount.toStringAsFixed(0);
-    setState(() {});
-  }
+    if (!mounted || confirmed != true) return;
 
-  void _unlockForEditing() {
     setState(() {
-      _isUnlockedForEditing = true;
+      _rawInput = '';
     });
-    _focusNode.requestFocus();
-  }
+    ref.read(budgetBuddyControllerProvider.notifier).setTogetherBudget(0);
 
-  void _cancelEditing(double currentBudget) {
-    _focusNode.unfocus();
-    setState(() {
-      _isUnlockedForEditing = false;
-      _budgetController.text =
-          currentBudget > 0 ? currentBudget.toStringAsFixed(0) : '';
-    });
+    showAppAlert(
+      context,
+      message: 'Budget Together has been reset to ₱0.',
+      title: 'Alert',
+      icon: Icons.warning_amber_rounded,
+      accentColor: _TogetherBudgetTokens.expenseRed,
+    );
   }
 
   @override
@@ -249,7 +273,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final _TogetherBudgetPalette palette = _TogetherBudgetPalette(isDark);
+    final _TogetherBudgetTokens tokens = _TogetherBudgetTokens(isDark);
 
     final double currentBudget = state.togetherBudget;
     final double currentSpent = state.expenses
@@ -259,7 +283,6 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
         .fold<double>(0.0, (double sum, ExpenseEntry e) => sum + e.amount);
     final double remaining = currentBudget - currentSpent;
     final bool hasBudget = currentBudget > 0;
-    final bool isLocked = hasBudget && !_isUnlockedForEditing;
     final bool isOver = hasBudget && remaining < 0;
     final bool isWarning =
         !isOver && hasBudget && currentSpent >= (currentBudget * 0.8);
@@ -272,384 +295,134 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
         (BudgetBuddyState? prev, BudgetBuddyState next) {
       if (next.togetherBudget != prev?.togetherBudget) {
         if (next.togetherBudget <= 0) {
-          if (_budgetController.text.isNotEmpty) {
-            _budgetController.clear();
-          }
-          setState(() => _isUnlockedForEditing = false);
-        } else {
-          final String newText = next.togetherBudget.toStringAsFixed(0);
-          if (_budgetController.text != newText) {
-            _budgetController.text = newText;
+          if (_rawInput.isNotEmpty) {
+            setState(() => _rawInput = '');
           }
         }
       }
     });
 
     return Scaffold(
+      backgroundColor: tokens.scaffoldBg,
       body: SafeArea(
-        child: Padding(
+        child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Back Button (When opened from Together Hub)
-              if (Navigator.of(context).canPop()) ...<Widget>[
-                FilledButton.icon(
+          children: <Widget>[
+            // Back Button (When opened from Together Hub)
+            if (Navigator.of(context).canPop()) ...<Widget>[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.arrow_back_rounded,
-                      size: 16, color: Colors.white),
-                  label: const Text(
-                    'Back',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                      color: Colors.white,
-                    ),
-                  ),
+                      size: 15, color: Colors.white),
+                  label: const Text('Back'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: palette.darkGreen,
+                    backgroundColor: _TogetherBudgetTokens.safeGreen,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                        horizontal: 12, vertical: 6),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    elevation: 0,
                   ),
                 ),
-                const SizedBox(height: 8),
-              ],
-
-              // 1. Compact Header
-              _buildHeader(
-                context,
-                currentClock: currentClock,
               ),
-              const SizedBox(height: 12),
-
-              // 2. Main Content
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: <Widget>[
-                    // Main Budget Together Planner Card
-                    _buildBudgetCard(
-                      context,
-                      currentBudget: currentBudget,
-                      hasBudget: hasBudget,
-                      isLocked: isLocked,
-                      palette: palette,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Spending Progress Card (Visible if budget set or spending exists)
-                    if (hasBudget || currentSpent > 0) ...<Widget>[
-                      _buildSpendingCard(
-                        context,
-                        currentBudget: currentBudget,
-                        currentSpent: currentSpent,
-                        remaining: remaining,
-                        progressValue: progressValue,
-                        hasBudget: hasBudget,
-                        isOver: isOver,
-                        isWarning: isWarning,
-                        palette: palette,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              const SizedBox(height: 8),
             ],
-          ),
+
+            // 1. Header (Title + Date + Pill)
+            _buildHeader(
+              context,
+              currentClock: currentClock,
+              hasBudget: hasBudget,
+              tokens: tokens,
+            ),
+            const SizedBox(height: 12),
+
+            // 2. Hero Budget Card (Remaining as hero display, no duplicate cards)
+            _buildHeroBudgetCard(
+              context,
+              currentBudget: currentBudget,
+              currentSpent: currentSpent,
+              remaining: remaining,
+              progressValue: progressValue,
+              hasBudget: hasBudget,
+              isOver: isOver,
+              isWarning: isWarning,
+              tokens: tokens,
+            ),
+            const SizedBox(height: 12),
+
+            // 3. Action Buttons (Add Budget, Edit Budget, Reset)
+            _buildActionButtons(
+              context,
+              tokens: tokens,
+            ),
+            const SizedBox(height: 10),
+
+            // 4. Quick Amount Increments (+₱100, +₱200, +₱300, +₱500, +₱1,000)
+            _buildQuickAmountIncrements(tokens),
+            const SizedBox(height: 12),
+
+            // 5. Numeric Keypad (Flat Bento Keypad Tiles)
+            _buildNumericKeypad(context, tokens),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
   }
 
-  /// Compact Header matching Daily Budget & Spend screens
+  /// 1. Header Section with Title, Formatted Date, and Clean Setup/Target Pill
   Widget _buildHeader(
     BuildContext context, {
     required DateTime currentClock,
+    required bool hasBudget,
+    required _TogetherBudgetTokens tokens,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          'Set Budget Together',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Set Budget Together',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
+                color: tokens.textPrimary,
+                letterSpacing: -0.6,
               ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormat('EEEE, MMM d').format(currentClock),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: tokens.textSecondary,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          DateFormat('EEEE, MMM d').format(currentClock),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
+        SoftPill(
+          text: hasBudget ? 'Active Tab' : 'Setup',
+          color: hasBudget
+              ? _TogetherBudgetTokens.budgetGold
+              : _TogetherBudgetTokens.safeGreen,
+          icon: hasBudget ? Icons.lock_outline_rounded : Icons.edit_rounded,
+          fontSize: 11,
         ),
       ],
     );
   }
 
-  /// Main Budget Card with Input, Presets, and Solid Action Buttons
-  Widget _buildBudgetCard(
-    BuildContext context, {
-    required double currentBudget,
-    required bool hasBudget,
-    required bool isLocked,
-    required _TogetherBudgetPalette palette,
-  }) {
-    final ThemeData theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Top Label Row
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: palette.goldBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet_rounded,
-                  size: 16,
-                  color: palette.gold,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Target Tab Budget',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const Spacer(),
-              if (hasBudget)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isLocked ? palette.darkGreen : palette.gold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    isLocked ? 'Active' : 'Editing',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Budget Input TextField
-          TextField(
-            controller: _budgetController,
-            focusNode: _focusNode,
-            readOnly: isLocked,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: palette.gold,
-              letterSpacing: -0.5,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              prefixIcon: Container(
-                padding: const EdgeInsets.only(left: 12, right: 6),
-                alignment: Alignment.centerLeft,
-                width: 32,
-                child: Text(
-                  '₱',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: palette.gold,
-                  ),
-                ),
-              ),
-              hintText: '0',
-              hintStyle: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: palette.gold.withValues(alpha: 0.35),
-              ),
-              filled: true,
-              fillColor: isLocked
-                  ? theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3)
-                  : theme.colorScheme.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color:
-                      theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: palette.gold, width: 2),
-              ),
-            ),
-          ),
-
-          // Quick Presets Row (When unlocked)
-          if (!isLocked) ...<Widget>[
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _quickPresets.map((double preset) {
-                  final bool isSelected = _budgetController.text.trim() ==
-                      preset.toStringAsFixed(0);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: InkWell(
-                      onTap: () => _applyPreset(preset),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: isSelected ? palette.darkGreen : palette.gold,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            if (isSelected) ...<Widget>[
-                              const Icon(Icons.check_rounded,
-                                  size: 13, color: Colors.white),
-                              const SizedBox(width: 3),
-                            ],
-                            Text(
-                              '₱${preset.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-
-          // Action Buttons: Edit, Reset, Save, Cancel (Following Solid Action Button Rules)
-          if (isLocked) ...<Widget>[
-            Row(
-              children: <Widget>[
-                // Edit Button (Solid Gold)
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _unlockForEditing,
-                    icon: const Icon(Icons.edit_rounded, size: 16),
-                    label: const Text('Edit Budget'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: palette.gold,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(42),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Reset Button (Solid Dark Red)
-                FilledButton.icon(
-                  onPressed: _resetBudget,
-                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                  label: const Text('Reset'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: palette.darkRed,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(90, 42),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ] else ...<Widget>[
-            Row(
-              children: <Widget>[
-                if (hasBudget) ...<Widget>[
-                  // Cancel Button (Solid Dark Red)
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => _cancelEditing(currentBudget),
-                      icon: const Icon(Icons.close_rounded, size: 16),
-                      label: const Text('Cancel'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: palette.darkRed,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(42),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                // Save / Update Button (Solid Dark Green)
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _saveBudget,
-                    icon: const Icon(Icons.check_circle_rounded, size: 16),
-                    label:
-                        Text(hasBudget ? 'Update Budget' : 'Save Tab Budget'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: palette.darkGreen,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(42),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Compact Spending Progress Card with 3 Metric Tiles
-  Widget _buildSpendingCard(
+  /// 2. Hero Budget Card: Shows Safe Remaining when idle, typed input when active, with no duplicate cards
+  Widget _buildHeroBudgetCard(
     BuildContext context, {
     required double currentBudget,
     required double currentSpent,
@@ -658,166 +431,543 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     required bool hasBudget,
     required bool isOver,
     required bool isWarning,
-    required _TogetherBudgetPalette palette,
+    required _TogetherBudgetTokens tokens,
   }) {
-    final ThemeData theme = Theme.of(context);
-    final Color barColor = isOver
-        ? palette.darkRed
-        : (isWarning ? palette.gold : palette.darkGreen);
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
+    final bool isTyping = _rawInput.isNotEmpty;
+
+    return BentoCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: 20,
+      borderColor: isOver
+          ? _TogetherBudgetTokens.expenseRed.withValues(alpha: 0.35)
+          : (isTyping
+              ? _TogetherBudgetTokens.budgetGold.withValues(alpha: 0.45)
+              : tokens.cardBorder),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Header Row
+          // Top Row: Category / Target Header & Status Pill
           Row(
             children: <Widget>[
-              Icon(Icons.analytics_rounded,
-                  size: 16, color: palette.darkGreen),
-              const SizedBox(width: 6),
-              Text(
-                'Tab Spending Progress',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_TogetherBudgetTokens.budgetGold, 0.12),
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(
+                  Icons.group_rounded,
+                  size: 15,
+                  color: _TogetherBudgetTokens.budgetGold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isTyping ? 'Budget Input' : 'Budget Together Tab',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
+              SoftPill(
+                text: !hasBudget
+                    ? 'No Budget Set'
+                    : (isOver
+                        ? 'Over Budget'
+                        : (isWarning ? '80% Cap' : 'Active Tab')),
+                color: !hasBudget
+                    ? _TogetherBudgetTokens.budgetGold
+                    : (isOver
+                        ? _TogetherBudgetTokens.expenseRed
+                        : (isWarning
+                            ? _TogetherBudgetTokens.budgetGold
+                            : _TogetherBudgetTokens.safeGreen)),
+                icon: !hasBudget
+                    ? Icons.info_outline_rounded
+                    : (isOver
+                        ? Icons.warning_amber_rounded
+                        : (isWarning
+                            ? Icons.info_outline_rounded
+                            : Icons.check_circle_outline_rounded)),
+                fontSize: 11,
               ),
             ],
           ),
-              const SizedBox(height: 10),
+          const SizedBox(height: 10),
 
-              // Progress Bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progressValue,
-                  minHeight: 7,
-                  backgroundColor: barColor.withValues(alpha: 0.12),
-                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
+          // Main Hero Amount Display: Shows Remaining (or 0) when idle, or typed input when typing
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    isTyping
+                        ? '₱${_displayAmount()}'
+                        : (hasBudget
+                            ? ((remaining < 0 ? '-' : '') +
+                                formatPeso(remaining.abs()))
+                            : '₱0.00'),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      color: isTyping
+                          ? _TogetherBudgetTokens.budgetGold
+                          : (!hasBudget
+                              ? _TogetherBudgetTokens.budgetGold
+                              : (isOver
+                                  ? _TogetherBudgetTokens.expenseRed
+                                  : _TogetherBudgetTokens.safeGreen)),
+                      letterSpacing: -1.0,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+              if (isTyping)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(
+                    Icons.backspace_outlined,
+                    size: 20,
+                    color: _TogetherBudgetTokens.expenseRed,
+                  ),
+                  onPressed: _onBackspace,
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
 
-              // Progress caption
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    hasBudget
-                        ? '${formatPeso(currentSpent)} spent of ${formatPeso(currentBudget)}'
-                        : 'No tab budget set',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    !hasBudget
-                        ? 'No limit set'
-                        : (isOver
-                            ? 'Over limit'
-                            : '${formatPeso(remaining > 0 ? remaining : 0)} left'),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: !hasBudget
-                          ? palette.gold
-                          : (isOver ? palette.darkRed : palette.darkGreen),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+          // Context Subtitle below amount
+          Text(
+            isTyping
+                ? 'Tap "Add Budget" to increase or "Edit Budget" to set new target'
+                : (!hasBudget
+                    ? 'No tab budget set yet. Enter amount on keypad below.'
+                    : (isOver
+                        ? 'Tab budget exceeded by ${formatPeso(remaining.abs())}'
+                        : 'Safe remaining balance for group spending')),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: isOver
+                  ? _TogetherBudgetTokens.expenseRed
+                  : tokens.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
 
-              // 3 Compact Metric Tiles: Remaining, Budget, Spent
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _CompactMetricTile(
-                      label: 'Remaining',
-                      value: !hasBudget
-                          ? formatPeso(0)
-                          : ((isOver ? '-' : '') + formatPeso(remaining.abs())),
-                      bgColor: !hasBudget
-                          ? palette.gold
-                          : (isOver ? palette.darkRed : palette.darkGreen),
-                      icon: !hasBudget
-                          ? Icons.savings_rounded
-                          : (isOver
-                              ? Icons.trending_down_rounded
-                              : Icons.savings_rounded),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _CompactMetricTile(
-                      label: 'Tab Budget',
-                      value: formatPeso(currentBudget),
-                      bgColor: palette.gold,
-                      icon: Icons.account_balance_wallet_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _CompactMetricTile(
-                      label: 'Tab Spent',
-                      value: formatPeso(currentSpent),
-                      bgColor: isOver
-                          ? palette.darkRed
-                          : (isWarning ? palette.gold : palette.darkGreen),
-                      icon: Icons.payments_rounded,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Over-budget alert banner
-              if (isOver) ...<Widget>[
-                const SizedBox(height: 10),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: palette.darkRedBg,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: palette.darkRedBorder),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Icon(Icons.info_outline_rounded,
-                          size: 14, color: palette.darkRed),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Over-budget warning: Tab spending exceeded budget by ${formatPeso(remaining.abs())}.',
-                          style: TextStyle(
-                            fontSize: 11,
+          // Compact Budget Breakdown Strip (Target, Spent, Remaining Context)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: tokens.subCardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tokens.cardBorder, width: 1.0),
+            ),
+            child: Column(
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Tab Target',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: palette.darkRed,
+                            color: tokens.textSecondary,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(height: 1),
+                        Text(
+                          formatPeso(currentBudget),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: _TogetherBudgetTokens.budgetGold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(height: 20, width: 1, color: tokens.cardBorder),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          'Tab Spent',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          formatPeso(currentSpent),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: _TogetherBudgetTokens.expenseRed,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(height: 20, width: 1, color: tokens.cardBorder),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text(
+                          'Remaining',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          hasBudget
+                              ? ((remaining < 0 ? '-' : '') +
+                                  formatPeso(remaining.abs()))
+                              : '₱0.00',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: !hasBudget
+                                ? _TogetherBudgetTokens.budgetGold
+                                : (isOver
+                                    ? _TogetherBudgetTokens.expenseRed
+                                    : _TogetherBudgetTokens.safeGreen),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                BentoHealthBar(
+                  progress: progressValue,
+                  color: isOver
+                      ? _TogetherBudgetTokens.expenseRed
+                      : (isWarning
+                          ? _TogetherBudgetTokens.budgetGold
+                          : _TogetherBudgetTokens.safeGreen),
+                  height: 5,
                 ),
               ],
-            ],
+            ),
           ),
+
+          // Overspent Warning Box
+          if (isOver) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: tokens.tint(_TogetherBudgetTokens.expenseRed, 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _TogetherBudgetTokens.expenseRed.withValues(alpha: 0.25),
+                  width: 1.0,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 15,
+                    color: _TogetherBudgetTokens.expenseRed,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tab budget exceeded by ${formatPeso(remaining.abs())}.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _TogetherBudgetTokens.expenseRed,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 3. Action Buttons with Solid Dark Green (Add), Solid Gold (Edit), and Solid Dark Red (Reset)
+  Widget _buildActionButtons(
+    BuildContext context, {
+    required _TogetherBudgetTokens tokens,
+  }) {
+    return Row(
+      children: <Widget>[
+        // Add Budget Button (Solid Dark Green #0F766E)
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _addBudget,
+            icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+            label: const Text('Add Budget'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              backgroundColor: _TogetherBudgetTokens.safeGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              textStyle: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Edit Budget Button (Solid Gold #D97706)
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _editBudget,
+            icon: const Icon(Icons.edit_rounded, size: 15, color: Colors.white),
+            label: const Text('Edit Budget'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              backgroundColor: _TogetherBudgetTokens.budgetGold,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              textStyle: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Reset Button (Solid Dark Red #991B1B)
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _resetBudget,
+            icon: const Icon(Icons.restart_alt_rounded,
+                size: 15, color: Colors.white),
+            label: const Text('Reset'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              backgroundColor: _TogetherBudgetTokens.expenseRed,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              textStyle: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 4. Quick Amount Increments (+₱100, +₱200, +₱300, +₱500, +₱1,000)
+  Widget _buildQuickAmountIncrements(_TogetherBudgetTokens tokens) {
+    const List<double> increments = <double>[100, 200, 300, 500, 1000];
+
+    return Row(
+      children: increments.map((double amount) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _onQuickAddAmount(amount),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  decoration: BoxDecoration(
+                    color: tokens.cardBg,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: tokens.cardBorder, width: 1.0),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '+₱${amount.toInt()}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _TogetherBudgetTokens.budgetGold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 5. Custom Flat Numeric Keypad (Tactile Bento Keypad Tiles)
+  Widget _buildNumericKeypad(
+      BuildContext context, _TogetherBudgetTokens tokens) {
+    return Column(
+      children: <Widget>[
+        // Row 1: 1, 2, 3
+        Row(
+          children: <Widget>[
+            _buildKeyTile('1', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('2', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('3', tokens),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Row 2: 4, 5, 6
+        Row(
+          children: <Widget>[
+            _buildKeyTile('4', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('5', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('6', tokens),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Row 3: 7, 8, 9
+        Row(
+          children: <Widget>[
+            _buildKeyTile('7', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('8', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('9', tokens),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Row 4: . , 0 , 00
+        Row(
+          children: <Widget>[
+            _buildKeyTile('.', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('0', tokens),
+            const SizedBox(width: 8),
+            _buildKeyTile('00', tokens),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Row 5: Clear and Backspace
+        Row(
+          children: <Widget>[
+            // Clear Key (C)
+            Expanded(
+              child: _buildActionKeyTile(
+                label: 'C',
+                color: _TogetherBudgetTokens.expenseRed,
+                onTap: _onClear,
+                tokens: tokens,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Backspace Key
+            Expanded(
+              child: _buildActionKeyTile(
+                icon: Icons.backspace_outlined,
+                color: tokens.textSecondary,
+                onTap: _onBackspace,
+                tokens: tokens,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKeyTile(String value, _TogetherBudgetTokens tokens) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onKeypadTap(value),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: tokens.keyTileBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: tokens.cardBorder, width: 1.0),
+            ),
+            child: Center(
+              child: Text(
+                value,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.textPrimary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionKeyTile({
+    String? label,
+    IconData? icon,
+    required Color color,
+    required VoidCallback onTap,
+    required _TogetherBudgetTokens tokens,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: tokens.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: tokens.cardBorder, width: 1.0),
+          ),
+          child: Center(
+            child: icon != null
+                ? Icon(icon, size: 20, color: color)
+                : Text(
+                    label ?? '',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
-
-
-
-
-
