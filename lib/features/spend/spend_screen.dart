@@ -10,6 +10,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../budget/budget_planner_screen.dart';
 import '../together/budget_together_screen.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Clean Modern Bento Tokens for Spend Screen.
 /// Emphasizes Dark Red (#991B1B) as primary expense accent with Dark Teal (#0F766E) and Gold (#D97706).
@@ -240,11 +241,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     if (!_ensureBudgetSet(context)) return;
 
     if (_currentAmount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an expense amount greater than ₱0.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppAlert(context, message: 'Please enter an expense amount greater than ₱0.', title: 'Notice', icon: Icons.info_outline_rounded,
+
       );
       return;
     }
@@ -270,13 +268,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
       _isQueueExpanded = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added to batch queue (${formatPeso(_currentAmount)})'),
-        backgroundColor: _SpendTokens.budgetGold,
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
+    showAppAlert(context,
+      message: 'Added to batch queue (${formatPeso(_currentAmount)})',
+      title: 'Notice',
+      icon: Icons.info_outline_rounded,
+      accentColor: _SpendTokens.budgetGold,
     );
   }
 
@@ -318,11 +314,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     }
 
     if (_pendingSpends.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter an amount or add items to queue first.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppAlert(context, message: 'Enter an amount or add items to queue first.', title: 'Notice', icon: Icons.info_outline_rounded,
+
       );
       return;
     }
@@ -357,14 +350,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         ? ''
         : ' • Left: ${formatPeso(daySummary.remaining)}';
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '$count ${count == 1 ? 'spend' : 'spends'} logged (${formatPeso(total)})$suffix',
-        ),
-        backgroundColor: _SpendTokens.safeGreen,
-        behavior: SnackBarBehavior.floating,
-      ),
+    showAppAlert(context,
+      message: '$count ${count == 1 ? 'spend' : 'spends'} logged (${formatPeso(total)})$suffix',
+      title: 'Success',
+      icon: Icons.check_circle_outline_rounded,
+      accentColor: _SpendTokens.safeGreen,
     );
   }
 
@@ -1354,3 +1344,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 }
+
+
+
+
+

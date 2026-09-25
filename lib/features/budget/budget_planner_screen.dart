@@ -9,6 +9,7 @@ import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Clean Modern Bento Tokens for Today's Budget Planner Screen.
 /// Emphasizes Gold (#D97706) as primary focus with Dark Teal (#0F766E) and Dark Red (#991B1B).
@@ -84,11 +85,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final double? amount = double.tryParse(text);
 
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid budget amount greater than ₱0.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppAlert(context, message: 'Please enter a valid budget amount greater than ₱0.', title: 'Notice', icon: Icons.info_outline_rounded,
+
       );
       return;
     }
@@ -106,11 +104,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final double? newAmount = double.tryParse(text);
 
     if (newAmount == null || newAmount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid budget amount greater than ₱0.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppAlert(context, message: 'Please enter a valid budget amount greater than ₱0.', title: 'Notice', icon: Icons.info_outline_rounded,
+
       );
       return;
     }
@@ -167,14 +162,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         _isUnlockedForEditing = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isUpdate
+      showAppAlert(context,
+        message: isUpdate
               ? 'Today\'s budget updated to ${formatPeso(targetAmount)}!'
-              : 'Today\'s budget set to ${formatPeso(targetAmount)}!'),
-          backgroundColor: _BudgetTokens.safeGreen,
-          behavior: SnackBarBehavior.floating,
-        ),
+              : 'Today\'s budget set to ${formatPeso(targetAmount)}!',
+        title: 'Success',
+        icon: Icons.check_circle_outline_rounded,
+        accentColor: _BudgetTokens.safeGreen,
       );
     }
   }
@@ -655,23 +649,17 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         onPressed: () {
                           if (payDebtSelected) {
                             if (currentPay <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Please enter an amount to pay towards debt, or choose "Keep Full Budget".'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(context, message: 'Please enter an amount to pay towards debt, or choose "Keep Full Budget".', title: 'Notice', icon: Icons.info_outline_rounded,
+
                               );
                               return;
                             }
                             if (currentPay > proposedBudget) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Debt payment exceeds proposed budget (${formatPeso(proposedBudget)})!'),
-                                  backgroundColor: _BudgetTokens.expenseRed,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(context,
+                                message: 'Debt payment exceeds proposed budget (${formatPeso(proposedBudget)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
                             }
@@ -699,14 +687,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
                             Navigator.of(sheetContext).pop(true);
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Set today\'s budget to ${formatPeso(netBudget)} and paid ${formatPeso(currentPay)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
-                                ),
-                                backgroundColor: _BudgetTokens.safeGreen,
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            showAppAlert(context,
+                              message: 'Set today\'s budget to ${formatPeso(netBudget)} and paid ${formatPeso(currentPay)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
+                              title: 'Success',
+                              icon: Icons.check_circle_outline_rounded,
+                              accentColor: _BudgetTokens.safeGreen,
                             );
                           } else {
                             // Keep full budget
@@ -721,14 +706,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
                             Navigator.of(sheetContext).pop(true);
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Today\'s budget set to ${formatPeso(proposedBudget)}! Deficit of ${formatPeso(debtAmount)} remains for future surplus.',
-                                ),
-                                backgroundColor: _BudgetTokens.safeGreen,
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            showAppAlert(context,
+                              message: 'Today\'s budget set to ${formatPeso(proposedBudget)}! Deficit of ${formatPeso(debtAmount)} remains for future surplus.',
+                              title: 'Success',
+                              icon: Icons.check_circle_outline_rounded,
+                              accentColor: _BudgetTokens.safeGreen,
                             );
                           }
                         },
@@ -1210,25 +1192,19 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                       child: FilledButton.icon(
                         onPressed: () {
                           if (currentAmount <= 0) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Please enter a valid amount to pay.'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            showAppAlert(context, message: 'Please enter a valid amount to pay.', title: 'Notice', icon: Icons.info_outline_rounded,
+
                             );
                             return;
                           }
 
                           if (paymentSource == 0) {
                             if (currentBudget < currentAmount) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Payment exceeds today\'s budget (${formatPeso(currentBudget)})!'),
-                                  backgroundColor: _BudgetTokens.expenseRed,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(context,
+                                message: 'Payment exceeds today\'s budget (${formatPeso(currentBudget)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
                             }
@@ -1242,13 +1218,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 );
                           } else if (paymentSource == 1) {
                             if (vaultSavings < currentAmount) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Payment exceeds vault savings (${formatPeso(vaultSavings)})!'),
-                                  backgroundColor: _BudgetTokens.expenseRed,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(context,
+                                message: 'Payment exceeds vault savings (${formatPeso(vaultSavings)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
                             }
@@ -1280,14 +1254,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                   .clamp(0.0, double.infinity);
                           Navigator.of(sheetCtx).pop();
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Paid ${formatPeso(currentAmount)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
-                              ),
-                              backgroundColor: _BudgetTokens.safeGreen,
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          showAppAlert(context,
+                            message: 'Paid ${formatPeso(currentAmount)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
+                            title: 'Success',
+                            icon: Icons.check_circle_outline_rounded,
+                            accentColor: _BudgetTokens.safeGreen,
                           );
                         },
                         icon: const Icon(Icons.check_circle_rounded,
@@ -1348,12 +1319,12 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       _isUnlockedForEditing = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Today\'s budget and spending have been reset to ₱0.'),
-        backgroundColor: _BudgetTokens.expenseRed,
-        behavior: SnackBarBehavior.floating,
-      ),
+    showAppAlert(context, message: 'Today\'s budget and spending have been reset to ₱0.', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+
+      accentColor: _BudgetTokens.expenseRed,
+
+
     );
   }
 
@@ -2729,3 +2700,8 @@ class _CountdownConfirmationDialogState
     );
   }
 }
+
+
+
+
+

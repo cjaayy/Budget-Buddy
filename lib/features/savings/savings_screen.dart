@@ -8,6 +8,7 @@ import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Clean Modern Bento Tokens for Savings & Debt Tracker Screen.
 /// Primary Accent: Dark Teal Green (#0F766E) - Savings & Growth
@@ -268,13 +269,24 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     const SizedBox(height: 12),
 
                     // History Bento Card with Records & Vault Logs
-                    _buildHistoryCard(
-                      context,
-                      records: records,
-                      availableMonths: availableMonths,
-                      currentClock: currentClock,
-                      tokens: tokens,
-                      vaultLogs: state.vaultLog,
+                    // History Bento Card with Records & Vault Logs
+                    Builder(
+                      builder: (BuildContext _) {
+                        // Only settled (past) records appear in history.
+                        final List<DailyRecord> pastRecords = records
+                            .where((DailyRecord r) =>
+                                !DateUtils.isSameDay(r.date, currentClock))
+                            .toList();
+                        final List<DateTime> pastMonths = _availableMonths(pastRecords);
+                        return _buildHistoryCard(
+                          context,
+                          records: pastRecords,
+                          availableMonths: pastMonths,
+                          currentClock: currentClock,
+                          tokens: tokens,
+                          vaultLogs: state.vaultLog,
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -994,13 +1006,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       Navigator.of(dialogContext).pop();
                     }
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Successfully deposited ${formatPeso(amount)}!'),
-                          backgroundColor: _SavingsTokens.savingsGreen,
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                      showAppAlert(context,
+                        message: 'Successfully deposited ${formatPeso(amount)}!',
+                        title: 'Success',
+                        icon: Icons.check_circle_outline_rounded,
+                        accentColor: _SavingsTokens.savingsGreen,
                       );
                     }
                   },
@@ -1539,24 +1549,25 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         width: double.infinity,
                         child: FilledButton.icon(
                           onPressed: () {
+                            if (effectiveSavings <= 0) {
+                              showAppAlert(sheetContext, message: 'Your vault has no settled savings to withdraw!', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                                accentColor: _SavingsTokens.deficitRed,
+
+                              );
+                              return;
+                            }
                             if (currentWithdrawAmount <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Please enter a valid amount to withdraw.'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(sheetContext, message: 'Please enter a valid amount to withdraw.', title: 'Notice', icon: Icons.info_outline_rounded,
+
                               );
                               return;
                             }
                             if (currentWithdrawAmount > effectiveSavings) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Withdrawal amount exceeds your settled vault savings!'),
-                                  backgroundColor: _SavingsTokens.deficitRed,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(sheetContext, message: 'Withdrawal amount exceeds your settled vault savings!', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                                accentColor: _SavingsTokens.deficitRed,
+
                               );
                               return;
                             }
@@ -1571,18 +1582,16 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                 );
                             Navigator.of(sheetContext).pop();
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  addToBudget
-                                      ? 'Withdrew ${formatPeso(currentWithdrawAmount)} → added to today\'s budget! (New: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
-                                      : 'Withdrew ${formatPeso(currentWithdrawAmount)} from vault (cash out).',
-                                ),
-                                backgroundColor: addToBudget
-                                    ? _SavingsTokens.targetGold
-                                    : _SavingsTokens.savingsGreen,
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            showAppAlert(
+                              context,
+                              message: addToBudget
+                                  ? 'Withdrew ${formatPeso(currentWithdrawAmount)} → added to today\'s budget! (New: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
+                                  : 'Withdrew ${formatPeso(currentWithdrawAmount)} from vault (cash out).',
+                              title: 'Notice',
+                              icon: Icons.info_outline_rounded,
+                              accentColor: addToBudget
+                                  ? _SavingsTokens.savingsGreen
+                                  : _SavingsTokens.targetGold,
                             );
                           },
                           icon: Icon(
@@ -1714,18 +1723,75 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       ),
                       const SizedBox(height: 14),
 
-                      Text(
-                        'Choose Payment Source for Debt',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: tokens.textSecondary,
+                      if (!hasDeficit) ...<Widget>[
+                        // No deficit - show cleared notice
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: _SavingsTokens.savingsGreen
+                                .withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _SavingsTokens.savingsGreen
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: _SavingsTokens.savingsGreen
+                                      .withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 18,
+                                  color: _SavingsTokens.savingsGreen,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'No Running Deficit!',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: _SavingsTokens.savingsGreen,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Your budget is on track — there\'s nothing to pay here.',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                      ] else ...<Widget>[
+                        Text(
+                          'Choose Payment Source for Debt',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
 
-                      // Option 0: Pay from Today's Budget
-                      InkWell(
+                        // Option 0: Pay from Today's Budget
+                        InkWell(
                         onTap: () => setModalState(() => debtPaymentSource = 0),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
@@ -1993,20 +2059,35 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             ),
                         ],
                       ),
+                      ],
                       const SizedBox(height: 16),
 
-                      // Confirm Debt Payment Button
+                      // Confirm Debt Payment Button — only show when there is a deficit
+                      if (hasDeficit)
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
                           onPressed: () {
+                            if (effectiveDebt <= 0) {
+                              showAppAlert(sheetContext, message: 'You have no running deficit to pay!', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                                accentColor: _SavingsTokens.deficitRed,
+
+                              );
+                              return;
+                            }
                             if (currentPayDebtAmount <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Please enter an amount to pay towards debt.'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(sheetContext, message: 'Please enter an amount to pay towards debt.', title: 'Notice', icon: Icons.info_outline_rounded,
+
+                              );
+                              return;
+                            }
+                            if (currentPayDebtAmount > effectiveDebt) {
+                              showAppAlert(sheetContext,
+                                message: 'Payment (${formatPeso(currentPayDebtAmount)}) exceeds the total deficit (${formatPeso(effectiveDebt)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _SavingsTokens.deficitRed,
                               );
                               return;
                             }
@@ -2014,13 +2095,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             if (debtPaymentSource == 0) {
                               // From Today's Budget
                               if (currentTodayBudget < currentPayDebtAmount) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Payment exceeds today\'s budget (${formatPeso(currentTodayBudget)})!'),
-                                    backgroundColor: _SavingsTokens.deficitRed,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                showAppAlert(sheetContext,
+                                  message: 'Payment exceeds today\'s budget (${formatPeso(currentTodayBudget)})!',
+                                  title: 'Alert',
+                                  icon: Icons.warning_amber_rounded,
+                                  accentColor: _SavingsTokens.deficitRed,
                                 );
                                 return;
                               }
@@ -2044,13 +2123,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             } else if (debtPaymentSource == 1) {
                               // From Savings Vault
                               if (effectiveSavings < currentPayDebtAmount) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Payment exceeds vault savings (${formatPeso(effectiveSavings)})!'),
-                                    backgroundColor: _SavingsTokens.deficitRed,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                showAppAlert(sheetContext,
+                                  message: 'Payment exceeds vault savings (${formatPeso(effectiveSavings)})!',
+                                  title: 'Alert',
+                                  icon: Icons.warning_amber_rounded,
+                                  accentColor: _SavingsTokens.deficitRed,
                                 );
                                 return;
                               }
@@ -2084,14 +2161,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     .clamp(0.0, double.infinity);
                             Navigator.of(sheetContext).pop();
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Paid ${formatPeso(currentPayDebtAmount)} towards debt! Remaining deficit: ${formatPeso(remainingDebt)}.',
-                                ),
-                                backgroundColor: _SavingsTokens.savingsGreen,
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            showAppAlert(context,
+                              message: 'Paid ${formatPeso(currentPayDebtAmount)} towards debt! Remaining deficit: ${formatPeso(remainingDebt)}.',
+                              title: 'Success',
+                              icon: Icons.check_circle_outline_rounded,
+                              accentColor: _SavingsTokens.savingsGreen,
                             );
                           },
                           icon: const Icon(Icons.check_circle_rounded,
@@ -3444,8 +3518,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                 orElse: () => null,
               );
 
-      final double todayBudget =
-          entry?.amount ?? (state.settings.dailyLimit ?? 0.0);
+      // Only use dailyLimit as the budget if the user explicitly set a BudgetEntry
+      // for today. If they haven't set a budget today, treat budget as 0 so no
+      // fake "pending savings" appears.
+      final double todayBudget = entry?.amount ?? 0.0;
 
       final List<ExpenseEntry> todayExpenses = state.expenses
           .where((ExpenseEntry e) =>
@@ -3607,3 +3683,9 @@ String _formatDayLabel(DateTime dateTime, [DateTime? currentClock]) {
   }
   return DateFormat('EEEE, MMM d, yyyy').format(dateTime);
 }
+
+
+
+
+
+

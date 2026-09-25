@@ -10,6 +10,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../budget/budget_planner_screen.dart';
 import '../together/budget_together_screen.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Clean Modern Bento Tokens for Expense Tracker Screen.
 /// Emphasizes Dark Red (#991B1B) as primary expense accent with Dark Teal (#0F766E) and Gold (#D97706).
@@ -1079,12 +1080,10 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                 .read(budgetBuddyControllerProvider.notifier)
                                 .deleteExpense(expense.id);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Expense deleted successfully.'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: _ExpensesTokens.expenseRed,
-                                ),
+                              showAppAlert(context, message: 'Expense deleted successfully.', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                                accentColor: _ExpensesTokens.expenseRed,
+
                               );
                             }
                           }
@@ -1479,14 +1478,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     }
 
                     Navigator.of(dialogContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(existing != null
+                    showAppAlert(context, message: existing != null
                             ? 'Expense updated!'
-                            : 'Expense added!'),
-                        backgroundColor: _ExpensesTokens.safeGreen,
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                            : 'Expense added!', title: 'Success', icon: Icons.check_circle_outline_rounded,
+
+                      accentColor: _ExpensesTokens.safeGreen,
+
                     );
                   },
                   style: FilledButton.styleFrom(
@@ -1579,3 +1576,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
   }
 }
+
+
+
+

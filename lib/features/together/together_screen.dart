@@ -13,6 +13,7 @@ import '../expenses/expense_tracker_screen.dart';
 import '../savings/savings_screen.dart';
 import '../spend/spend_screen.dart';
 import 'budget_together_screen.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Clean Modern Bento Tokens for Offline Shared Daily Budget ("Budget Together").
 /// 100% OFFLINE dedicated parallel workspace.
@@ -978,19 +979,18 @@ class _TogetherBudgetPlanViewState
             activeColor: _TogetherTokens.budgetGold,
             onChanged: (bool value) {
               _setLockState(value);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    value
-                        ? 'Together budget locked against edits.'
-                        : 'Together budget unlocked for changes.',
-                  ),
-                  backgroundColor: value
-                      ? _TogetherTokens.budgetGold
-                      : _TogetherTokens.safeGreen,
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                ),
+              showAppAlert(
+                context,
+                message: value
+                    ? 'Together budget locked against edits.'
+                    : 'Together budget unlocked for changes.',
+                title: value ? 'Budget Locked' : 'Budget Unlocked',
+                icon: value
+                    ? Icons.lock_outline_rounded
+                    : Icons.lock_open_rounded,
+                accentColor: value
+                    ? _TogetherTokens.spentRed
+                    : _TogetherTokens.safeGreen,
               );
             },
           ),
@@ -1282,33 +1282,21 @@ class _TogetherBudgetPlanViewState
                   onTap: () {
                     if (_isLocked) {
                       HapticFeedback.lightImpact();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                              'Together plan is locked. Toggle switch above to unlock and change target.'),
-                          backgroundColor: _TogetherTokens.budgetGold,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                          action: SnackBarAction(
-                            label: 'Unlock',
-                            textColor: Colors.white,
-                            onPressed: () => _setLockState(false),
-                          ),
-                        ),
+                      showAppAlert(context, message: 'Together plan is locked. Toggle switch above to unlock and change target.', title: 'Notice', icon: Icons.info_outline_rounded,
+
+                        accentColor: _TogetherTokens.budgetGold,
+
                       );
                       return;
                     }
                     ref
                         .read(budgetBuddyControllerProvider.notifier)
                         .setTogetherBudget(preset);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            'Shared target updated to ${formatPeso(preset)}!'),
-                        backgroundColor: _TogetherTokens.budgetGold,
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                      ),
+                    showAppAlert(context,
+                      message: 'Shared target updated to ${formatPeso(preset)}!',
+                      title: 'Notice',
+                      icon: Icons.info_outline_rounded,
+                      accentColor: _TogetherTokens.budgetGold,
                     );
                   },
                   borderRadius: BorderRadius.circular(999),
@@ -1361,19 +1349,10 @@ class _TogetherBudgetPlanViewState
             onPressed: () {
               if (_isLocked) {
                 HapticFeedback.lightImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text(
-                      'Together plan is locked. Toggle switch above to unlock and adjust target.',
-                    ),
-                    backgroundColor: _TogetherTokens.budgetGold,
-                    behavior: SnackBarBehavior.floating,
-                    action: SnackBarAction(
-                      label: 'Unlock',
-                      textColor: Colors.white,
-                      onPressed: () => _setLockState(false),
-                    ),
-                  ),
+                showAppAlert(context, message: 'Together plan is locked. Toggle switch above to unlock and adjust target.', title: 'Notice', icon: Icons.info_outline_rounded,
+
+                  accentColor: _TogetherTokens.budgetGold,
+
                 );
                 return;
               }
@@ -1464,20 +1443,10 @@ class _TogetherBudgetPlanViewState
   void _confirmResetTodayBudget(BuildContext context, _TogetherTokens tokens) {
     if (_isLocked) {
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Together plan is locked. Toggle switch above to unlock before resetting.',
-          ),
-          backgroundColor: _TogetherTokens.spentRed,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          action: SnackBarAction(
-            label: 'Unlock',
-            textColor: Colors.white,
-            onPressed: () => _setLockState(false),
-          ),
-        ),
+      showAppAlert(context, message: 'Together plan is locked. Toggle switch above to unlock before resetting.', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+        accentColor: _TogetherTokens.spentRed,
+
       );
       return;
     }
@@ -1574,14 +1543,10 @@ class _TogetherBudgetPlanViewState
                           .read(budgetBuddyControllerProvider.notifier)
                           .setTogetherBudget(0.0);
                       _setLockState(false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            "Today's shared budget plan has been reset to ₱0.00.",
-                          ),
-                          backgroundColor: _TogetherTokens.spentRed,
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                      showAppAlert(context, message: "Today's shared budget plan has been reset to ₱0.00.", title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                        accentColor: _TogetherTokens.spentRed,
+
                       );
                     },
                     style: FilledButton.styleFrom(
@@ -1617,20 +1582,10 @@ class _TogetherBudgetPlanViewState
   ) {
     if (_isLocked) {
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Together plan is locked. Toggle switch above to unlock and adjust target.',
-          ),
-          backgroundColor: _TogetherTokens.budgetGold,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          action: SnackBarAction(
-            label: 'Unlock',
-            textColor: Colors.white,
-            onPressed: () => _setLockState(false),
-          ),
-        ),
+      showAppAlert(context, message: 'Together plan is locked. Toggle switch above to unlock and adjust target.', title: 'Notice', icon: Icons.info_outline_rounded,
+
+        accentColor: _TogetherTokens.budgetGold,
+
       );
       return;
     }
@@ -1723,13 +1678,11 @@ class _TogetherBudgetPlanViewState
                           .setTogetherBudget(val);
                       _setLockState(true);
                       Navigator.of(sheetContext).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Together target locked at ${formatPeso(val)}!'),
-                          backgroundColor: _TogetherTokens.budgetGold,
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                      showAppAlert(context,
+                        message: 'Together target locked at ${formatPeso(val)}!',
+                        title: 'Notice',
+                        icon: Icons.info_outline_rounded,
+                        accentColor: _TogetherTokens.budgetGold,
                       );
                     },
                     style: FilledButton.styleFrom(
@@ -1783,3 +1736,8 @@ class _TogetherBudgetPlanViewState
     );
   }
 }
+
+
+
+
+

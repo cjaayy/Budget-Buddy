@@ -7,6 +7,7 @@ import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import '../../core/widgets/section_title.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 class GalaPlannerScreen extends ConsumerStatefulWidget {
   const GalaPlannerScreen({super.key});
@@ -237,12 +238,14 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                                           .read(budgetBuddyControllerProvider
                                               .notifier)
                                           .saveActivityPlan(activity);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text(
-                                                'Plan saved to your activity list.')),
-                                      );
+                                      showAppAlert(
+                                         context,
+                                         message:
+                                             'Plan saved to your activity list.',
+                                         title: 'Plan Saved',
+                                         accentColor: const Color(0xFF0F766E),
+                                         icon: Icons.bookmark_added_rounded,
+                                       );
                                       _promptLogActivities(context,
                                           <ActivitySuggestion>[activity]);
                                     },
@@ -302,7 +305,6 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                         final List<ActivitySuggestion> toCommit = activities
                             .where((a) => _selectedActivityIds.contains(a.id))
                             .toList();
-                        final messenger = ScaffoldMessenger.of(context);
                         final bool? doLog = await showDialog<bool>(
                           context: context,
                           builder: (BuildContext ctx) {
@@ -335,9 +337,14 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
                                 );
                           }
                           if (mounted) {
-                            messenger.showSnackBar(SnackBar(
-                                content: Text(
-                                    'Logged ${toCommit.length} activities.')));
+                            showAppAlert(
+                              context,
+                              message:
+                                  'Logged ${toCommit.length} activities.',
+                              title: 'Activities Logged',
+                              accentColor: const Color(0xFF0F766E),
+                              icon: Icons.check_circle_outline_rounded,
+                            );
                           }
                         }
                         setState(() => _selectedActivityIds.clear());
@@ -365,7 +372,6 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
 
   Future<void> _promptLogActivities(
       BuildContext context, List<ActivitySuggestion> activities) async {
-    final messenger = ScaffoldMessenger.of(context);
     final bool? result = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) {
@@ -394,9 +400,16 @@ class _GalaPlannerScreenState extends ConsumerState<GalaPlannerScreen> {
             );
       }
       if (mounted) {
-        messenger.showSnackBar(
-            const SnackBar(content: Text('Activities logged as expenses.')));
+        showAppAlert(context,
+          message: 'Activities logged as expenses.',
+          title: 'Notice',
+          icon: Icons.info_outline_rounded,
+        );
       }
     }
   }
 }
+
+
+
+

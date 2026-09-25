@@ -1,3 +1,4 @@
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -228,10 +229,16 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                               .read(budgetSummaryProvider)
                                               .remainingBalance;
                                           if (mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(SnackBar(
-                                                    content: Text(
-                                                        '${meal.name} logged. ${formatPeso(remaining)} remaining today.')));
+                                            showAppAlert(
+                                               context,
+                                               message:
+                                                   '${meal.name} logged. ${formatPeso(remaining)} remaining today.',
+                                               title: 'Meal Logged',
+                                               accentColor:
+                                                   const Color(0xFF0F766E),
+                                               icon: Icons
+                                                   .check_circle_outline_rounded,
+                                             );
                                           }
                                         },
                                         icon:
@@ -407,3 +414,6 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
     );
   }
 }
+
+
+

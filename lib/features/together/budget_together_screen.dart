@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Palette defining the 3 primary design colors matching Daily Budget: Dark Red, Gold, and Dark Green.
 class _TogetherBudgetPalette {
@@ -140,11 +141,8 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     final double? amount = double.tryParse(text);
 
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid budget amount greater than ₱0.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppAlert(context, message: 'Please enter a valid budget amount greater than ₱0.', title: 'Notice', icon: Icons.info_outline_rounded,
+
       );
       return;
     }
@@ -156,12 +154,11 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
       _isUnlockedForEditing = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Budget Together set to ${formatPeso(amount)}!'),
-        backgroundColor: const Color(0xFF0F766E),
-        behavior: SnackBarBehavior.floating,
-      ),
+    showAppAlert(context,
+      message: 'Budget Together set to ${formatPeso(amount)}!',
+      title: 'Success',
+      icon: Icons.check_circle_outline_rounded,
+      accentColor: const Color(0xFF0F766E),
     );
   }
 
@@ -204,12 +201,10 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                 setState(() {
                   _isUnlockedForEditing = false;
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Budget Together has been reset to ₱0.'),
-                    backgroundColor: Color(0xFF991B1B),
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                showAppAlert(context, message: 'Budget Together has been reset to ₱0.', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                  accentColor: Color(0xFF991B1B),
+
                 );
               },
               icon: const Icon(Icons.delete_outline_rounded, size: 14),
@@ -810,3 +805,8 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     );
   }
 }
+
+
+
+
+

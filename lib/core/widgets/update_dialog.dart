@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../services/update_service.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 enum UpdateDownloadState { idle, downloading, downloaded, error }
 
@@ -113,15 +114,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
           });
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isPermissionError
+        showAppAlert(context, message: isPermissionError
                   ? 'Permission required: Please allow "Install unknown apps" for Budget Buddy in Settings.'
-                  : 'Installation intent: $errorMsg',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
+                  : 'Installation intent: $errorMsg', title: 'Notice', icon: Icons.info_outline_rounded,
+
+
         );
       } else if (mounted) {
         setState(() {
@@ -130,11 +127,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to open installer: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        showAppAlert(context, message: 'Failed to open installer: $e', title: 'Notice', icon: Icons.info_outline_rounded,
+
         );
       }
     }
@@ -586,3 +580,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
     );
   }
 }
+
+
+
+

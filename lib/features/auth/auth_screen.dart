@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/state/app_controller.dart';
 import '../../core/models/budget_models.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Palette defining the unified 3 primary design colors: Dark Red, Gold, and Dark Green.
 class _AuthPalette {
@@ -67,15 +68,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _nameError = 'Name is required to sign in';
       });
       _nameFocusNode.requestFocus();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Name is required to sign in.',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: palette.darkRed,
-        ),
+      showAppAlert(
+        context,
+        message: 'Name is required to sign in.',
+        title: 'Alert',
+        icon: Icons.warning_amber_rounded,
+        accentColor: palette.darkRed,
       );
       return;
     }
@@ -98,15 +96,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _nameError = 'Name is required';
       });
       _nameFocusNode.requestFocus();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Name cannot be empty.',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: palette.darkRed,
-        ),
+      showAppAlert(
+        context,
+        message: 'Name cannot be empty.',
+        title: 'Alert',
+        icon: Icons.warning_amber_rounded,
+        accentColor: palette.darkRed,
       );
       return;
     }
@@ -123,12 +118,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _isEditingName = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Display name saved!'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: palette.darkGreen,
-      ),
+    showAppAlert(context, message: 'Display name saved!', title: 'Success', icon: Icons.check_circle_outline_rounded,
+
+
+      accentColor: palette.darkGreen,
+
+
     );
   }
 
@@ -631,13 +626,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ),
                             ),
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Online account sync is coming in a future update!',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(context, message: 'Online account sync is coming in a future update!', title: 'Notice', icon: Icons.info_outline_rounded,
+
                               );
                             },
                             child: const Text('Register Account'),
@@ -653,13 +643,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ),
                             ),
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Online account sync is coming in a future update!',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              showAppAlert(context, message: 'Online account sync is coming in a future update!', title: 'Notice', icon: Icons.info_outline_rounded,
+
                               );
                             },
                             child: const Text('Sign In to Account'),
@@ -711,3 +696,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 }
+
+
+
+

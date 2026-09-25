@@ -20,6 +20,7 @@ import '../../core/widgets/update_dialog.dart';
 import '../auth/auth_screen.dart';
 import '../splash/splash_screen.dart';
 import '../../core/widgets/budget_ai_assistant.dart';
+import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
 /// Palette defining the unified 3 primary design colors: Dark Red, Gold, and Dark Green.
 class _SettingsPalette {
@@ -89,22 +90,16 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Budget Buddy is up to date! (v${_appVersion?.version ?? "1.0.0"})',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
+        showAppAlert(context,
+          message: 'Budget Buddy is up to date! (v${_appVersion?.version ?? "1.0.0"})',
+          title: 'Notice',
+          icon: Icons.info_outline_rounded,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to check for updates: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        showAppAlert(context, message: 'Failed to check for updates: $e', title: 'Notice', icon: Icons.info_outline_rounded,
+
         );
       }
     } finally {
@@ -567,12 +562,15 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                                 .resetSimulatedTime();
                                             setState(() {});
                                             if (context.mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                      'Reverted to device real time.'),
-                                                ),
+                                              showAppAlert(
+                                                context,
+                                                message:
+                                                    'Reverted to device real time.',
+                                                title: 'Real Time Restored',
+                                                accentColor:
+                                                    const Color(0xFF0F766E),
+                                                icon: Icons
+                                                    .check_circle_outline_rounded,
                                               );
                                             }
                                           },
@@ -729,13 +727,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                     .simulateMidnightReset();
                                 setState(() {});
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Simulated 12:00 AM! Today\'s active budget & expenses have reset.',
-                                      ),
-                                      backgroundColor: Color(0xFF0F766E),
-                                    ),
+                                  showAppAlert(context, message: 'Simulated 12:00 AM! Today\'s active budget & expenses have reset.', title: 'Alert', icon: Icons.warning_amber_rounded,
+
+                                    accentColor: Color(0xFF0F766E),
+
                                   );
                                 }
                               },
@@ -785,12 +780,13 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                           .setSimulatedTimeTo1159PM();
                                       setState(() {});
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Time set to 11:59 PM (1 min before midnight).'),
-                                          ),
+                                        showAppAlert(
+                                          context,
+                                          message:
+                                              'Time set to 11:59 PM (1 min before midnight).',
+                                          title: 'Time Simulation',
+                                          accentColor: const Color(0xFFD97706),
+                                          icon: Icons.bedtime_outlined,
                                         );
                                       }
                                     },
@@ -809,12 +805,13 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                           .fastForwardOneDay();
                                       setState(() {});
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Fast-forwarded +1 day past midnight.'),
-                                          ),
+                                        showAppAlert(
+                                          context,
+                                          message:
+                                              'Fast-forwarded +1 day past midnight.',
+                                          title: 'Time Simulation',
+                                          accentColor: const Color(0xFFD97706),
+                                          icon: Icons.fast_forward_rounded,
                                         );
                                       }
                                     },
@@ -997,15 +994,13 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     setState(() {});
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            hour == 0 && minute == 0
+      showAppAlert(context,
+        message: hour == 0 && minute == 0
                 ? 'Time set to 12:00 AM midnight! Today\'s active budget has reset.'
                 : 'Simulated time set to: ${DateFormat('h:mm a').format(newSimulatedTime)}',
-          ),
-          backgroundColor: const Color(0xFF0F766E),
-        ),
+        title: 'Success',
+        icon: Icons.check_circle_outline_rounded,
+        accentColor: const Color(0xFF0F766E),
       );
     }
   }
@@ -1066,13 +1061,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     setState(() {});
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Simulated time set to: ${DateFormat('MMM d, yyyy • h:mm a').format(newSimulatedTime)}',
-          ),
-          backgroundColor: const Color(0xFF0F766E),
-        ),
+      showAppAlert(context,
+        message: 'Simulated time set to: ${DateFormat('MMM d, yyyy • h:mm a').format(newSimulatedTime)}',
+        title: 'Success',
+        icon: Icons.check_circle_outline_rounded,
+        accentColor: const Color(0xFF0F766E),
       );
     }
   }
@@ -1511,8 +1504,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       } catch (e) {
         debugPrint('Backup save error: $e');
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save backup to Downloads.')),
+        showAppAlert(context,
+          message: 'Could not save backup to Downloads.',
+          title: 'Notice',
+          icon: Icons.info_outline_rounded,
         );
       }
     }
@@ -1526,15 +1521,16 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     if (choice == 'copy') {
       await Clipboard.setData(ClipboardData(text: jsonText));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup JSON copied to clipboard.')),
+      showAppAlert(context,
+        message: 'Backup JSON copied to clipboard.',
+        title: 'Notice',
+        icon: Icons.info_outline_rounded,
       );
       return;
     }
   }
 
   Future<void> _restoreSnapshot(BuildContext context) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final String? action = await showModalBottomSheet<String>(
       context: context,
       builder: (BuildContext context) {
@@ -1615,12 +1611,12 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       } catch (e) {
         debugPrint('Native pick error: $e');
         if (!mounted) return;
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Could not open file: $e'),
-            backgroundColor: const Color(0xFFDC2626),
-            behavior: SnackBarBehavior.floating,
-          ),
+        showAppAlert(
+          context,
+          message: 'Could not open file: $e',
+          title: 'Import Error',
+          accentColor: const Color(0xFF991B1B),
+          icon: Icons.error_outline_rounded,
         );
         return;
       }
@@ -1666,12 +1662,12 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     } catch (e) {
       debugPrint('Restore JSON decode error: $e');
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Could not restore backup: $e'),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppAlert(
+        context,
+        message: 'Could not restore backup: $e',
+        title: 'Restore Failed',
+        accentColor: const Color(0xFF991B1B),
+        icon: Icons.error_outline_rounded,
       );
     }
   }
@@ -1852,8 +1848,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               text: 'BudgetBuddy PDF report',
             );
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('PDF report shared successfully.')),
+            showAppAlert(context,
+              message: 'PDF report shared successfully.',
+              title: 'Notice',
+              icon: Icons.info_outline_rounded,
             );
           }
           return;
@@ -1866,15 +1864,19 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           text: 'BudgetBuddy PDF report',
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF report shared successfully.')),
+        showAppAlert(context,
+          message: 'PDF report shared successfully.',
+          title: 'Notice',
+          icon: Icons.info_outline_rounded,
         );
         return;
       }
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not export PDF report.')),
+      showAppAlert(context,
+        message: 'Could not export PDF report.',
+        title: 'Notice',
+        icon: Icons.info_outline_rounded,
       );
     }
   }
@@ -2004,8 +2006,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               text: 'BudgetBuddy CSV export',
             );
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('CSV shared successfully.')),
+            showAppAlert(context,
+              message: 'CSV shared successfully.',
+              title: 'Notice',
+              icon: Icons.info_outline_rounded,
             );
           }
           return;
@@ -2018,15 +2022,19 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           text: 'BudgetBuddy CSV export',
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('CSV shared successfully.')),
+        showAppAlert(context,
+          message: 'CSV shared successfully.',
+          title: 'Notice',
+          icon: Icons.info_outline_rounded,
         );
         return;
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not export CSV file.')),
+      showAppAlert(context,
+        message: 'Could not export CSV file.',
+        title: 'Notice',
+        icon: Icons.info_outline_rounded,
       );
     }
   }
@@ -2056,9 +2064,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: path));
                 Navigator.of(context).pop();
-                final messenger = ScaffoldMessenger.of(context);
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Path copied to clipboard.')),
+                showAppAlert(context,
+                  message: 'Path copied to clipboard.',
+                  title: 'Notice',
+                  icon: Icons.info_outline_rounded,
                 );
               },
               child: const Text('Copy path'),
@@ -2075,7 +2084,6 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -2109,7 +2117,11 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     if (!mounted) {
       return;
     }
-    messenger.showSnackBar(const SnackBar(content: Text('Logged out.')));
+    showAppAlert(context,
+      message: 'Logged out.',
+      title: 'Notice',
+      icon: Icons.info_outline_rounded,
+    );
   }
 
   void _openProfileMenu(BuildContext parentContext, BudgetBuddyState state) {
@@ -2676,3 +2688,9 @@ class _PasteJsonDialogState extends State<_PasteJsonDialog> {
     );
   }
 }
+
+
+
+
+
+
