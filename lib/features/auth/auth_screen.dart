@@ -1,30 +1,44 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/state/app_controller.dart';
 import '../../core/models/budget_models.dart';
 import 'package:budgetbuddy/core/utils/alert_dialog.dart';
 
-/// Palette defining the unified 3 primary design colors: Dark Red, Gold, and Dark Green.
-class _AuthPalette {
-  const _AuthPalette(this.isDark);
+/// Clean Modern Bento Tokens for Auth / Name Onboarding Screen.
+class _AuthTokens {
+  const _AuthTokens(this.isDark);
 
   final bool isDark;
 
-  Color get darkRed => const Color(0xFF991B1B);
-  Color get darkRedBg =>
-      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+  static const Color primaryGreen = Color(0xFF0F766E);
+  static const Color teaserGold = Color(0xFFD97706);
+  static const Color errorRed = Color(0xFF991B1B);
 
-  Color get gold => const Color(0xFFD97706);
+  Color get scaffoldBg =>
+      isDark ? const Color(0xFF0B1120) : const Color(0xFFF8FAFC);
+  Color get cardBg =>
+      isDark ? const Color(0xFF111827) : const Color(0xFFFFFFFF);
+  Color get borderColor =>
+      isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+  Color get textPrimary =>
+      isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+  Color get textSecondary =>
+      isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get greenBg =>
+      primaryGreen.withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get greenBorder => primaryGreen.withValues(alpha: 0.25);
   Color get goldBg =>
-      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
-
-  Color get darkGreen => const Color(0xFF0F766E);
-  Color get darkGreenBg =>
-      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
+      teaserGold.withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get goldBorder => teaserGold.withValues(alpha: 0.25);
+  Color get redBg =>
+      errorRed.withValues(alpha: isDark ? 0.20 : 0.08);
+  Color get redBorder => errorRed.withValues(alpha: 0.25);
 }
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -37,21 +51,36 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
-  String? _nameError;
-  bool _isEditingName = false;
-  bool _initializedName = false;
+  String? _errorMessage;
+  bool _isInitialized = false;
 
-  String _buildInitials(String displayName) {
-    final String trimmed = displayName.trim();
-    if (trimmed.isEmpty) {
-      return 'BB';
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialName();
+  }
+
+  Future<void> _loadInitialName() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? localName = prefs.getString('userName');
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final String profileName = state.profile.displayName;
+
+    String candidate = '';
+    if (localName != null && localName.trim().isNotEmpty) {
+      candidate = localName.trim();
+    } else if (profileName.trim().isNotEmpty && profileName != 'Budget Buddy') {
+      candidate = profileName.trim();
     }
-    return trimmed
-        .split(RegExp(r'\s+'))
-        .take(2)
-        .map((String part) => part.isNotEmpty ? part[0] : '')
-        .join()
-        .toUpperCase();
+
+    if (candidate.isNotEmpty && !_isInitialized) {
+      _nameController.value = TextEditingValue(
+        text: candidate,
+        selection: TextSelection.collapsed(offset: candidate.length),
+      );
+      _isInitialized = true;
+      if (mounted) setState(() {});
+    }
   }
 
   @override
@@ -61,634 +90,385 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     super.dispose();
   }
 
-  void _handleSignIn(String currentInputName, _AuthPalette palette) {
-    final String trimmed = currentInputName.trim();
-    if (trimmed.isEmpty) {
+  Future<void> _handleContinue(_AuthTokens tokens) async {
+    final String trimmedName = _nameController.text.trim();
+    if (trimmedName.isEmpty) {
+      HapticFeedback.vibrate();
       setState(() {
-        _nameError = 'Name is required to sign in';
+        _errorMessage = 'Please enter your name to personalize your budget';
       });
       _nameFocusNode.requestFocus();
-      showAppAlert(
-        context,
-        message: 'Name is required to sign in.',
-        title: 'Alert',
-        icon: Icons.warning_amber_rounded,
-        accentColor: palette.darkRed,
-      );
       return;
     }
 
+    HapticFeedback.lightImpact();
     setState(() {
-      _nameError = null;
+      _errorMessage = null;
     });
 
-    ref.read(budgetBuddyControllerProvider.notifier).login(trimmed);
-  }
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userName', trimmedName);
+    } catch (_) {}
 
-  void _handleSaveName(
-    String currentInputName,
-    _AuthPalette palette,
-    BudgetBuddyState state,
-  ) {
-    final String trimmed = currentInputName.trim();
-    if (trimmed.isEmpty) {
-      setState(() {
-        _nameError = 'Name is required';
-      });
-      _nameFocusNode.requestFocus();
-      showAppAlert(
-        context,
-        message: 'Name cannot be empty.',
-        title: 'Alert',
-        icon: Icons.warning_amber_rounded,
-        accentColor: palette.darkRed,
-      );
-      return;
-    }
-
-    ref.read(budgetBuddyControllerProvider.notifier).updateProfile(
-          state.profile.copyWith(
-            displayName: trimmed,
-            avatarSeed: _buildInitials(trimmed),
-          ),
-        );
-
-    setState(() {
-      _nameError = null;
-      _isEditingName = false;
-    });
-
-    showAppAlert(context, message: 'Display name saved!', title: 'Success', icon: Icons.check_circle_outline_rounded,
-
-
-      accentColor: palette.darkGreen,
-
-
-    );
+    ref.read(budgetBuddyControllerProvider.notifier).login(trimmedName);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(budgetBuddyControllerProvider);
-    final String savedDisplayName = state.profile.displayName;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final _AuthPalette palette = _AuthPalette(isDark);
-    final ThemeData theme = Theme.of(context);
-
-    final String normalizedSavedName =
-        savedDisplayName == 'Budget Buddy' ? '' : savedDisplayName.trim();
-
-    if (!_initializedName) {
-      if (normalizedSavedName.isNotEmpty) {
-        _nameController.value = TextEditingValue(
-          text: normalizedSavedName,
-          selection:
-              TextSelection.collapsed(offset: normalizedSavedName.length),
-        );
-      }
-      _initializedName = true;
-    }
-
-    final String currentInputName = _nameController.text.trim();
-    final bool hasSavedName = normalizedSavedName.isNotEmpty;
-    final bool canSaveName =
-        currentInputName.isNotEmpty && currentInputName != normalizedSavedName;
+    final _AuthTokens tokens = _AuthTokens(isDark);
 
     return Scaffold(
+      backgroundColor: tokens.scaffoldBg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Top Brand Header
-              Center(
-                child: Column(
-                  children: <Widget>[
-                    const SizedBox(height: 12),
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: palette.darkGreenBg,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: palette.darkGreenBorder,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.savings_rounded,
-                        size: 36,
-                        color: palette.darkGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Budget Buddy',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Smart offline budget & tab companion',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  // 1. Header Bento Card (App Branding & Badges)
+                  _buildHeaderBentoCard(context, tokens),
+                  const SizedBox(height: 16),
+
+                  // 2. Name Input Card
+                  _buildNameInputCard(context, tokens),
+                  const SizedBox(height: 16),
+
+                  // 3. Continue Action Button
+                  _buildContinueButton(context, tokens),
+                  const SizedBox(height: 20),
+
+                  // 4. Offline Privacy Guarantee Note
+                  _buildPrivacyFooter(context, tokens),
+                ],
               ),
-
-              // Sign In Card
-              Container(
-                clipBehavior: Clip.antiAlias,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: theme.cardTheme.color ?? theme.cardColor,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color:
-                        theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.login_rounded,
-                          size: 18,
-                          color: palette.darkGreen,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: palette.darkGreenBg,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: palette.darkGreenBorder),
-                          ),
-                          child: Text(
-                            'OFFLINE MODE',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: palette.darkGreen,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Enter your name to sign in. Budget Buddy works completely offline without accounts or internet.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Name Display or Input Field
-                    if (hasSavedName && !_isEditingName) ...<Widget>[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: palette.darkGreenBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: palette.darkGreenBorder),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: palette.darkGreen,
-                              child: Text(
-                                _buildInitials(normalizedSavedName),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    'Signed in as',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  Text(
-                                    normalizedSavedName,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.check_circle_rounded,
-                              color: palette.darkGreen,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Solid Gold Edit Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: palette.gold,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _isEditingName = true;
-                            });
-                            _nameFocusNode.requestFocus();
-                          },
-                          icon: const Icon(Icons.edit_rounded, size: 16),
-                          label: const Text(
-                            'Edit Name',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ] else ...<Widget>[
-                      TextField(
-                        controller: _nameController,
-                        focusNode: _nameFocusNode,
-                        textInputAction: TextInputAction.done,
-                        onChanged: (String value) {
-                          if (_nameError != null && value.trim().isNotEmpty) {
-                            setState(() => _nameError = null);
-                          } else if (mounted) {
-                            setState(() {});
-                          }
-                        },
-                        onSubmitted: (String value) {
-                          if (_isEditingName) {
-                            _handleSaveName(value, palette, state);
-                          } else {
-                            _handleSignIn(value, palette);
-                          }
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Your Name *',
-                          hintText: 'Enter your name (required to sign in)',
-                          errorText: _nameError,
-                          prefixIcon: Icon(
-                            Icons.badge_rounded,
-                            color: _nameError != null
-                                ? palette.darkRed
-                                : palette.gold,
-                            size: 20,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: theme.colorScheme.outlineVariant
-                                  .withValues(alpha: 0.4),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: palette.gold,
-                              width: 1.6,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
-                          ),
-                        ),
-                      ),
-                      if (_isEditingName) ...<Widget>[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: <Widget>[
-                            // Cancel Button: Full solid Dark Red
-                            Expanded(
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: palette.darkRed,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                onPressed: () {
-                                  _nameController.value = TextEditingValue(
-                                    text: normalizedSavedName,
-                                    selection: TextSelection.collapsed(
-                                      offset: normalizedSavedName.length,
-                                    ),
-                                  );
-                                  setState(() {
-                                    _nameError = null;
-                                    _isEditingName = false;
-                                  });
-                                },
-                                icon: const Icon(Icons.close_rounded, size: 16),
-                                label: const Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            // Save Button: Full solid Dark Green
-                            Expanded(
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: palette.darkGreen,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                onPressed: canSaveName
-                                    ? () => _handleSaveName(
-                                          _nameController.text,
-                                          palette,
-                                          state,
-                                        )
-                                    : null,
-                                icon: const Icon(Icons.save_rounded, size: 16),
-                                label: const Text(
-                                  'Save Name',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                    const SizedBox(height: 16),
-
-                    // Feature highlights row with solid fill colors
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _buildFeaturePill(
-                            icon: Icons.wifi_off_rounded,
-                            label: '100% Offline',
-                            fillColor: palette.darkGreen,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildFeaturePill(
-                            icon: Icons.security_rounded,
-                            label: 'Private Data',
-                            fillColor: palette.gold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildFeaturePill(
-                            icon: Icons.restart_alt_rounded,
-                            label: 'Reset 12 AM',
-                            fillColor: palette.darkRed,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Solid Dark Green Action Button (Requires Name)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: palette.darkGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: () {
-                          final String nameToUse = _isEditingName || !hasSavedName
-                              ? _nameController.text
-                              : normalizedSavedName;
-                          _handleSignIn(nameToUse, palette);
-                        },
-                        icon: const Icon(Icons.login_rounded, size: 18),
-                        label: const Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Cloud & Accounts (Upcoming) Card
-              Container(
-                clipBehavior: Clip.antiAlias,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.cardTheme.color ?? theme.cardColor,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color:
-                        theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.cloud_sync_rounded,
-                          size: 16,
-                          color: palette.gold,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Cloud & Sync',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: palette.goldBg,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: palette.goldBorder),
-                          ),
-                          child: Text(
-                            'COMING SOON',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: palette.gold,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Multi-device synchronization and online cloud backups are currently in active development.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () {
-                              showAppAlert(context, message: 'Online account sync is coming in a future update!', title: 'Notice', icon: Icons.info_outline_rounded,
-
-                              );
-                            },
-                            child: const Text('Register Account'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () {
-                              showAppAlert(context, message: 'Online account sync is coming in a future update!', title: 'Notice', icon: Icons.info_outline_rounded,
-
-                              );
-                            },
-                            child: const Text('Sign In to Account'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFeaturePill({
-    required IconData icon,
-    required String label,
-    required Color fillColor,
-  }) {
+  // 1. Header Bento Card (App Branding & Badges)
+  Widget _buildHeaderBentoCard(BuildContext context, _AuthTokens tokens) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
       decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(12),
+        color: tokens.cardBg,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: tokens.borderColor, width: 1.2),
       ),
       child: Column(
+        children: <Widget>[
+          // App Logo
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: _AuthTokens.primaryGreen,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.savings_rounded,
+              color: Colors.white,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // App Title
+          Text(
+            'Budget Buddy',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: tokens.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Subtitle
+          Text(
+            'Smart Offline Budget & Financial Tracker',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Badges Row: 100% Offline & Cloud Sync Teaser
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              // Offline Badge Capsule
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: tokens.greenBg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: tokens.greenBorder, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: _AuthTokens.primaryGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '100% Offline & Private',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _AuthTokens.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Cloud Sync Teaser Capsule
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: tokens.goldBg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: tokens.goldBorder, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(
+                      Icons.cloud_sync_outlined,
+                      size: 14,
+                      color: _AuthTokens.teaserGold,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Cloud Sync — Coming Soon',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _AuthTokens.teaserGold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 2. Name Input Card
+  Widget _buildNameInputCard(BuildContext context, _AuthTokens tokens) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: tokens.cardBg,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: tokens.borderColor, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Welcome! What should we call you?',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              color: tokens.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your name is stored locally on this device to personalize your greeting and financial reports.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Name Text Input Field
+          TextField(
+            controller: _nameController,
+            focusNode: _nameFocusNode,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            onChanged: (String value) {
+              if (_errorMessage != null && value.trim().isNotEmpty) {
+                setState(() => _errorMessage = null);
+              } else if (mounted) {
+                setState(() {});
+              }
+            },
+            onSubmitted: (_) => _handleContinue(tokens),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
+              color: tokens.textPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Enter your preferred name',
+              hintStyle: GoogleFonts.plusJakartaSans(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: tokens.textSecondary.withValues(alpha: 0.7),
+              ),
+              prefixIcon: const Icon(
+                Icons.person_outline_rounded,
+                color: _AuthTokens.primaryGreen,
+                size: 20,
+              ),
+              suffixIcon: _nameController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      color: tokens.textSecondary,
+                      tooltip: 'Clear',
+                      onPressed: () {
+                        _nameController.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: tokens.borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: tokens.borderColor, width: 1.2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: _AuthTokens.primaryGreen,
+                  width: 1.8,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: _AuthTokens.errorRed,
+                  width: 1.4,
+                ),
+              ),
+            ),
+          ),
+
+          // Error message banner
+          if (_errorMessage != null) ...<Widget>[
+            const SizedBox(height: 10),
+            Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 15,
+                  color: _AuthTokens.errorRed,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _errorMessage!,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: _AuthTokens.errorRed,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // 3. Continue Action Button
+  Widget _buildContinueButton(BuildContext context, _AuthTokens tokens) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: _AuthTokens.primaryGreen,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        onPressed: () => _handleContinue(tokens),
+        label: Text(
+          'Get Started',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
+        ),
+        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+      ),
+    );
+  }
+
+  // 4. Privacy Footer
+  Widget _buildPrivacyFooter(BuildContext context, _AuthTokens tokens) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: tokens.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tokens.borderColor),
+      ),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, size: 18, color: Colors.white),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: -0.2,
+          const Icon(
+            Icons.shield_outlined,
+            size: 16,
+            color: _AuthTokens.primaryGreen,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Zero account registration required • Stored 100% locally',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: tokens.textSecondary,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -696,7 +476,3 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 }
-
-
-
-
