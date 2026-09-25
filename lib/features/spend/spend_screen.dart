@@ -138,7 +138,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   // Numeric Keypad & Input State
   String _rawInput = '';
   _SpendCategoryOption _selectedCategory = _spendCategories.first;
-  final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
   bool _isQueueExpanded = true;
 
   @override
@@ -149,7 +149,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   @override
   void dispose() {
-    _noteController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
@@ -224,7 +224,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     HapticFeedback.mediumImpact();
     setState(() {
       _rawInput = '';
-      _noteController.clear();
+      _titleController.clear();
     });
   }
 
@@ -248,8 +248,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     }
 
     HapticFeedback.mediumImpact();
-    final String title = _selectedCategory.title;
-    final String note = _noteController.text.trim();
+    final String enteredTitle = _titleController.text.trim();
+    final String title =
+        enteredTitle.isNotEmpty ? enteredTitle : _selectedCategory.title;
 
     setState(() {
       _pendingSpends.add(
@@ -260,16 +261,15 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           category: _selectedCategory.budgetCategory,
           color: _selectedCategory.color,
           icon: _selectedCategory.icon,
-          note: note,
         ),
       );
       _rawInput = '';
-      _noteController.clear();
+      _titleController.clear();
       _isQueueExpanded = true;
     });
 
     showAppAlert(context,
-      message: 'Added to batch queue (${formatPeso(_currentAmount)})',
+      message: 'Added "$title" to batch queue (${formatPeso(_currentAmount)})',
       title: 'Notice',
       icon: Icons.info_outline_rounded,
       accentColor: _SpendTokens.budgetGold,
@@ -298,19 +298,21 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
     // If there is currently typed amount in the input, auto-include it
     if (_currentAmount > 0) {
+      final String enteredTitle = _titleController.text.trim();
+      final String title =
+          enteredTitle.isNotEmpty ? enteredTitle : _selectedCategory.title;
       _pendingSpends.add(
         _PendingSpendItem(
           id: '${DateTime.now().microsecondsSinceEpoch}_${_pendingSpends.length}',
-          title: _selectedCategory.title,
+          title: title,
           amount: _currentAmount,
           category: _selectedCategory.budgetCategory,
           color: _selectedCategory.color,
           icon: _selectedCategory.icon,
-          note: _noteController.text.trim(),
         ),
       );
       _rawInput = '';
-      _noteController.clear();
+      _titleController.clear();
     }
 
     if (_pendingSpends.isEmpty) {
@@ -330,7 +332,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         title: item.title,
         amount: item.amount,
         category: item.category,
-        note: _stripSpendTag(item.note),
+        note: '',
         dateTime: now,
         source: widget.isTogetherOnly ? 'togetherSpend' : 'manual',
         spendCategory: item.title,
@@ -554,8 +556,12 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             _buildCategorySelectorBar(context, tokens),
             const SizedBox(height: 12),
 
-            // 3. Hero Amount Input Card (Large ₱0.00 in Dark Red + Backspace + Note)
-            _buildHeroAmountCard(context, tokens),
+            // 3. Hero Amount Input Card (Large ₱0.00 in Dark Red + Backspace + Title of Spend + Action Buttons)
+            _buildHeroAmountCard(
+              context,
+              tokens: tokens,
+              totalPendingAmount: totalPendingAmount,
+            ),
             const SizedBox(height: 10),
 
             // 4. Quick Amount Increments (+₱20, +₱50, +₱100, +₱500)
@@ -575,13 +581,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               ),
               const SizedBox(height: 14),
             ],
-
-            // 7. Bottom Main Action Buttons (Confirm / Submit & Clear)
-            _buildBottomActionButtons(
-              context,
-              totalPendingAmount: totalPendingAmount,
-              tokens: tokens,
-            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -795,8 +794,12 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 
-  /// 3. Hero Amount Input Card: Large Bold ₱0.00 Display in Dark Red + Backspace + Note
-  Widget _buildHeroAmountCard(BuildContext context, _SpendTokens tokens) {
+  /// 3. Hero Amount Input Card: Large Bold ₱0.00 Display in Dark Red + Backspace + Title of Spend + Action Buttons
+  Widget _buildHeroAmountCard(
+    BuildContext context, {
+    required _SpendTokens tokens,
+    required double totalPendingAmount,
+  }) {
     return BentoCard(
       padding: const EdgeInsets.all(16),
       borderRadius: 20,
@@ -865,7 +868,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Description / Quick Note Input Field
+          // Title / Name of Spend Input Field
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
@@ -876,21 +879,21 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             child: Row(
               children: <Widget>[
                 Icon(
-                  Icons.edit_note_rounded,
-                  size: 18,
-                  color: tokens.textSecondary,
+                  Icons.edit_rounded,
+                  size: 16,
+                  color: _SpendTokens.budgetGold,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    controller: _noteController,
+                    controller: _titleController,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       color: tokens.textPrimary,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Add note (e.g. Lunch with team, fare)...',
+                      hintText: 'Title / Name of spend (e.g. Lunch, Fare)...',
                       hintStyle: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -904,6 +907,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+
+          // Action Buttons: Add to Batch & Log Spend placed close to Title / Name of Spend
+          _buildActionButtons(
+            context,
+            totalPendingAmount: totalPendingAmount,
+            tokens: tokens,
           ),
         ],
       ),
@@ -1002,12 +1013,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         ),
         const SizedBox(height: 8),
 
-        // Row 5: Clear, Backspace, and + Add to Queue
+        // Row 5: Clear and Backspace
         Row(
           children: <Widget>[
             // Clear Key (C)
             Expanded(
-              flex: 1,
               child: _buildActionKeyTile(
                 label: 'C',
                 color: _SpendTokens.expenseRed,
@@ -1018,54 +1028,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             const SizedBox(width: 8),
             // Backspace Key
             Expanded(
-              flex: 1,
               child: _buildActionKeyTile(
                 icon: Icons.backspace_outlined,
                 color: tokens.textSecondary,
                 onTap: _onBackspace,
                 tokens: tokens,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // + Add to Queue Button
-            Expanded(
-              flex: 2,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _addToQueue,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: tokens.tint(_SpendTokens.budgetGold, 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _SpendTokens.budgetGold.withValues(alpha: 0.35),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        const Icon(
-                          Icons.playlist_add_rounded,
-                          size: 18,
-                          color: _SpendTokens.budgetGold,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '+ Add to Batch',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: _SpendTokens.budgetGold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
             ),
           ],
@@ -1244,17 +1211,16 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                 color: tokens.textPrimary,
                               ),
                             ),
-                            if (item.note.isNotEmpty)
-                              Text(
-                                item.note,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: tokens.textSecondary,
-                                ),
+                            Text(
+                              item.category.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: tokens.textSecondary,
                               ),
+                            ),
                           ],
                         ),
                       ),
@@ -1290,8 +1256,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 
-  /// 7. Bottom Main Action Buttons (Confirm / Submit Spend & Clear)
-  Widget _buildBottomActionButtons(
+  /// Action Buttons (Add to Batch & Log Spend close to card of budget)
+  Widget _buildActionButtons(
     BuildContext context, {
     required double totalPendingAmount,
     required _SpendTokens tokens,
@@ -1301,55 +1267,79 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
     return Row(
       children: <Widget>[
-        // Clear Batch / Reset Button
+        // Add to Batch Button (Solid Gold #D97706)
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _addToQueue,
+            icon: const Icon(Icons.playlist_add_rounded, size: 16, color: Colors.white),
+            label: Text(
+              _pendingSpends.isEmpty
+                  ? 'Add to Batch'
+                  : 'Add to Batch (${_pendingSpends.length})',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+                color: Colors.white,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: _SpendTokens.budgetGold,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Log Spend Button (Solid Dark Green #0F766E)
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => _submitSpend(context),
+            icon: const Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                finalAmountToSubmit > 0
+                    ? 'Log Spend (${formatPeso(finalAmountToSubmit)})'
+                    : 'Log Spend',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: _SpendTokens.safeGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+
         if (_pendingSpends.isNotEmpty) ...<Widget>[
+          const SizedBox(width: 8),
           OutlinedButton(
             onPressed: _clearQueue,
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size(90, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
               foregroundColor: _SpendTokens.expenseRed,
               side: const BorderSide(color: _SpendTokens.expenseRed, width: 1.2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: Text(
-              'Clear All',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: _SpendTokens.expenseRed,
-              ),
-            ),
+            child: const Icon(Icons.delete_sweep_rounded, size: 18, color: _SpendTokens.expenseRed),
           ),
-          const SizedBox(width: 10),
         ],
-
-        // Confirm / Submit Spend Button (Solid Dark Green #0F766E)
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: () => _submitSpend(context),
-            icon: const Icon(Icons.check_circle_rounded, size: 18),
-            label: Text(
-              finalAmountToSubmit > 0
-                  ? 'Log Spend (${formatPeso(finalAmountToSubmit)})'
-                  : 'Log Spend',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-                color: Colors.white,
-              ),
-            ),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              backgroundColor: _SpendTokens.safeGreen,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
