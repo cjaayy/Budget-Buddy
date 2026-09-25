@@ -3089,16 +3089,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       value: DateFormat('MMMM d, y • h:mm:ss a')
                           .format(entry.dateTime),
                     ),
-                    if (entry.id.isNotEmpty) ...<Widget>[
-                      Divider(color: tokens.cardBorder, height: 16),
-                      _buildDetailRow(
-                        tokens: tokens,
-                        label: 'Reference ID',
-                        value: entry.id.length > 12
-                            ? entry.id.substring(0, 12).toUpperCase()
-                            : entry.id.toUpperCase(),
-                      ),
-                    ],
+
                   ],
                 ),
               ),
