@@ -1,107 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/budget_cards.dart';
 
-/// Palette defining the unified 3 primary design colors: Dark Red, Gold, and Dark Green.
-class _DashboardPalette {
-  const _DashboardPalette(this.isDark);
+/// Clean Modern Bento Tokens for Home / Dashboard screen.
+/// Implements high contrast, crisp typography, and solid flat cards (no glassmorphism/blur).
+class _BentoTokens {
+  const _BentoTokens(this.isDark);
 
   final bool isDark;
 
-  // Dark Red: expenses, overspent alert, deficit
-  Color get darkRed => const Color(0xFF991B1B);
-  Color get darkRedBg =>
-      const Color(0xFF991B1B).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkRedBorder => const Color(0xFF991B1B).withValues(alpha: 0.25);
+  // Primary 3-Color Strict Palette
+  static const Color safeGreen = Color(0xFF0F766E);
+  static const Color budgetGold = Color(0xFFD97706);
+  static const Color expenseRed = Color(0xFF991B1B);
 
-  // Gold: target budget amounts, presets, warnings, monthly overview
-  Color get gold => const Color(0xFFD97706);
-  Color get goldBg =>
-      const Color(0xFFD97706).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get goldBorder => const Color(0xFFD97706).withValues(alpha: 0.25);
+  // Surfaces & Borders
+  Color get scaffoldBg =>
+      isDark ? const Color(0xFF0B1120) : const Color(0xFFF8FAFC);
+  Color get cardBg =>
+      isDark ? const Color(0xFF111827) : const Color(0xFFFFFFFF);
+  Color get cardBorder =>
+      isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+  Color get subCardBg =>
+      isDark ? const Color(0xFF161F31) : const Color(0xFFF1F5F9);
+  Color get toggleBg =>
+      isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
 
-  // Dark Green: remaining safe balance, positive progress, submit actions
-  Color get darkGreen => const Color(0xFF0F766E);
-  Color get darkGreenBg =>
-      const Color(0xFF0F766E).withValues(alpha: isDark ? 0.20 : 0.08);
-  Color get darkGreenBorder => const Color(0xFF0F766E).withValues(alpha: 0.25);
+  // Text
+  Color get textPrimary =>
+      isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+  Color get textSecondary =>
+      isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get textMuted =>
+      isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
+  // Tint helper
+  Color tint(Color color, [double alpha = 0.10]) =>
+      color.withValues(alpha: alpha);
 }
 
-/// Compact Metric Tile matching Daily Budget, Spend, and Savings screens
-class _CompactMetricTile extends StatelessWidget {
-  const _CompactMetricTile({
-    required this.label,
+class _ChartPoint {
+  const _ChartPoint({
+    required this.index,
     required this.value,
-    required this.bgColor,
-    this.icon,
+    required this.label,
+    required this.fullDate,
   });
 
+  final double index;
+  final double value;
   final String label;
-  final String value;
-  final Color bgColor;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              if (icon != null) ...<Widget>[
-                Icon(
-                  icon,
-                  size: 12,
-                  color: Colors.white.withValues(alpha: 0.88),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                    color: Colors.white.withValues(alpha: 0.88),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  final String fullDate;
 }
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -111,12 +67,14 @@ class DashboardScreen extends ConsumerStatefulWidget {
     this.onOpenSpend,
     this.onOpenExpenses,
     this.onOpenSavings,
+    this.onOpenProfile,
   });
 
   final VoidCallback? onGetStarted;
   final VoidCallback? onOpenSpend;
   final VoidCallback? onOpenExpenses;
   final VoidCallback? onOpenSavings;
+  final VoidCallback? onOpenProfile;
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
@@ -169,6 +127,100 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     };
   }
 
+  String _getGreeting(int hour) {
+    if (hour >= 5 && hour < 12) {
+      return 'Good morning';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good afternoon';
+    } else if (hour >= 17 && hour < 22) {
+      return 'Good evening';
+    }
+    return 'Welcome back';
+  }
+
+  String _getInitials(String displayName) {
+    final String trimmed = displayName.trim();
+    if (trimmed.isEmpty) return 'BB';
+    final List<String> parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  String _compactAmount(double value) {
+    if (value >= 1000000) {
+      return '₱${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '₱${(value / 1000).toStringAsFixed(value % 1000 == 0 ? 0 : 1)}k';
+    }
+    return '₱${value.toInt()}';
+  }
+
+  List<_ChartPoint> _buildDailyTrendPoints(
+    List<ExpenseEntry> expenses,
+    DateTime currentClock,
+  ) {
+    final List<_ChartPoint> points = <_ChartPoint>[];
+    for (int i = 6; i >= 0; i--) {
+      final DateTime day = DateTime(
+        currentClock.year,
+        currentClock.month,
+        currentClock.day,
+      ).subtract(Duration(days: i));
+
+      double daySpent = 0;
+      for (final ExpenseEntry e in expenses) {
+        if (e.source == 'togetherSpend') continue;
+        if (e.dateTime.year == day.year &&
+            e.dateTime.month == day.month &&
+            e.dateTime.day == day.day) {
+          daySpent += e.amount;
+        }
+      }
+
+      final String label = i == 0 ? 'Today' : DateFormat('E').format(day);
+      points.add(_ChartPoint(
+        index: (6 - i).toDouble(),
+        value: daySpent,
+        label: label,
+        fullDate: DateFormat('MMM d').format(day),
+      ));
+    }
+    return points;
+  }
+
+  List<_ChartPoint> _buildMonthlyTrendPoints(
+    List<ExpenseEntry> expenses,
+    DateTime currentClock,
+  ) {
+    final List<_ChartPoint> points = <_ChartPoint>[];
+    for (int i = 5; i >= 0; i--) {
+      final int yearOffset = (currentClock.month - i - 1) ~/ 12;
+      final int month = ((currentClock.month - i - 1) % 12) + 1;
+      final int year = currentClock.year + yearOffset;
+
+      double monthSpent = 0;
+      for (final ExpenseEntry e in expenses) {
+        if (e.source == 'togetherSpend') continue;
+        if (e.dateTime.year == year && e.dateTime.month == month) {
+          monthSpent += e.amount;
+        }
+      }
+
+      final DateTime monthDate = DateTime(year, month, 1);
+      final String label =
+          i == 0 ? 'This Mo' : DateFormat('MMM').format(monthDate);
+      points.add(_ChartPoint(
+        index: (5 - i).toDouble(),
+        value: monthSpent,
+        label: label,
+        fullDate: DateFormat('MMMM yyyy').format(monthDate),
+      ));
+    }
+    return points;
+  }
+
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
@@ -176,7 +228,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final DateTime currentClock =
         ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final _DashboardPalette palette = _DashboardPalette(isDark);
+    final _BentoTokens tokens = _BentoTokens(isDark);
 
     final bool isDaily = _selectedPeriod == DashboardPeriod.daily;
     final BudgetPeriodSummary activeSummary =
@@ -218,240 +270,274 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }).toList();
 
     return Scaffold(
+      backgroundColor: tokens.scaffoldBg,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: _handleHorizontalDragEnd,
         child: SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // 1. Compact Header (Clean Greeting + Date)
-                _buildHeader(
+            children: <Widget>[
+              // 1. Header Section (Clean Greeting + Date + Avatar)
+              _buildHeader(
+                context,
+                displayName: state.profile.displayName,
+                currentClock: currentClock,
+                tokens: tokens,
+              ),
+              const SizedBox(height: 14),
+
+              // 2. Animated Timeframe Toggle (Solid Slider Effect)
+              _buildTimeframeToggle(context, tokens),
+              const SizedBox(height: 14),
+
+              // 3. Top Metrics Bento Grid
+              _buildMetricsBentoGrid(
+                context,
+                isDaily: isDaily,
+                totalBudget: totalBudget,
+                spent: spentAdjusted,
+                remaining: remainingAdjusted,
+                progressValue: progressValue,
+                isOver: isOver,
+                isWarning: isWarning,
+                periodExpenseCount: periodExpenses.length,
+                tokens: tokens,
+              ),
+              const SizedBox(height: 14),
+
+              // Empty State (if no budget or no expenses)
+              if (!hasConfiguredBudget || !hasExpenses) ...<Widget>[
+                _buildEmptyState(
                   context,
-                  displayName: state.profile.displayName,
-                  currentClock: currentClock,
+                  hasConfiguredBudget: hasConfiguredBudget,
+                  tokens: tokens,
                 ),
-                const SizedBox(height: 12),
-
-                // 2. Main Content
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: <Widget>[
-                      // Savings / Spending Overview Card (with 3 Solid Metric Tiles)
-                      _buildOverviewCard(
-                        context,
-                        isDaily: isDaily,
-                        totalBudget: totalBudget,
-                        spent: spentAdjusted,
-                        remaining: remainingAdjusted,
-                        isOver: isOver,
-                        palette: palette,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Sleek Daily / Monthly Toggle
-                      _buildPeriodToggle(context, palette),
-                      const SizedBox(height: 12),
-
-                      if (!hasConfiguredBudget || !hasExpenses) ...<Widget>[
-                        _buildEmptyState(
-                          context,
-                          hasConfiguredBudget: hasConfiguredBudget,
-                          palette: palette,
-                        ),
-                      ] else ...<Widget>[
-                        // Enlarged Spending Breakdown Card
-                        _buildSpendingBreakdownCard(
-                          context,
-                          isDaily: isDaily,
-                          spent: spentAdjusted,
-                          remaining: remainingAdjusted,
-                          totalBudget: totalBudget,
-                          periodExpenses: periodExpenses,
-                          palette: palette,
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 14),
               ],
-            ),
+
+              // 4. Analytics & Chart Bento Card
+              if (hasConfiguredBudget && hasExpenses) ...<Widget>[
+                _buildAnalyticsBentoCard(
+                  context,
+                  isDaily: isDaily,
+                  allExpenses: state.expenses,
+                  periodExpenses: periodExpenses,
+                  currentClock: currentClock,
+                  totalBudget: totalBudget,
+                  spentAdjusted: spentAdjusted,
+                  tokens: tokens,
+                ),
+                const SizedBox(height: 14),
+              ],
+
+              // 5. Recent Activity / Expense Preview
+              _buildRecentActivityBentoCard(
+                context,
+                periodExpenses: periodExpenses,
+                tokens: tokens,
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// Compact Header without redundant status badge
+  /// 1. Clean Header Section with High-Contrast Typography & Profile Button
   Widget _buildHeader(
     BuildContext context, {
     required String displayName,
     required DateTime currentClock,
+    required _BentoTokens tokens,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final String greeting = _getGreeting(currentClock.hour);
+    final String name = displayName.trim().isNotEmpty
+        ? displayName.trim().split(' ').first
+        : 'Buddy';
+    final String formattedDate =
+        DateFormat('EEEE, MMM d, y').format(currentClock);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          displayName.trim().isNotEmpty ? 'Hi, $displayName' : 'Home',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                '$greeting, $name',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.textPrimary,
+                  letterSpacing: -0.6,
+                ),
               ),
+              const SizedBox(height: 2),
+              Text(
+                formattedDate,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          DateFormat('EEEE, MMM d').format(currentClock),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+        const SizedBox(width: 12),
+        // Clean Profile Avatar Button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              if (widget.onOpenProfile != null) {
+                widget.onOpenProfile!();
+              } else {
+                _showProfileSheet(context, displayName, tokens);
+              }
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tokens.cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: tokens.cardBorder, width: 1.0),
               ),
+              child: Center(
+                child: Text(
+                  _getInitials(displayName),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: _BentoTokens.safeGreen,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  /// Clean Overview Card with the 3 Solid Metric Tiles (no duplicate progress bar/pill)
-  Widget _buildOverviewCard(
-    BuildContext context, {
-    required bool isDaily,
-    required double totalBudget,
-    required double spent,
-    required double remaining,
-    required bool isOver,
-    required _DashboardPalette palette,
-  }) {
-    final ThemeData theme = Theme.of(context);
-    final bool isWarning =
-        !isOver && totalBudget > 0 && spent >= (totalBudget * 0.8);
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+  void _showProfileSheet(
+    BuildContext context,
+    String displayName,
+    _BentoTokens tokens,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: tokens.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Header Row
-          Row(
-            children: <Widget>[
-              Icon(
-                Icons.analytics_rounded,
-                size: 16,
-                color: palette.darkGreen,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                isDaily ? 'Today\'s Overview' : 'Monthly Overview',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-              // 3 Compact Metric Tiles: Remaining, Budget, Spent
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _CompactMetricTile(
-                      label: 'Remaining',
-                      value: (isOver ? '-' : '') + formatPeso(remaining.abs()),
-                      bgColor: isOver ? palette.darkRed : palette.darkGreen,
-                      icon: isOver
-                          ? Icons.trending_down_rounded
-                          : Icons.savings_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _CompactMetricTile(
-                      label: isDaily ? 'Today\'s Budget' : 'Month Budget',
-                      value: formatPeso(totalBudget),
-                      bgColor: palette.gold,
-                      icon: Icons.account_balance_wallet_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _CompactMetricTile(
-                      label: isDaily ? 'Today\'s Spent' : 'Month Spent',
-                      value: formatPeso(spent),
-                      bgColor: isOver
-                          ? palette.darkRed
-                          : (isWarning ? palette.gold : palette.darkGreen),
-                      icon: Icons.payments_rounded,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Over-budget alert
-              if (isOver) ...<Widget>[
-                const SizedBox(height: 10),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: palette.darkRedBg,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: palette.darkRedBorder),
+                    color: tokens.cardBorder,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Row(
-                    children: <Widget>[
-                      Icon(Icons.info_outline_rounded,
-                          size: 14, color: palette.darkRed),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Over-budget warning: Exceeded budget by ${formatPeso(remaining.abs())}.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: palette.darkRed,
+                ),
+                const SizedBox(height: 16),
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: tokens.tint(_BentoTokens.safeGreen, 0.12),
+                  child: Text(
+                    _getInitials(displayName),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: _BentoTokens.safeGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  displayName.trim().isNotEmpty ? displayName : 'Budget Buddy',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          widget.onOpenSavings?.call();
+                        },
+                        icon: const Icon(Icons.savings_rounded, size: 16),
+                        label: const Text('Savings'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _BentoTokens.safeGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          widget.onOpenExpenses?.call();
+                        },
+                        icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                        label: const Text('Expenses'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _BentoTokens.expenseRed,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
+        );
+      },
     );
   }
 
-  /// Segmented Daily / Monthly toggle matching app style
-  Widget _buildPeriodToggle(BuildContext context, _DashboardPalette palette) {
-    final ThemeData theme = Theme.of(context);
+  /// 2. Clean Timeframe Pill Toggle (Solid Slider Effect, No Glassmorphism)
+  Widget _buildTimeframeToggle(BuildContext context, _BentoTokens tokens) {
     final bool isDaily = _selectedPeriod == DashboardPeriod.daily;
 
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: tokens.toggleBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: tokens.cardBorder, width: 1.0),
       ),
       child: Row(
         children: <Widget>[
           Expanded(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
+            child: GestureDetector(
               onTap: () {
                 if (!isDaily) {
                   setState(() => _selectedPeriod = DashboardPeriod.daily);
@@ -462,19 +548,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 9),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: isDaily ? palette.darkGreen : Colors.transparent,
+                  color: isDaily ? _BentoTokens.safeGreen : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: isDaily
-                      ? <BoxShadow>[
-                          BoxShadow(
-                            color: palette.darkGreen.withValues(alpha: 0.35),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -482,20 +559,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Icon(
                       Icons.calendar_today_rounded,
                       size: 14,
-                      color: isDaily
-                          ? Colors.white
-                          : theme.colorScheme.onSurfaceVariant,
+                      color: isDaily ? Colors.white : tokens.textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Today',
-                      style: TextStyle(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
-                        fontWeight:
-                            isDaily ? FontWeight.w700 : FontWeight.w600,
-                        color: isDaily
-                            ? Colors.white
-                            : theme.colorScheme.onSurfaceVariant,
+                        fontWeight: isDaily ? FontWeight.w700 : FontWeight.w600,
+                        color: isDaily ? Colors.white : tokens.textSecondary,
                       ),
                     ),
                   ],
@@ -505,8 +577,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           const SizedBox(width: 4),
           Expanded(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
+            child: GestureDetector(
               onTap: () {
                 if (isDaily) {
                   setState(() => _selectedPeriod = DashboardPeriod.monthly);
@@ -517,19 +588,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 9),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: !isDaily ? palette.darkGreen : Colors.transparent,
+                  color: !isDaily ? _BentoTokens.safeGreen : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: !isDaily
-                      ? <BoxShadow>[
-                          BoxShadow(
-                            color: palette.darkGreen.withValues(alpha: 0.35),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -537,20 +599,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Icon(
                       Icons.calendar_month_rounded,
                       size: 14,
-                      color: !isDaily
-                          ? Colors.white
-                          : theme.colorScheme.onSurfaceVariant,
+                      color: !isDaily ? Colors.white : tokens.textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Monthly',
-                      style: TextStyle(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight:
                             !isDaily ? FontWeight.w700 : FontWeight.w600,
-                        color: !isDaily
-                            ? Colors.white
-                            : theme.colorScheme.onSurfaceVariant,
+                        color: !isDaily ? Colors.white : tokens.textSecondary,
                       ),
                     ),
                   ],
@@ -563,29 +621,231 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// Enlarged Spending Breakdown Card (Clean, Non-Duplicate)
-  Widget _buildSpendingBreakdownCard(
+  /// 3. Top Metrics Bento Grid:
+  /// - Hero Card: Safe Remaining Balance with Health Bar & Status Pill
+  /// - Side/Sub Cards: 2 Equal-Width Bento Tiles (Budget Target & Total Spent)
+  Widget _buildMetricsBentoGrid(
     BuildContext context, {
     required bool isDaily,
+    required double totalBudget,
     required double spent,
     required double remaining,
-    required double totalBudget,
-    required List<ExpenseEntry> periodExpenses,
-    required _DashboardPalette palette,
+    required double progressValue,
+    required bool isOver,
+    required bool isWarning,
+    required int periodExpenseCount,
+    required _BentoTokens tokens,
   }) {
-    final ThemeData theme = Theme.of(context);
-    final double safeSpent = spent < 0 ? 0 : spent;
-    final double safeRemaining = remaining < 0 ? 0 : remaining;
-    final bool hasAnyValue = safeSpent > 0 || safeRemaining > 0;
-    final double chartSpent = hasAnyValue ? safeSpent : 0.0001;
-    final double chartRemaining = hasAnyValue ? safeRemaining : 1.0;
-    final double spentRatio =
-        totalBudget <= 0 ? 0 : (safeSpent / totalBudget).clamp(0.0, 1.0);
-    final bool isOver = remaining < 0;
-    final bool isWarning =
-        !isOver && totalBudget > 0 && safeSpent >= (totalBudget * 0.8);
+    final Color heroAccent =
+        isOver ? _BentoTokens.expenseRed : _BentoTokens.safeGreen;
 
-    // Aggregate category totals for this period
+    return Column(
+      children: <Widget>[
+        // Hero Bento Card: Remaining Safe Balance
+        BentoCard(
+          padding: const EdgeInsets.all(18),
+          borderRadius: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              // Top Row: Icon + Label + Status Pill
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: tokens.tint(heroAccent, 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isOver
+                          ? Icons.trending_down_rounded
+                          : Icons.savings_rounded,
+                      size: 16,
+                      color: heroAccent,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isDaily
+                          ? 'Remaining Safe Balance'
+                          : 'Monthly Safe Balance',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ),
+                  SoftPill(
+                    text: isOver
+                        ? 'Over Budget'
+                        : (isWarning ? '80% Warning' : 'Safe to Spend'),
+                    color: isOver
+                        ? _BentoTokens.expenseRed
+                        : (isWarning
+                            ? _BentoTokens.budgetGold
+                            : _BentoTokens.safeGreen),
+                    icon: isOver
+                        ? Icons.warning_amber_rounded
+                        : (isWarning
+                            ? Icons.info_outline_rounded
+                            : Icons.check_circle_outline_rounded),
+                    fontSize: 11,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Large Financial Value Display
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  (isOver ? '-' : '') + formatPeso(remaining.abs()),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: heroAccent,
+                    letterSpacing: -1.0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Visual Health Progress Bar
+              BentoHealthBar(
+                progress: progressValue,
+                color: isOver
+                    ? _BentoTokens.expenseRed
+                    : (isWarning
+                        ? _BentoTokens.budgetGold
+                        : _BentoTokens.safeGreen),
+                height: 8,
+              ),
+              const SizedBox(height: 8),
+
+              // Progress Breakdown Sub-Row
+              Row(
+                children: <Widget>[
+                  Text(
+                    '${(progressValue * 100).toInt()}% budget spent',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${formatPeso(spent)} of ${formatPeso(totalBudget)}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: tokens.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Over-Budget Alert Banner
+              if (isOver) ...<Widget>[
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: tokens.tint(_BentoTokens.expenseRed, 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _BentoTokens.expenseRed.withValues(alpha: 0.25),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 15,
+                        color: _BentoTokens.expenseRed,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Exceeded ${isDaily ? "today's" : "monthly"} budget limit by ${formatPeso(remaining.abs())}.',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _BentoTokens.expenseRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Side/Sub Bento Cards: Total Target & Total Spent side-by-side
+        Row(
+          children: <Widget>[
+            // Card 1: Total Budget Target (Gold)
+            Expanded(
+              child: BentoMetricTile(
+                label: isDaily ? 'Target Budget' : 'Month Target',
+                value: formatPeso(totalBudget),
+                accentColor: _BentoTokens.budgetGold,
+                icon: Icons.account_balance_wallet_rounded,
+                subtitle: 'Allocated limit',
+                onTap: widget.onGetStarted,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Card 2: Total Spent (Dark Red)
+            Expanded(
+              child: BentoMetricTile(
+                label: isDaily ? 'Today\'s Spent' : 'Month Spent',
+                value: formatPeso(spent),
+                accentColor: _BentoTokens.expenseRed,
+                icon: Icons.payments_rounded,
+                subtitle:
+                    '$periodExpenseCount ${periodExpenseCount == 1 ? "expense" : "expenses"}',
+                onTap: widget.onOpenExpenses,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 4. Analytics & Chart Bento Card with Minimalist LineChart + Flat Gradient Fill
+  Widget _buildAnalyticsBentoCard(
+    BuildContext context, {
+    required bool isDaily,
+    required List<ExpenseEntry> allExpenses,
+    required List<ExpenseEntry> periodExpenses,
+    required DateTime currentClock,
+    required double totalBudget,
+    required double spentAdjusted,
+    required _BentoTokens tokens,
+  }) {
+    final List<_ChartPoint> points = isDaily
+        ? _buildDailyTrendPoints(allExpenses, currentClock)
+        : _buildMonthlyTrendPoints(allExpenses, currentClock);
+
+    double maxSpent = 0;
+    for (final _ChartPoint pt in points) {
+      if (pt.value > maxSpent) maxSpent = pt.value;
+    }
+    if (totalBudget > maxSpent) maxSpent = totalBudget;
+    final double maxY = maxSpent <= 0 ? 500.0 : maxSpent * 1.15;
+
+    // Group categories for category breakdown
     final Map<BudgetCategory, double> categoryTotals =
         <BudgetCategory, double>{};
     for (final ExpenseEntry e in periodExpenses) {
@@ -598,125 +858,230 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   MapEntry<BudgetCategory, double> b) =>
               b.value.compareTo(a.value));
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
+    final double safeSpent = spentAdjusted < 0 ? 0 : spentAdjusted;
+
+    return BentoCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           // Header Row
           Row(
             children: <Widget>[
-              Icon(Icons.pie_chart_rounded, size: 18, color: palette.gold),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_BentoTokens.safeGreen, 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.insights_rounded,
+                  size: 16,
+                  color: _BentoTokens.safeGreen,
+                ),
+              ),
               const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Spending Analytics',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
               Text(
-                'Spending Breakdown',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
+                isDaily ? 'Last 7 Days' : 'Last 6 Months',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textSecondary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 18),
 
-          // Enlarged Donut Pie Chart Centerpiece
-          Center(
-            child: SizedBox(
-              width: 190,
-              height: 190,
-              child: Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  PieChart(
-                    PieChartData(
-                      centerSpaceRadius: 58,
-                      sectionsSpace: 3,
-                      startDegreeOffset: -90,
-                      sections: <PieChartSectionData>[
-                        PieChartSectionData(
-                          value: chartSpent,
-                          color: palette.darkRed,
-                          radius: 28,
-                          title: '',
-                        ),
-                        PieChartSectionData(
-                          value: chartRemaining,
-                          color: palette.darkGreen,
-                          radius: 28,
-                          title: '',
-                        ),
-                      ],
+          // Minimalist Line Chart
+          SizedBox(
+            height: 170,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: (maxY / 3).clamp(1.0, double.infinity),
+                  getDrawingHorizontalLine: (double value) => FlLine(
+                    color: tokens.cardBorder.withValues(alpha: 0.6),
+                    strokeWidth: 1.0,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      interval: (maxY / 2).clamp(1.0, double.infinity),
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        if (value == meta.max || value == meta.min) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            _compactAmount(value),
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: tokens.textMuted,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        '${(spentRatio * 100).toInt()}%',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: isOver
-                              ? palette.darkRed
-                              : (isWarning
-                                  ? palette.gold
-                                  : palette.darkGreen),
-                          letterSpacing: -0.5,
-                        ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: 1,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        final int idx = value.toInt();
+                        if (idx < 0 || idx >= points.length) {
+                          return const SizedBox.shrink();
+                        }
+                        final bool isLast = idx == points.length - 1;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            points[idx].label,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10.5,
+                              fontWeight:
+                                  isLast ? FontWeight.w800 : FontWeight.w600,
+                              color: isLast
+                                  ? _BentoTokens.safeGreen
+                                  : tokens.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: 0,
+                maxX: (points.length - 1).toDouble(),
+                minY: 0,
+                maxY: maxY,
+                lineTouchData: LineTouchData(
+                  handleBuiltInTouches: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (LineBarSpot touchedSpot) => tokens.isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFF0F172A),
+                    tooltipBorder:
+                        BorderSide(color: tokens.cardBorder, width: 1.0),
+                    tooltipRoundedRadius: 8,
+                    tooltipPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                      return touchedSpots.map((LineBarSpot barSpot) {
+                        final int idx = barSpot.x.toInt();
+                        final String dateStr = idx >= 0 && idx < points.length
+                            ? points[idx].fullDate
+                            : '';
+                        return LineTooltipItem(
+                          '$dateStr\n${formatPeso(barSpot.y)}',
+                          GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+                lineBarsData: <LineChartBarData>[
+                  LineChartBarData(
+                    spots: points
+                        .map((_ChartPoint p) => FlSpot(p.index, p.value))
+                        .toList(),
+                    isCurved: true,
+                    curveSmoothness: 0.30,
+                    color: _BentoTokens.safeGreen,
+                    barWidth: 3.0,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (FlSpot spot, double xPercentage,
+                          LineChartBarData bar, int index) {
+                        final bool isLast = index == points.length - 1;
+                        return FlDotCirclePainter(
+                          radius: isLast ? 4.5 : 3.0,
+                          color:
+                              isLast ? _BentoTokens.safeGreen : tokens.cardBg,
+                          strokeWidth: 2.0,
+                          strokeColor: _BentoTokens.safeGreen,
+                        );
+                      },
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          _BentoTokens.safeGreen.withValues(alpha: 0.20),
+                          _BentoTokens.safeGreen.withValues(alpha: 0.0),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isOver ? 'OVER' : 'USED',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
 
-          // Categories Breakdown Section
+          // Categories Breakdown Section (if expenses present)
           if (sortedCategories.isNotEmpty) ...<Widget>[
             const SizedBox(height: 18),
+            Divider(color: tokens.cardBorder, height: 1),
+            const SizedBox(height: 14),
             Row(
               children: <Widget>[
-                Icon(Icons.category_rounded, size: 15, color: palette.gold),
-                const SizedBox(width: 6),
                 Text(
-                  'Spending by Category',
-                  style: TextStyle(
+                  'Top Categories',
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
+                    color: tokens.textPrimary,
                   ),
                 ),
                 const Spacer(),
                 Text(
-                  '${sortedCategories.length} ${sortedCategories.length == 1 ? 'category' : 'categories'}',
-                  style: TextStyle(
+                  '${sortedCategories.length} categories',
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: tokens.textSecondary,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            ...sortedCategories.map(
+            ...sortedCategories.take(4).map(
               (MapEntry<BudgetCategory, double> entry) {
                 final double catSpent = entry.value;
                 final double catRatio = safeSpent > 0
@@ -728,60 +1093,54 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                        horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.35),
+                      color: tokens.subCardBg,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant
-                            .withValues(alpha: 0.25),
-                      ),
+                      border: Border.all(color: tokens.cardBorder, width: 1.0),
                     ),
                     child: Column(
                       children: <Widget>[
                         Row(
                           children: <Widget>[
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(5),
                               decoration: BoxDecoration(
-                                color: palette.goldBg,
+                                color: tokens.tint(_BentoTokens.budgetGold, 0.10),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: palette.goldBorder),
                               ),
-                              child: Icon(icon, color: palette.gold, size: 14),
+                              child: Icon(
+                                icon,
+                                color: _BentoTokens.budgetGold,
+                                size: 13,
+                              ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 entry.key.label,
-                                style: const TextStyle(
+                                style: GoogleFonts.plusJakartaSans(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 13,
+                                  fontSize: 12.5,
+                                  color: tokens.textPrimary,
                                 ),
                               ),
                             ),
                             Text(
                               formatPeso(catSpent),
-                              style: TextStyle(
+                              style: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 13,
-                                color: palette.darkRed,
+                                color: _BentoTokens.expenseRed,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: catRatio,
-                            minHeight: 5,
-                            backgroundColor:
-                                palette.gold.withValues(alpha: 0.12),
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(palette.gold),
-                          ),
+                        BentoHealthBar(
+                          progress: catRatio,
+                          color: _BentoTokens.budgetGold,
+                          height: 4.5,
                         ),
                       ],
                     ),
@@ -795,55 +1154,236 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// Modern Empty State matching App Theme
+  /// 5. Recent Activity / Expense Preview with Alpha-Tinted Category Icons & Bold Indicators
+  Widget _buildRecentActivityBentoCard(
+    BuildContext context, {
+    required List<ExpenseEntry> periodExpenses,
+    required _BentoTokens tokens,
+  }) {
+    final List<ExpenseEntry> recentItems = List<ExpenseEntry>.from(periodExpenses)
+      ..sort((ExpenseEntry a, ExpenseEntry b) => b.dateTime.compareTo(a.dateTime));
+    final List<ExpenseEntry> displayList = recentItems.take(4).toList();
+
+    return BentoCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: 20,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Header Row
+          Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_BentoTokens.budgetGold, 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  size: 16,
+                  color: _BentoTokens.budgetGold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Recent Activity',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
+              if (displayList.isNotEmpty)
+                TextButton(
+                  onPressed: widget.onOpenExpenses,
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    foregroundColor: _BentoTokens.safeGreen,
+                  ),
+                  child: Text(
+                    'View all',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _BentoTokens.safeGreen,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (displayList.isEmpty) ...<Widget>[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              alignment: Alignment.center,
+              child: Column(
+                children: <Widget>[
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 28,
+                    color: tokens.textMuted,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No expenses recorded yet',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: widget.onOpenSpend,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('Log First Expense'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _BentoTokens.safeGreen,
+                      textStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...<Widget>[
+            ...displayList.map((ExpenseEntry expense) {
+              final IconData icon = _iconForCategory(expense.category);
+              final String timeStr =
+                  DateFormat('MMM d, h:mm a').format(expense.dateTime);
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: widget.onOpenExpenses,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: tokens.subCardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: tokens.cardBorder, width: 1.0),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: tokens.tint(_BentoTokens.expenseRed, 0.10),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 16,
+                              color: _BentoTokens.expenseRed,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  expense.title.trim().isNotEmpty
+                                      ? expense.title
+                                      : expense.category.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: tokens.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  timeStr,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '- ${formatPeso(expense.amount)}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: _BentoTokens.expenseRed,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Modern Flat Bento Empty State
   Widget _buildEmptyState(
     BuildContext context, {
     required bool hasConfiguredBudget,
-    required _DashboardPalette palette,
+    required _BentoTokens tokens,
   }) {
-    final ThemeData theme = Theme.of(context);
+    final Color accentColor =
+        hasConfiguredBudget ? _BentoTokens.safeGreen : _BentoTokens.budgetGold;
 
-    return Container(
+    return BentoCard(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
+      borderRadius: 20,
       child: Column(
         children: <Widget>[
           Container(
-            width: 60,
-            height: 60,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color:
-                  (hasConfiguredBudget ? palette.darkGreenBg : palette.goldBg),
+              color: tokens.tint(accentColor, 0.10),
               shape: BoxShape.circle,
               border: Border.all(
-                color: (hasConfiguredBudget
-                    ? palette.darkGreenBorder
-                    : palette.goldBorder),
+                color: accentColor.withValues(alpha: 0.25),
+                width: 1.0,
               ),
             ),
             child: Icon(
               hasConfiguredBudget
                   ? Icons.receipt_long_rounded
-                  : Icons.savings_rounded,
-              size: 28,
-              color: hasConfiguredBudget ? palette.darkGreen : palette.gold,
+                  : Icons.account_balance_wallet_rounded,
+              size: 26,
+              color: accentColor,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             hasConfiguredBudget
                 ? 'No Expenses Logged Yet'
                 : 'No Active Budget Set',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
+              color: tokens.textPrimary,
             ),
           ),
           const SizedBox(height: 6),
@@ -852,9 +1392,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ? 'Your budget is ready. Tap Log Spend to start tracking your daily expenses.'
                 : 'Set a daily or monthly budget to start tracking your allowance, spending, and savings.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
-              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
@@ -871,19 +1412,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             label: Text(
               hasConfiguredBudget ? 'Log First Spend' : 'Set Budget Now',
-              style: const TextStyle(
+              style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
                 color: Colors.white,
               ),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor:
-                  hasConfiguredBudget ? palette.darkGreen : palette.gold,
+              backgroundColor: accentColor,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(42),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
