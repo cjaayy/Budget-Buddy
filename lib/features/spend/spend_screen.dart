@@ -58,6 +58,7 @@ class _PendingSpendItem {
     required this.color,
     required this.icon,
     this.note = '',
+    this.categoryName = '',
   });
 
   final String id;
@@ -67,6 +68,7 @@ class _PendingSpendItem {
   final Color color;
   final IconData icon;
   final String note;
+  final String categoryName;
 }
 
 class _SpendCategoryOption {
@@ -138,7 +140,10 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   // Numeric Keypad & Input State
   String _rawInput = '';
   _SpendCategoryOption _selectedCategory = _spendCategories.first;
+  bool _isCustomCategory = false;
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _customCategoryController = TextEditingController();
+  final FocusNode _customCategoryFocusNode = FocusNode();
   bool _isQueueExpanded = true;
 
   @override
@@ -150,7 +155,38 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _customCategoryController.dispose();
+    _customCategoryFocusNode.dispose();
     super.dispose();
+  }
+
+  String get _effectiveCategoryTitle {
+    if (_isCustomCategory) {
+      final String custom = _customCategoryController.text.trim();
+      return custom.isNotEmpty ? custom : 'Custom';
+    }
+    return _selectedCategory.title;
+  }
+
+  Color get _effectiveCategoryColor {
+    if (_isCustomCategory) {
+      return _SpendTokens.budgetGold;
+    }
+    return _selectedCategory.color;
+  }
+
+  IconData get _effectiveCategoryIcon {
+    if (_isCustomCategory) {
+      return Icons.edit_note_rounded;
+    }
+    return _selectedCategory.icon;
+  }
+
+  BudgetCategory get _effectiveBudgetCategory {
+    if (_isCustomCategory) {
+      return BudgetCategory.miscellaneous;
+    }
+    return _selectedCategory.budgetCategory;
   }
 
   double get _currentAmount => double.tryParse(_rawInput) ?? 0.0;
@@ -249,8 +285,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
     HapticFeedback.mediumImpact();
     final String enteredTitle = _titleController.text.trim();
+    final String categoryTitle = _effectiveCategoryTitle;
     final String title =
-        enteredTitle.isNotEmpty ? enteredTitle : _selectedCategory.title;
+        enteredTitle.isNotEmpty ? enteredTitle : categoryTitle;
 
     setState(() {
       _pendingSpends.add(
@@ -258,9 +295,10 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           id: '${DateTime.now().microsecondsSinceEpoch}_${_pendingSpends.length}',
           title: title,
           amount: _currentAmount,
-          category: _selectedCategory.budgetCategory,
-          color: _selectedCategory.color,
-          icon: _selectedCategory.icon,
+          category: _effectiveBudgetCategory,
+          color: _effectiveCategoryColor,
+          icon: _effectiveCategoryIcon,
+          categoryName: categoryTitle,
         ),
       );
       _rawInput = '';
@@ -299,16 +337,18 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     // If there is currently typed amount in the input, auto-include it
     if (_currentAmount > 0) {
       final String enteredTitle = _titleController.text.trim();
+      final String categoryTitle = _effectiveCategoryTitle;
       final String title =
-          enteredTitle.isNotEmpty ? enteredTitle : _selectedCategory.title;
+          enteredTitle.isNotEmpty ? enteredTitle : categoryTitle;
       _pendingSpends.add(
         _PendingSpendItem(
           id: '${DateTime.now().microsecondsSinceEpoch}_${_pendingSpends.length}',
           title: title,
           amount: _currentAmount,
-          category: _selectedCategory.budgetCategory,
-          color: _selectedCategory.color,
-          icon: _selectedCategory.icon,
+          category: _effectiveBudgetCategory,
+          color: _effectiveCategoryColor,
+          icon: _effectiveCategoryIcon,
+          categoryName: categoryTitle,
         ),
       );
       _rawInput = '';
@@ -335,7 +375,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         note: '',
         dateTime: now,
         source: widget.isTogetherOnly ? 'togetherSpend' : 'manual',
-        spendCategory: item.title,
+        spendCategory:
+            item.categoryName.isNotEmpty ? item.categoryName : item.title,
       );
     }
 
@@ -721,76 +762,230 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: _spendCategories.map((_SpendCategoryOption category) {
-              final bool isSelected =
-                  _selectedCategory.title == category.title;
+            children: <Widget>[
+              // Custom category option in the first line
+              _buildCustomCategoryOption(tokens),
 
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        _selectedCategory = category;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(999),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? tokens.tint(category.color, 0.14)
-                            : tokens.cardBg,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
+              ..._spendCategories.map((_SpendCategoryOption category) {
+                final bool isSelected =
+                    !_isCustomCategory && _selectedCategory.title == category.title;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _isCustomCategory = false;
+                          _customCategoryFocusNode.unfocus();
+                          _selectedCategory = category;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? category.color
-                              : tokens.cardBorder,
-                          width: isSelected ? 1.6 : 1.0,
+                              ? tokens.tint(category.color, 0.14)
+                              : tokens.cardBg,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: isSelected
+                                ? category.color
+                                : tokens.cardBorder,
+                            width: isSelected ? 1.6 : 1.0,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: tokens.tint(category.color, 0.12),
-                              shape: BoxShape.circle,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: tokens.tint(category.color, 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                category.icon,
+                                size: 13,
+                                color: category.color,
+                              ),
                             ),
-                            child: Icon(
-                              category.icon,
-                              size: 13,
-                              color: category.color,
+                            const SizedBox(width: 8),
+                            Text(
+                              category.title,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? tokens.textPrimary
+                                    : tokens.textSecondary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            category.title,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                              color: isSelected
-                                  ? tokens.textPrimary
-                                  : tokens.textSecondary,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Custom category option in the first line: chip when idle, input with cancel when selected
+  Widget _buildCustomCategoryOption(_SpendTokens tokens) {
+    if (_isCustomCategory) {
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: tokens.tint(_SpendTokens.budgetGold, 0.12),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: _SpendTokens.budgetGold,
+              width: 1.6,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: const BoxDecoration(
+                  color: _SpendTokens.budgetGold,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  size: 13,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 135,
+                child: TextField(
+                  controller: _customCategoryController,
+                  focusNode: _customCategoryFocusNode,
+                  autofocus: true,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: tokens.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 2),
+                    border: InputBorder.none,
+                    hintText: 'Custom category...',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: tokens.textMuted,
+                    ),
+                  ),
+                  onChanged: (String val) {
+                    setState(() {});
+                  },
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Cancel Button
+              InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _isCustomCategory = false;
+                    _customCategoryController.clear();
+                    _customCategoryFocusNode.unfocus();
+                  });
+                },
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: tokens.tint(_SpendTokens.expenseRed, 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: _SpendTokens.expenseRed,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Default Unselected Custom Chip in First Position
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() {
+              _isCustomCategory = true;
+            });
+            _customCategoryFocusNode.requestFocus();
+          },
+          borderRadius: BorderRadius.circular(999),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: tokens.cardBg,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: tokens.cardBorder,
+                width: 1.0,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: tokens.tint(_SpendTokens.budgetGold, 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    size: 13,
+                    color: _SpendTokens.budgetGold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Custom',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: tokens.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -815,19 +1010,19 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: tokens.tint(_selectedCategory.color, 0.10),
+                  color: tokens.tint(_effectiveCategoryColor, 0.10),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  _selectedCategory.icon,
+                  _effectiveCategoryIcon,
                   size: 14,
-                  color: _selectedCategory.color,
+                  color: _effectiveCategoryColor,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _selectedCategory.title,
+                  _effectiveCategoryTitle,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1212,7 +1407,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                               ),
                             ),
                             Text(
-                              item.category.label,
+                              item.categoryName.isNotEmpty
+                                  ? item.categoryName
+                                  : item.category.label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.plusJakartaSans(
