@@ -194,20 +194,11 @@ class BentoHealthBar extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
-      child: Container(
-        height: height,
-        width: double.infinity,
-        color: defaultBg,
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: progress.clamp(0.0, 1.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-        ),
+      child: LinearProgressIndicator(
+        value: progress.clamp(0.0, 1.0),
+        minHeight: height,
+        backgroundColor: defaultBg,
+        valueColor: AlwaysStoppedAnimation<Color>(color),
       ),
     );
   }

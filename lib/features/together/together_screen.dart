@@ -651,103 +651,80 @@ class _TogetherBudgetPlanView extends ConsumerStatefulWidget {
 
 class _TogetherBudgetPlanViewState
     extends ConsumerState<_TogetherBudgetPlanView> {
-  String _rawInput = '';
+  late final TextEditingController _dailyController;
+  final FocusNode _focusNode = FocusNode();
+  bool _isInputActive = false;
+  bool _isAddMode = false;
 
-  double get _currentAmount => double.tryParse(_rawInput) ?? 0.0;
-
-  String _displayAmount() {
-    if (_rawInput.isEmpty) return '0.00';
-    if (_rawInput.contains('.')) {
-      final List<String> parts = _rawInput.split('.');
-      final double whole = double.tryParse(parts[0]) ?? 0;
-      final String wholeFormatted = NumberFormat('#,##0').format(whole);
-      return '$wholeFormatted.${parts[1]}';
-    } else {
-      final double whole = double.tryParse(_rawInput) ?? 0;
-      return NumberFormat('#,##0').format(whole);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _dailyController = TextEditingController();
   }
 
-  void _onKeypadTap(String value) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (value == '.') {
-        if (_rawInput.isEmpty) {
-          _rawInput = '0.';
-        } else if (!_rawInput.contains('.')) {
-          _rawInput += '.';
-        }
-      } else if (value == '00') {
-        if (_rawInput.isEmpty || _rawInput == '0') {
-          return;
-        }
-        if (_rawInput.contains('.')) {
-          final List<String> parts = _rawInput.split('.');
-          if (parts[1].isEmpty) {
-            _rawInput += '00';
-          } else if (parts[1].length == 1) {
-            _rawInput += '0';
-          }
-        } else {
-          if (_rawInput.length <= 8) {
-            _rawInput += '00';
-          }
-        }
-      } else {
-        if (_rawInput == '0') {
-          _rawInput = value;
-        } else if (_rawInput.contains('.')) {
-          final List<String> parts = _rawInput.split('.');
-          if (parts[1].length < 2) {
-            _rawInput += value;
-          }
-        } else {
-          if (_rawInput.length < 9) {
-            _rawInput += value;
-          }
-        }
-      }
-    });
-  }
-
-  void _onBackspace() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (_rawInput.isNotEmpty) {
-        _rawInput = _rawInput.substring(0, _rawInput.length - 1);
-        if (_rawInput == '0') {
-          _rawInput = '';
-        }
-      }
-    });
-  }
-
-  void _onClear() {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _rawInput = '';
-    });
+  @override
+  void dispose() {
+    _dailyController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _onQuickAddAmount(double amount) {
     HapticFeedback.lightImpact();
     setState(() {
-      final double nextAmount = _currentAmount + amount;
-      if (nextAmount == nextAmount.roundToDouble()) {
-        _rawInput = nextAmount.toStringAsFixed(0);
-      } else {
-        _rawInput = nextAmount.toStringAsFixed(2);
-      }
+      _isInputActive = true;
+      final double currentVal =
+          double.tryParse(_dailyController.text.trim()) ?? 0.0;
+      final double nextAmount = currentVal + amount;
+      _dailyController.text = nextAmount == nextAmount.roundToDouble()
+          ? nextAmount.toStringAsFixed(0)
+          : nextAmount.toStringAsFixed(2);
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _startAddBudget() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isInputActive = true;
+      _isAddMode = true;
+      _dailyController.clear();
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _startEditBudget(double currentBudget) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isInputActive = true;
+      _isAddMode = false;
+      _dailyController.text =
+          currentBudget > 0 ? currentBudget.toStringAsFixed(0) : '';
+      _dailyController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _dailyController.text.length,
+      );
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _cancelInput() {
+    HapticFeedback.lightImpact();
+    _focusNode.unfocus();
+    setState(() {
+      _isInputActive = false;
+      _isAddMode = false;
+      _dailyController.clear();
     });
   }
 
-  void _addBudget() {
-    final double amount = _currentAmount;
-    if (amount <= 0) {
+  void _saveBudget() {
+    final String text = _dailyController.text.trim();
+    final double? entered = double.tryParse(text);
+    if (entered == null || entered <= 0) {
       showAppAlert(
         context,
-        message:
-            'Please enter an amount on the keypad greater than ₱0 to add to Shared Budget.',
+        message: 'Please enter a valid budget amount greater than ₱0.',
         title: 'Notice',
         icon: Icons.info_outline_rounded,
       );
@@ -756,47 +733,24 @@ class _TogetherBudgetPlanViewState
 
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final double currentBudget = state.togetherBudget;
-    final double newTotal = currentBudget + amount;
+    final double target = _isAddMode ? (currentBudget + entered) : entered;
 
+    _focusNode.unfocus();
     ref
         .read(budgetBuddyControllerProvider.notifier)
-        .setTogetherBudget(newTotal);
+        .setTogetherBudget(target);
 
     setState(() {
-      _rawInput = '';
+      _isInputActive = false;
+      _isAddMode = false;
+      _dailyController.clear();
     });
 
     showAppAlert(
       context,
-      message: 'Shared budget increased to ${formatPeso(newTotal)}!',
-      title: 'Success',
-      icon: Icons.check_circle_outline_rounded,
-      accentColor: _TogetherTokens.safeGreen,
-    );
-  }
-
-  void _editBudget() {
-    final double amount = _currentAmount;
-    if (amount <= 0) {
-      showAppAlert(
-        context,
-        message:
-            'Please enter a valid budget amount on the keypad greater than ₱0.',
-        title: 'Notice',
-        icon: Icons.info_outline_rounded,
-      );
-      return;
-    }
-
-    ref.read(budgetBuddyControllerProvider.notifier).setTogetherBudget(amount);
-
-    setState(() {
-      _rawInput = '';
-    });
-
-    showAppAlert(
-      context,
-      message: 'Shared budget set to ${formatPeso(amount)}!',
+      message: _isAddMode
+          ? 'Shared budget increased to ${formatPeso(target)}!'
+          : 'Shared budget set to ${formatPeso(target)}!',
       title: 'Success',
       icon: Icons.check_circle_outline_rounded,
       accentColor: _TogetherTokens.safeGreen,
@@ -896,7 +850,9 @@ class _TogetherBudgetPlanViewState
                           .read(budgetBuddyControllerProvider.notifier)
                           .setTogetherBudget(0.0);
                       setState(() {
-                        _rawInput = '';
+                        _isInputActive = false;
+                        _isAddMode = false;
+                        _dailyController.clear();
                       });
                       showAppAlert(
                         context,
@@ -962,8 +918,12 @@ class _TogetherBudgetPlanViewState
         (BudgetBuddyState? prev, BudgetBuddyState next) {
       if (next.togetherBudget != prev?.togetherBudget) {
         if (next.togetherBudget <= 0) {
-          if (_rawInput.isNotEmpty) {
-            setState(() => _rawInput = '');
+          if (_dailyController.text.isNotEmpty || _isInputActive) {
+            setState(() {
+              _isInputActive = false;
+              _isAddMode = false;
+              _dailyController.clear();
+            });
           }
         }
       }
@@ -980,7 +940,7 @@ class _TogetherBudgetPlanViewState
         ),
         const SizedBox(height: 12),
 
-        // 2. Hero Budget Card (Remaining displayed in hero display; no duplicate cards)
+        // 2. Hero Budget Card (Remaining displayed when idle, text input when active)
         _buildHeroBudgetCard(
           totalBudget: totalBudget,
           spent: spent,
@@ -993,18 +953,16 @@ class _TogetherBudgetPlanViewState
         ),
         const SizedBox(height: 12),
 
-        // 3. Action Buttons (Add Budget, Edit Budget, Reset)
+        // 3. Action Buttons (Cancel / Save when input is active; Add, Edit, Reset when idle)
         _buildActionButtons(
+          totalBudget: totalBudget,
+          hasBudget: hasBudget,
           tokens: tokens,
         ),
         const SizedBox(height: 10),
 
         // 4. Quick Amount Increments (+₱100, +₱200, +₱300, +₱500, +₱1,000)
         _buildQuickAmountIncrements(tokens),
-        const SizedBox(height: 12),
-
-        // 5. Numeric Keypad (Tactile Bento Keypad Tiles)
-        _buildNumericKeypad(context, tokens),
         const SizedBox(height: 24),
       ],
     );
@@ -1066,7 +1024,7 @@ class _TogetherBudgetPlanViewState
     required bool isWarning,
     required _TogetherTokens tokens,
   }) {
-    final bool isTyping = _rawInput.isNotEmpty;
+    final bool isTyping = _isInputActive;
 
     return BentoCard(
       padding: const EdgeInsets.all(16),
@@ -1097,7 +1055,11 @@ class _TogetherBudgetPlanViewState
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isTyping ? 'Shared Budget Input' : 'Today\'s Shared Budget',
+                  isTyping
+                      ? (_isAddMode
+                          ? 'Add to Shared Budget'
+                          : 'Edit Target Shared Budget')
+                      : 'Today\'s Shared Budget',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1106,83 +1068,148 @@ class _TogetherBudgetPlanViewState
                 ),
               ),
               SoftPill(
-                text: !hasBudget
-                    ? 'No Plan Set'
-                    : (isOver
-                        ? 'Over Budget'
-                        : (isWarning ? '80% Cap' : 'Active Plan')),
-                color: !hasBudget
+                text: isTyping
+                    ? (_isAddMode ? 'Adding' : 'Editing')
+                    : (!hasBudget
+                        ? 'No Plan Set'
+                        : (isOver
+                            ? 'Over Budget'
+                            : (isWarning ? '80% Cap' : 'Active Plan'))),
+                color: isTyping
                     ? _TogetherTokens.budgetGold
-                    : (isOver
-                        ? _TogetherTokens.spentRed
-                        : (isWarning
-                            ? _TogetherTokens.budgetGold
-                            : _TogetherTokens.safeGreen)),
-                icon: !hasBudget
-                    ? Icons.info_outline_rounded
-                    : (isOver
-                        ? Icons.warning_amber_rounded
-                        : (isWarning
-                            ? Icons.info_outline_rounded
-                            : Icons.check_circle_outline_rounded)),
+                    : (!hasBudget
+                        ? _TogetherTokens.budgetGold
+                        : (isOver
+                            ? _TogetherTokens.spentRed
+                            : (isWarning
+                                ? _TogetherTokens.budgetGold
+                                : _TogetherTokens.safeGreen))),
+                icon: isTyping
+                    ? Icons.edit_rounded
+                    : (!hasBudget
+                        ? Icons.info_outline_rounded
+                        : (isOver
+                            ? Icons.warning_amber_rounded
+                            : (isWarning
+                                ? Icons.info_outline_rounded
+                                : Icons.check_circle_outline_rounded))),
                 fontSize: 11,
               ),
             ],
           ),
           const SizedBox(height: 10),
 
-          // Main Hero Amount Display: Shows Remaining (or 0) when idle, or typed input when typing
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    isTyping
-                        ? '₱${_displayAmount()}'
-                        : (hasBudget
+          // Main Hero Amount Display: Shows Remaining when idle, or TextField when active
+          if (isTyping)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: _dailyController,
+                    focusNode: _focusNode,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    autofocus: true,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      color: _TogetherTokens.budgetGold,
+                      letterSpacing: -0.8,
+                    ),
+                    decoration: InputDecoration(
+                      prefixText: '₱ ',
+                      prefixStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        color: _TogetherTokens.budgetGold,
+                        letterSpacing: -0.8,
+                      ),
+                      hintText: '0.00',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        color:
+                            _TogetherTokens.budgetGold.withValues(alpha: 0.35),
+                        letterSpacing: -0.8,
+                      ),
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _saveBudget(),
+                  ),
+                ),
+                if (_dailyController.text.isNotEmpty)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.clear_rounded,
+                      size: 20,
+                      color: _TogetherTokens.spentRed,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _dailyController.clear();
+                      });
+                    },
+                  ),
+              ],
+            )
+          else
+            InkWell(
+              onTap: () => _startEditBudget(totalBudget),
+              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        hasBudget
                             ? ((remaining < 0 ? '-' : '') +
                                 formatPeso(remaining.abs()))
-                            : '₱0.00'),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      color: isTyping
-                          ? _TogetherTokens.budgetGold
-                          : (!hasBudget
+                            : '₱0.00',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: !hasBudget
                               ? _TogetherTokens.budgetGold
                               : (isOver
                                   ? _TogetherTokens.spentRed
-                                  : _TogetherTokens.safeGreen)),
-                      letterSpacing: -1.0,
+                                  : _TogetherTokens.safeGreen),
+                          letterSpacing: -1.0,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              if (isTyping)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(
-                    Icons.backspace_outlined,
-                    size: 20,
-                    color: _TogetherTokens.spentRed,
+                  Icon(
+                    Icons.edit_rounded,
+                    size: 18,
+                    color: tokens.textMuted.withValues(alpha: 0.6),
                   ),
-                  onPressed: _onBackspace,
-                ),
-            ],
-          ),
+                ],
+              ),
+            ),
           const SizedBox(height: 2),
 
           // Context Subtitle below amount
           Text(
             isTyping
-                ? 'Tap "Add Budget" to increase or "Edit Budget" to set new target'
+                ? (_isAddMode
+                    ? 'Enter amount to add to today\'s shared budget'
+                    : 'Enter new target shared budget for today')
                 : (!hasBudget
-                    ? 'No shared budget set yet. Enter amount on keypad below.'
+                    ? 'No shared budget set yet. Tap "Add Budget" below.'
                     : (isOver
                         ? 'Budget exceeded by ${formatPeso(remaining.abs())}'
                         : 'Safe remaining balance for shared spending')),
@@ -1340,16 +1367,68 @@ class _TogetherBudgetPlanViewState
     );
   }
 
-  /// 3. Action Buttons with Solid Dark Green (Add), Solid Gold (Edit), and Solid Dark Red (Reset)
+  /// 3. Action Buttons: Cancel & Save when typing; Add Budget, Edit Budget, Reset when idle
   Widget _buildActionButtons({
+    required double totalBudget,
+    required bool hasBudget,
     required _TogetherTokens tokens,
   }) {
+    if (_isInputActive) {
+      return Row(
+        children: <Widget>[
+          // Cancel Button (Solid Dark Red #991B1B)
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _cancelInput,
+              icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+              label: const Text('Cancel'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                backgroundColor: _TogetherTokens.spentRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                textStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Save Button (Solid Dark Green #0F766E)
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _saveBudget,
+              icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+              label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                backgroundColor: _TogetherTokens.safeGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                textStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: <Widget>[
         // Add Budget Button (Solid Dark Green #0F766E)
         Expanded(
           child: FilledButton.icon(
-            onPressed: _addBudget,
+            onPressed: _startAddBudget,
             icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
             label: const Text('Add Budget'),
             style: FilledButton.styleFrom(
@@ -1371,7 +1450,7 @@ class _TogetherBudgetPlanViewState
         // Edit Budget Button (Solid Gold #D97706)
         Expanded(
           child: FilledButton.icon(
-            onPressed: _editBudget,
+            onPressed: () => _startEditBudget(totalBudget),
             icon: const Icon(Icons.edit_rounded, size: 15, color: Colors.white),
             label: const Text('Edit Budget'),
             style: FilledButton.styleFrom(
@@ -1453,153 +1532,6 @@ class _TogetherBudgetPlanViewState
           ),
         );
       }).toList(),
-    );
-  }
-
-  /// 5. Custom Flat Numeric Keypad (Tactile Bento Keypad Tiles)
-  Widget _buildNumericKeypad(
-      BuildContext context, _TogetherTokens tokens) {
-    return Column(
-      children: <Widget>[
-        // Row 1: 1, 2, 3
-        Row(
-          children: <Widget>[
-            _buildKeyTile('1', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('2', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('3', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 2: 4, 5, 6
-        Row(
-          children: <Widget>[
-            _buildKeyTile('4', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('5', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('6', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 3: 7, 8, 9
-        Row(
-          children: <Widget>[
-            _buildKeyTile('7', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('8', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('9', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 4: . , 0 , 00
-        Row(
-          children: <Widget>[
-            _buildKeyTile('.', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('0', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('00', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 5: Clear and Backspace
-        Row(
-          children: <Widget>[
-            // Clear Key (C)
-            Expanded(
-              child: _buildActionKeyTile(
-                label: 'C',
-                color: _TogetherTokens.spentRed,
-                onTap: _onClear,
-                tokens: tokens,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Backspace Key
-            Expanded(
-              child: _buildActionKeyTile(
-                icon: Icons.backspace_outlined,
-                color: tokens.textSecondary,
-                onTap: _onBackspace,
-                tokens: tokens,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKeyTile(String value, _TogetherTokens tokens) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onKeypadTap(value),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: tokens.keyTileBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: tokens.cardBorder, width: 1.0),
-            ),
-            child: Center(
-              child: Text(
-                value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: tokens.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionKeyTile({
-    String? label,
-    IconData? icon,
-    required Color color,
-    required VoidCallback onTap,
-    required _TogetherTokens tokens,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: tokens.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: tokens.cardBorder, width: 1.0),
-          ),
-          child: Center(
-            child: icon != null
-                ? Icon(icon, size: 20, color: color)
-                : Text(
-                    label ?? '',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-          ),
-        ),
-      ),
     );
   }
 }

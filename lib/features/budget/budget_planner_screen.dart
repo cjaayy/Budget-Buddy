@@ -60,149 +60,242 @@ class BudgetPlannerScreen extends ConsumerStatefulWidget {
 }
 
 class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
-  String _rawInput = '';
+  late final TextEditingController _dailyController;
+  final FocusNode _focusNode = FocusNode();
+  bool _isInputActive = false;
+  bool _isAddMode = false;
 
-  double get _currentAmount => double.tryParse(_rawInput) ?? 0.0;
-
-  String _displayAmount() {
-    if (_rawInput.isEmpty) return '0.00';
-    if (_rawInput.contains('.')) {
-      final List<String> parts = _rawInput.split('.');
-      final double whole = double.tryParse(parts[0]) ?? 0;
-      final String wholeFormatted = NumberFormat('#,##0').format(whole);
-      return '$wholeFormatted.${parts[1]}';
-    } else {
-      final double whole = double.tryParse(_rawInput) ?? 0;
-      return NumberFormat('#,##0').format(whole);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _dailyController = TextEditingController();
   }
 
-  void _onKeypadTap(String value) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (value == '.') {
-        if (_rawInput.isEmpty) {
-          _rawInput = '0.';
-        } else if (!_rawInput.contains('.')) {
-          _rawInput += '.';
-        }
-      } else if (value == '00') {
-        if (_rawInput.isEmpty || _rawInput == '0') {
-          return;
-        }
-        if (_rawInput.contains('.')) {
-          final List<String> parts = _rawInput.split('.');
-          if (parts[1].isEmpty) {
-            _rawInput += '00';
-          } else if (parts[1].length == 1) {
-            _rawInput += '0';
-          }
-        } else {
-          if (_rawInput.length <= 8) {
-            _rawInput += '00';
-          }
-        }
-      } else {
-        if (_rawInput == '0') {
-          _rawInput = value;
-        } else if (_rawInput.contains('.')) {
-          final List<String> parts = _rawInput.split('.');
-          if (parts[1].length < 2) {
-            _rawInput += value;
-          }
-        } else {
-          if (_rawInput.length < 9) {
-            _rawInput += value;
-          }
-        }
-      }
-    });
-  }
-
-  void _onBackspace() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (_rawInput.isNotEmpty) {
-        _rawInput = _rawInput.substring(0, _rawInput.length - 1);
-        if (_rawInput == '0') {
-          _rawInput = '';
-        }
-      }
-    });
-  }
-
-  void _onClear() {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _rawInput = '';
-    });
+  @override
+  void dispose() {
+    _dailyController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _onQuickAddAmount(double amount) {
     HapticFeedback.lightImpact();
     setState(() {
-      final double nextAmount = _currentAmount + amount;
-      if (nextAmount == nextAmount.roundToDouble()) {
-        _rawInput = nextAmount.toStringAsFixed(0);
+      _isInputActive = true;
+      final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+      final double currentBudget = state.settings.dailyLimit ?? 0;
+
+      if (_isAddMode && currentBudget > 0) {
+        final String baseStr = currentBudget == currentBudget.roundToDouble()
+            ? currentBudget.toStringAsFixed(0)
+            : currentBudget.toStringAsFixed(2);
+
+        final String currentText = _dailyController.text.trim();
+        double addedSoFar = 0.0;
+        if (currentText.contains('+')) {
+          final List<String> segments = currentText.split('+');
+          for (final String seg in segments) {
+            final String s = seg.replaceAll('₱', '').replaceAll(',', '').trim();
+            final double? val = double.tryParse(s);
+            if (val != null && val != currentBudget) {
+              addedSoFar += val;
+            }
+          }
+        }
+        final double nextAdded = addedSoFar + amount;
+        final String addedStr = nextAdded == nextAdded.roundToDouble()
+            ? nextAdded.toStringAsFixed(0)
+            : nextAdded.toStringAsFixed(2);
+        _dailyController.text = '+ $baseStr + $addedStr';
+        _dailyController.selection = TextSelection.collapsed(
+          offset: _dailyController.text.length,
+        );
       } else {
-        _rawInput = nextAmount.toStringAsFixed(2);
+        final double currentVal =
+            double.tryParse(_dailyController.text.replaceAll('+', '').trim()) ??
+                0.0;
+        final double nextAmount = currentVal + amount;
+        _dailyController.text = nextAmount == nextAmount.roundToDouble()
+            ? nextAmount.toStringAsFixed(0)
+            : nextAmount.toStringAsFixed(2);
+        _dailyController.selection = TextSelection.collapsed(
+          offset: _dailyController.text.length,
+        );
       }
     });
+    _focusNode.requestFocus();
   }
 
-  void _addBudget() {
-    final double amount = _currentAmount;
-    if (amount <= 0) {
+  void _startAddBudget(double currentBudget) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isInputActive = true;
+      _isAddMode = true;
+      if (currentBudget > 0) {
+        final String formatted = currentBudget == currentBudget.roundToDouble()
+            ? currentBudget.toStringAsFixed(0)
+            : currentBudget.toStringAsFixed(2);
+        _dailyController.text = '+ $formatted + ';
+        _dailyController.selection = TextSelection.collapsed(
+          offset: _dailyController.text.length,
+        );
+      } else {
+        _dailyController.clear();
+      }
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _startEditBudget(double currentBudget) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isInputActive = true;
+      _isAddMode = false;
+      _dailyController.text =
+          currentBudget > 0 ? currentBudget.toStringAsFixed(0) : '';
+      _dailyController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _dailyController.text.length,
+      );
+    });
+    _focusNode.requestFocus();
+  }
+
+  void _cancelInput() {
+    HapticFeedback.lightImpact();
+    _focusNode.unfocus();
+    setState(() {
+      _isInputActive = false;
+      _isAddMode = false;
+      _dailyController.clear();
+    });
+  }
+
+  void _saveBudget() {
+    final String text = _dailyController.text.trim();
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double currentBudget = state.settings.dailyLimit ?? 0;
+
+    double targetAmount = 0.0;
+    double addedAmount = 0.0;
+
+    if (_isAddMode) {
+      if (text.contains('+')) {
+        final List<String> segments = text.split('+');
+        double totalParsed = 0.0;
+        double addedSum = 0.0;
+        for (final String seg in segments) {
+          final String s = seg.replaceAll('₱', '').replaceAll(',', '').trim();
+          final double? v = double.tryParse(s);
+          if (v != null && v > 0) {
+            totalParsed += v;
+            if (v != currentBudget) {
+              addedSum += v;
+            }
+          }
+        }
+        if (currentBudget > 0) {
+          addedAmount = addedSum > 0 ? addedSum : (totalParsed - currentBudget);
+          targetAmount = currentBudget + (addedAmount > 0 ? addedAmount : 0);
+        } else {
+          addedAmount = totalParsed;
+          targetAmount = totalParsed;
+        }
+      } else {
+        final double? entered =
+            double.tryParse(text.replaceAll('₱', '').trim());
+        if (entered != null && entered > 0) {
+          addedAmount = entered;
+          targetAmount = currentBudget + entered;
+        }
+      }
+    } else {
+      final double? entered = double.tryParse(
+          text.replaceAll('₱', '').replaceAll('+', '').trim());
+      if (entered != null && entered > 0) {
+        targetAmount = entered;
+      }
+    }
+
+    if (targetAmount <= 0) {
       showAppAlert(
         context,
-        message:
-            'Please enter an amount on the keypad greater than ₱0 to add to today\'s budget.',
+        message: 'Please enter a valid budget amount greater than ₱0.',
         title: 'Notice',
         icon: Icons.info_outline_rounded,
       );
       return;
     }
 
-    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final double currentBudget = state.settings.dailyLimit ?? 0;
-    final double newTotal = currentBudget + amount;
+    _focusNode.unfocus();
 
-    _handleBudgetSubmissionWithDebtCheck(
-      targetAmount: newTotal,
-      previousBudget: currentBudget > 0 ? currentBudget : null,
-      isUpdate: currentBudget > 0,
-    );
-
-    setState(() {
-      _rawInput = '';
-    });
+    if (_isAddMode) {
+      _confirmAndSaveAddBudget(
+        currentBudget: currentBudget,
+        addedAmount: addedAmount > 0 ? addedAmount : targetAmount,
+        targetAmount: targetAmount,
+      );
+    } else {
+      _handleBudgetSubmissionWithDebtCheck(
+        targetAmount: targetAmount,
+        previousBudget: currentBudget > 0 ? currentBudget : null,
+        isUpdate: currentBudget > 0,
+      );
+    }
   }
 
-  void _editBudget() {
-    final double amount = _currentAmount;
-    if (amount <= 0) {
+  Future<void> _confirmAndSaveAddBudget({
+    required double currentBudget,
+    required double addedAmount,
+    required double targetAmount,
+  }) async {
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double debt = state.savingsDebt;
+
+    if (debt > 0) {
+      final bool? proceed = await _showNewBudgetDebtChoiceDialog(
+        proposedBudget: targetAmount,
+        debtAmount: debt,
+        isUpdate: currentBudget > 0,
+      );
+      if (proceed != true) return;
+    } else {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext ctx) => _CountdownConfirmationDialog(
+          title: 'Confirm Add Budget',
+          message: currentBudget > 0
+              ? 'Add ${formatPeso(addedAmount)} to today\'s budget of ${formatPeso(currentBudget)} for a new total of ${formatPeso(targetAmount)}?'
+              : 'Set today\'s budget to ${formatPeso(targetAmount)}?',
+          confirmLabel: 'Save & Add',
+          confirmColor: _BudgetTokens.safeGreen,
+          icon: Icons.add_circle_outline_rounded,
+          autoConfirm: false,
+          totalSeconds: 3,
+        ),
+      );
+
+      if (!mounted || confirmed != true) return;
+
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .recordDailyBudget(amount: targetAmount);
+
+      setState(() {
+        _isInputActive = false;
+        _isAddMode = false;
+        _dailyController.clear();
+      });
+
       showAppAlert(
         context,
-        message:
-            'Please enter a valid budget amount on the keypad greater than ₱0.',
-        title: 'Notice',
-        icon: Icons.info_outline_rounded,
+        message: 'Today\'s budget increased to ${formatPeso(targetAmount)}!',
+        title: 'Success',
+        icon: Icons.check_circle_outline_rounded,
+        accentColor: _BudgetTokens.safeGreen,
       );
-      return;
     }
-
-    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final double currentBudget = state.settings.dailyLimit ?? 0;
-
-    _handleBudgetSubmissionWithDebtCheck(
-      targetAmount: amount,
-      previousBudget: currentBudget > 0 ? currentBudget : null,
-      isUpdate: currentBudget > 0,
-    );
-
-    setState(() {
-      _rawInput = '';
-    });
   }
 
   Future<void> _handleBudgetSubmissionWithDebtCheck({
@@ -233,6 +326,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             confirmColor: _BudgetTokens.safeGreen,
             icon: Icons.sync_rounded,
             autoConfirm: false,
+            totalSeconds: 3,
           ),
         );
 
@@ -246,7 +340,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           .recordDailyBudget(amount: targetAmount);
 
       setState(() {
-        _rawInput = '';
+        _isInputActive = false;
+        _isAddMode = false;
+        _dailyController.clear();
       });
 
       showAppAlert(
@@ -770,7 +866,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 .recordDailyBudget(amount: netBudget);
 
                             setState(() {
-                              _rawInput = '';
+                              _isInputActive = false;
+                              _isAddMode = false;
+                              _dailyController.clear();
                             });
 
                             Navigator.of(sheetContext).pop(true);
@@ -789,7 +887,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 .recordDailyBudget(amount: proposedBudget);
 
                             setState(() {
-                              _rawInput = '';
+                              _isInputActive = false;
+                              _isAddMode = false;
+                              _dailyController.clear();
                             });
 
                             Navigator.of(sheetContext).pop(true);
@@ -1455,13 +1555,14 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext ctx) => const _CountdownConfirmationDialog(
-        title: 'Confirm Budget Reset',
+        title: 'Reset Today\'s Budget Plan?',
         message:
-            'This will reset today\'s active budget and spending back to ₱0 so you can start fresh.',
-        confirmLabel: 'Reset Now',
+            'This will reset today\'s budget target back to ₱0.00 and clear today\'s expenses so you can start fresh.',
+        confirmLabel: 'Reset Plan',
         confirmColor: _BudgetTokens.expenseRed,
         icon: Icons.restart_alt_rounded,
         autoConfirm: false,
+        totalSeconds: 3,
       ),
     );
 
@@ -1469,14 +1570,30 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       return;
     }
 
-    setState(() {
-      _rawInput = '';
-    });
+    final BudgetBuddyState currentState =
+        ref.read(budgetBuddyControllerProvider);
+    final DateTime currentClock = currentState.effectiveDate;
+    final List<ExpenseEntry> todayExpenses =
+        currentState.expenses.where((ExpenseEntry e) {
+      return e.source != 'togetherSpend' &&
+          DateUtils.isSameDay(e.dateTime, currentClock);
+    }).toList();
+    if (todayExpenses.isNotEmpty) {
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .deleteExpenses(todayExpenses.map((ExpenseEntry e) => e.id));
+    }
     ref.read(budgetBuddyControllerProvider.notifier).clearDailyBudget();
+
+    setState(() {
+      _isInputActive = false;
+      _isAddMode = false;
+      _dailyController.clear();
+    });
 
     showAppAlert(
       context,
-      message: 'Today\'s budget and spending have been reset to ₱0.',
+      message: 'Today\'s budget plan and expenses have been reset to ₱0.00.',
       title: 'Alert',
       icon: Icons.warning_amber_rounded,
       accentColor: _BudgetTokens.expenseRed,
@@ -1514,9 +1631,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       final double? prevLimit = prev?.settings.dailyLimit;
       if (nextLimit != prevLimit) {
         if (nextLimit == null || nextLimit <= 0) {
-          if (_rawInput.isNotEmpty) {
+          if (_dailyController.text.isNotEmpty || _isInputActive) {
             setState(() {
-              _rawInput = '';
+              _isInputActive = false;
+              _isAddMode = false;
+              _dailyController.clear();
             });
           }
         }
@@ -1542,7 +1661,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 2. Hero Budget Card (Remaining displayed in hero display; no duplicate cards)
+            // 2. Hero Budget Card (Remaining displayed when idle, text input when active)
             _buildHeroBudgetCard(
               context,
               currentBudget: currentBudget,
@@ -1557,22 +1676,20 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 3. Action Buttons (Add Budget, Edit Budget, Reset)
+            // 3. Action Buttons (Cancel / Save when input is active; Add, Edit, Reset when idle)
             _buildActionButtons(
               context,
+              currentBudget: currentBudget,
+              hasBudget: hasBudget,
               tokens: tokens,
             ),
             const SizedBox(height: 10),
 
             // 4. Quick Amount Increments (+₱100, +₱200, +₱300, +₱500, +₱1,000)
             _buildQuickAmountIncrements(tokens),
-            const SizedBox(height: 12),
-
-            // 5. Numeric Keypad (Flat Bento Keypad Tiles)
-            _buildNumericKeypad(context, tokens),
             const SizedBox(height: 14),
 
-            // 6. Compact Month Total Overview Strip
+            // 5. Compact Month Total Overview Strip
             _buildMonthTile(
               context,
               monthlyLimit: monthlySummary.limit,
@@ -1643,7 +1760,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     required double savingsDebt,
     required _BudgetTokens tokens,
   }) {
-    final bool isTyping = _rawInput.isNotEmpty;
+    final bool isTyping = _isInputActive;
 
     return BentoCard(
       padding: const EdgeInsets.all(16),
@@ -1674,7 +1791,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isTyping ? 'Budget Input' : 'Today\'s Budget',
+                  isTyping
+                      ? (_isAddMode ? 'Add to Today\'s Budget' : 'Edit Target Budget')
+                      : 'Today\'s Budget',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1683,82 +1802,147 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ),
               ),
               SoftPill(
-                text: !hasBudget
-                    ? 'No Budget Set'
-                    : (isOver
-                        ? 'Over Budget'
-                        : (isWarning ? '80% Cap' : 'Active Target')),
-                color: !hasBudget
+                text: isTyping
+                    ? (_isAddMode ? 'Adding' : 'Editing')
+                    : (!hasBudget
+                        ? 'No Budget Set'
+                        : (isOver
+                            ? 'Over Budget'
+                            : (isWarning ? '80% Cap' : 'Active Target'))),
+                color: isTyping
                     ? _BudgetTokens.budgetGold
-                    : (isOver
-                        ? _BudgetTokens.expenseRed
-                        : (isWarning
-                            ? _BudgetTokens.budgetGold
-                            : _BudgetTokens.safeGreen)),
-                icon: !hasBudget
-                    ? Icons.info_outline_rounded
-                    : (isOver
-                        ? Icons.warning_amber_rounded
-                        : (isWarning
-                            ? Icons.info_outline_rounded
-                            : Icons.check_circle_outline_rounded)),
+                    : (!hasBudget
+                        ? _BudgetTokens.budgetGold
+                        : (isOver
+                            ? _BudgetTokens.expenseRed
+                            : (isWarning
+                                ? _BudgetTokens.budgetGold
+                                : _BudgetTokens.safeGreen))),
+                icon: isTyping
+                    ? Icons.edit_rounded
+                    : (!hasBudget
+                        ? Icons.info_outline_rounded
+                        : (isOver
+                            ? Icons.warning_amber_rounded
+                            : (isWarning
+                                ? Icons.info_outline_rounded
+                                : Icons.check_circle_outline_rounded))),
                 fontSize: 11,
               ),
             ],
           ),
           const SizedBox(height: 10),
 
-          // Main Hero Amount Display: Shows Remaining (or 0) when idle, or typed input when typing
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    isTyping
-                        ? '₱${_displayAmount()}'
-                        : (hasBudget
-                            ? ((remaining < 0 ? '-' : '') + formatPeso(remaining.abs()))
-                            : '₱0.00'),
+          // Main Hero Amount Display: Shows Remaining when idle, or TextField when active
+          if (isTyping)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: _dailyController,
+                    focusNode: _focusNode,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9\.\+\s]')),
+                    ],
+                    autofocus: true,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 36,
+                      fontSize: 34,
                       fontWeight: FontWeight.w900,
-                      color: isTyping
-                          ? _BudgetTokens.budgetGold
-                          : (!hasBudget
+                      color: _BudgetTokens.budgetGold,
+                      letterSpacing: -0.8,
+                    ),
+                    decoration: InputDecoration(
+                      prefixText: _dailyController.text.startsWith('+') ? '' : '₱ ',
+                      prefixStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        color: _BudgetTokens.budgetGold,
+                        letterSpacing: -0.8,
+                      ),
+                      hintText: _isAddMode ? '+ 0.00' : '0.00',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        color: _BudgetTokens.budgetGold.withValues(alpha: 0.35),
+                        letterSpacing: -0.8,
+                      ),
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _saveBudget(),
+                  ),
+                ),
+                if (_dailyController.text.isNotEmpty)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.clear_rounded,
+                      size: 20,
+                      color: _BudgetTokens.expenseRed,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _dailyController.clear();
+                      });
+                    },
+                  ),
+              ],
+            )
+          else
+            InkWell(
+              onTap: () => _startEditBudget(currentBudget),
+              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        hasBudget
+                            ? ((remaining < 0 ? '-' : '') +
+                                formatPeso(remaining.abs()))
+                            : '₱0.00',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: !hasBudget
                               ? _BudgetTokens.budgetGold
                               : (isOver
                                   ? _BudgetTokens.expenseRed
-                                  : _BudgetTokens.safeGreen)),
-                      letterSpacing: -1.0,
+                                  : _BudgetTokens.safeGreen),
+                          letterSpacing: -1.0,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              if (isTyping)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(
-                    Icons.backspace_outlined,
-                    size: 20,
-                    color: _BudgetTokens.expenseRed,
+                  Icon(
+                    Icons.edit_rounded,
+                    size: 18,
+                    color: tokens.textMuted.withValues(alpha: 0.6),
                   ),
-                  onPressed: _onBackspace,
-                ),
-            ],
-          ),
+                ],
+              ),
+            ),
           const SizedBox(height: 2),
 
           // Context Subtitle below amount
           Text(
             isTyping
-                ? 'Tap "Add Budget" to increase or "Edit Budget" to set new target'
+                ? (_isAddMode
+                    ? 'Enter amount to add to today\'s budget'
+                    : 'Enter new target daily budget for today')
                 : (!hasBudget
-                    ? 'No daily budget set. Enter amount on keypad below.'
+                    ? 'No daily budget set. Tap "Add Budget" below.'
                     : (isOver
                         ? 'Budget exceeded by ${formatPeso(remaining.abs())}'
                         : 'Safe remaining balance to spend today')),
@@ -1983,17 +2167,69 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     );
   }
 
-  /// 3. Action Buttons with Solid Dark Green (Add), Solid Gold (Edit), and Solid Dark Red (Reset)
+  /// 3. Action Buttons: Cancel & Save when typing; Add Budget, Edit Budget, Reset when idle
   Widget _buildActionButtons(
     BuildContext context, {
+    required double currentBudget,
+    required bool hasBudget,
     required _BudgetTokens tokens,
   }) {
+    if (_isInputActive) {
+      return Row(
+        children: <Widget>[
+          // Cancel Button (Solid Dark Red #991B1B)
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _cancelInput,
+              icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+              label: const Text('Cancel'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                backgroundColor: _BudgetTokens.expenseRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                textStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Save Button (Solid Dark Green #0F766E)
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _saveBudget,
+              icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+              label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                backgroundColor: _BudgetTokens.safeGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                textStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: <Widget>[
         // Add Budget Button (Solid Dark Green #0F766E)
         Expanded(
           child: FilledButton.icon(
-            onPressed: _addBudget,
+            onPressed: () => _startAddBudget(currentBudget),
             icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
             label: const Text('Add Budget'),
             style: FilledButton.styleFrom(
@@ -2015,7 +2251,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         // Edit Budget Button (Solid Gold #D97706)
         Expanded(
           child: FilledButton.icon(
-            onPressed: _editBudget,
+            onPressed: () => _startEditBudget(currentBudget),
             icon: const Icon(Icons.edit_rounded, size: 15, color: Colors.white),
             label: const Text('Edit Budget'),
             style: FilledButton.styleFrom(
@@ -2099,152 +2335,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     );
   }
 
-  /// 5. Custom Flat Numeric Keypad (Tactile Bento Keypad Tiles)
-  Widget _buildNumericKeypad(BuildContext context, _BudgetTokens tokens) {
-    return Column(
-      children: <Widget>[
-        // Row 1: 1, 2, 3
-        Row(
-          children: <Widget>[
-            _buildKeyTile('1', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('2', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('3', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 2: 4, 5, 6
-        Row(
-          children: <Widget>[
-            _buildKeyTile('4', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('5', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('6', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 3: 7, 8, 9
-        Row(
-          children: <Widget>[
-            _buildKeyTile('7', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('8', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('9', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 4: . , 0 , 00
-        Row(
-          children: <Widget>[
-            _buildKeyTile('.', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('0', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('00', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 5: Clear and Backspace
-        Row(
-          children: <Widget>[
-            // Clear Key (C)
-            Expanded(
-              child: _buildActionKeyTile(
-                label: 'C',
-                color: _BudgetTokens.expenseRed,
-                onTap: _onClear,
-                tokens: tokens,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Backspace Key
-            Expanded(
-              child: _buildActionKeyTile(
-                icon: Icons.backspace_outlined,
-                color: tokens.textSecondary,
-                onTap: _onBackspace,
-                tokens: tokens,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKeyTile(String value, _BudgetTokens tokens) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onKeypadTap(value),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: tokens.keyTileBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: tokens.cardBorder, width: 1.0),
-            ),
-            child: Center(
-              child: Text(
-                value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: tokens.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionKeyTile({
-    String? label,
-    IconData? icon,
-    required Color color,
-    required VoidCallback onTap,
-    required _BudgetTokens tokens,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: tokens.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: tokens.cardBorder, width: 1.0),
-          ),
-          child: Center(
-            child: icon != null
-                ? Icon(icon, size: 20, color: color)
-                : Text(
-                    label ?? '',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 6. Compact Month Summary Strip with Gold Accent
   Widget _buildMonthTile(
     BuildContext context, {
@@ -2316,6 +2406,7 @@ class _CountdownConfirmationDialog extends StatefulWidget {
     required this.confirmColor,
     required this.icon,
     this.autoConfirm = false,
+    this.totalSeconds = 3,
   });
 
   final String title;
@@ -2324,6 +2415,7 @@ class _CountdownConfirmationDialog extends StatefulWidget {
   final Color confirmColor;
   final IconData icon;
   final bool autoConfirm;
+  final int totalSeconds;
 
   @override
   State<_CountdownConfirmationDialog> createState() =>
@@ -2332,13 +2424,13 @@ class _CountdownConfirmationDialog extends StatefulWidget {
 
 class _CountdownConfirmationDialogState
     extends State<_CountdownConfirmationDialog> {
-  static const int _totalSeconds = 5;
-  int _secondsRemaining = _totalSeconds;
+  late int _secondsRemaining;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    _secondsRemaining = widget.totalSeconds;
     _startCountdown();
   }
 
@@ -2381,7 +2473,9 @@ class _CountdownConfirmationDialogState
         isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
     final Color textSecondary =
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final double progress = _secondsRemaining / _totalSeconds;
+    final double progress = widget.totalSeconds > 0
+        ? (_secondsRemaining / widget.totalSeconds)
+        : 0.0;
 
     return AlertDialog(
       backgroundColor: cardBg,
@@ -2415,30 +2509,31 @@ class _CountdownConfirmationDialogState
           ),
         ],
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            widget.message,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: textSecondary,
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              widget.message,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textSecondary,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          BentoHealthBar(
-            progress: progress,
-            color: widget.confirmColor,
-            height: 5,
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Expanded(
-                child: Text(
+            const SizedBox(height: 12),
+            BentoHealthBar(
+              progress: progress,
+              color: widget.confirmColor,
+              height: 5,
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(
                   _secondsRemaining > 0
                       ? 'Timer: $_secondsRemaining s'
                       : 'Timer done. Ready to confirm.',
@@ -2448,17 +2543,17 @@ class _CountdownConfirmationDialogState
                     color: widget.confirmColor,
                   ),
                 ),
-              ),
-              Icon(
-                _secondsRemaining > 0
-                    ? Icons.timer_outlined
-                    : Icons.touch_app_rounded,
-                size: 13,
-                color: widget.confirmColor,
-              ),
-            ],
-          ),
-        ],
+                Icon(
+                  _secondsRemaining > 0
+                      ? Icons.timer_outlined
+                      : Icons.touch_app_rounded,
+                  size: 13,
+                  color: widget.confirmColor,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       actions: <Widget>[
         // Solid Red Cancel Button
@@ -2484,15 +2579,19 @@ class _CountdownConfirmationDialogState
             ),
           ),
         ),
-        // Solid Confirm Button
+        // Solid Confirm Button (Disabled until timer is done)
         FilledButton.icon(
-          onPressed: () {
-            _timer?.cancel();
-            Navigator.of(context).pop(true);
-          },
+          onPressed: _secondsRemaining > 0
+              ? null
+              : () {
+                  _timer?.cancel();
+                  Navigator.of(context).pop(true);
+                },
           icon: Icon(widget.icon, size: 15),
           label: Text(
-            widget.confirmLabel,
+            _secondsRemaining > 0
+                ? '${widget.confirmLabel} ($_secondsRemaining s)'
+                : widget.confirmLabel,
             style: GoogleFonts.plusJakartaSans(
               fontWeight: FontWeight.w700,
               fontSize: 12,
@@ -2501,6 +2600,9 @@ class _CountdownConfirmationDialogState
           style: FilledButton.styleFrom(
             backgroundColor: widget.confirmColor,
             foregroundColor: Colors.white,
+            disabledBackgroundColor:
+                widget.confirmColor.withValues(alpha: 0.38),
+            disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
