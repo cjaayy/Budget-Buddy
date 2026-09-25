@@ -394,6 +394,14 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
     final bool hasDebt = debtAmount > 0;
 
+    final double todayBudget = widget.isTogetherOnly
+        ? state.togetherBudget
+        : (state.settings.dailyLimit ?? 0.0);
+    final double currentTodaySpent = widget.isTogetherOnly
+        ? togetherSpent
+        : state.dailySpent;
+    final double todayRemaining = todayBudget - currentTodaySpent;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -656,6 +664,115 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+
+        // Today's Budget Monitor Card (Target Gold #D97706)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: tokens.subCardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _SavingsTokens.targetGold.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Column(
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: tokens.tint(_SavingsTokens.targetGold, 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          size: 16,
+                          color: _SavingsTokens.targetGold,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            widget.isTogetherOnly
+                                ? "Today's Together Budget"
+                                : "Today's Budget Allowance",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: tokens.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            todayBudget > 0
+                                ? '${formatPeso(currentTodaySpent)} spent'
+                                : 'No budget set for today',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        formatPeso(todayBudget),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: _SavingsTokens.targetGold,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      if (todayBudget > 0)
+                        Text(
+                          todayRemaining >= 0
+                              ? '${formatPeso(todayRemaining)} remaining'
+                              : 'Over by ${formatPeso(todayRemaining.abs())}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: todayRemaining >= 0
+                                ? _SavingsTokens.savingsGreen
+                                : _SavingsTokens.deficitRed,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              if (todayBudget > 0) ...<Widget>[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: todayBudget > 0
+                        ? (currentTodaySpent / todayBudget).clamp(0.0, 1.0)
+                        : 0.0,
+                    minHeight: 5,
+                    backgroundColor: tokens.cardBorder,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      currentTodaySpent > todayBudget
+                          ? _SavingsTokens.deficitRed
+                          : _SavingsTokens.targetGold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         const SizedBox(height: 10),
 
