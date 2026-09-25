@@ -230,10 +230,20 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       currentDebt += overBudget;
     }
 
+    final double prevSavings = state.totalSavings;
     state = state.copyWith(
       savingsDebt: currentDebt,
       totalSavings: currentSavings,
     );
+    // Log auto-save if surplus went to vault
+    final double savedAmount = currentSavings - prevSavings;
+    if (savedAmount > 0) {
+      addVaultLog(
+        type: VaultLogType.autoSave,
+        amount: savedAmount,
+        description: 'Daily budget surplus auto-saved at midnight',
+      );
+    }
     _persist();
   }
 
@@ -244,22 +254,56 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     applyDailyBudgetSurplusAndDebt(budget: budget, expenses: expenses);
   }
 
+  /// Adds an entry to the vault transaction log.
+  void addVaultLog({
+    required VaultLogType type,
+    required double amount,
+    required String description,
+  }) {
+    if (amount <= 0) return;
+    final VaultLogEntry entry = VaultLogEntry(
+      id: _uuid.v4(),
+      type: type,
+      amount: amount,
+      description: description,
+      dateTime: now,
+    );
+    final List<VaultLogEntry> updated =
+        <VaultLogEntry>[entry, ...state.vaultLog];
+    // Keep at most 500 entries
+    if (updated.length > 500) {
+      updated.removeRange(500, updated.length);
+    }
+    state = state.copyWith(vaultLog: updated);
+    _persist();
+  }
+
   /// Sets savings debt directly (useful for testing or initial adjustments).
   void setSavingsDebt(double debt) {
     state = state.copyWith(savingsDebt: debt < 0 ? 0.0 : debt);
     _persist();
   }
 
-  /// Sets total savings directly (useful for testing or initial adjustments).
-  void setTotalSavings(double savings) {
-    state = state.copyWith(totalSavings: savings < 0 ? 0.0 : savings);
+  /// Sets total savings directly (manual deposit — logs as deposit).
+  void setTotalSavings(double savings, {String? logDescription}) {
+    final double prev = state.totalSavings;
+    final double newVal = savings < 0 ? 0.0 : savings;
+    state = state.copyWith(totalSavings: newVal);
     _persist();
+    if (logDescription != null && newVal > prev) {
+      addVaultLog(
+        type: VaultLogType.deposit,
+        amount: newVal - prev,
+        description: logDescription,
+      );
+    }
   }
 
   /// Pay down savings debt, optionally deducting from today's active budget.
   void paySavingsDebt({
     required double amount,
     bool deductFromBudget = false,
+    String? description,
   }) {
     if (amount <= 0) return;
     final double currentDebt = state.savingsDebt;
@@ -273,6 +317,14 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     }
 
     setSavingsDebt(newDebt);
+    addVaultLog(
+      type: VaultLogType.payDebt,
+      amount: amount,
+      description: description ??
+          (deductFromBudget
+              ? 'Debt payment from today\'s budget allowance'
+              : 'Debt payment from savings vault / direct'),
+    );
   }
 
   /// Withdraw from savings vault, optionally transferring directly into today's active budget.
@@ -285,7 +337,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final double currentSavings = state.totalSavings;
     final double newSavings =
         (currentSavings - amount).clamp(0.0, double.infinity);
-    setTotalSavings(newSavings);
+    state = state.copyWith(totalSavings: newSavings);
 
     if (addToDailyBudget) {
       if (isTogether) {
@@ -295,7 +347,19 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         final double currentBudget = state.settings.dailyLimit ?? 0.0;
         recordDailyBudget(amount: currentBudget + amount);
       }
+      addVaultLog(
+        type: VaultLogType.withdraw,
+        amount: amount,
+        description: 'Withdrawn from vault → added to today\'s budget',
+      );
+    } else {
+      addVaultLog(
+        type: VaultLogType.withdraw,
+        amount: amount,
+        description: 'Cash out from vault (external)',
+      );
     }
+    _persist();
   }
 
   BudgetSummary get summary => _service.computeSummary(

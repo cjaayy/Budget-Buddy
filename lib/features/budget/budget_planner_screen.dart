@@ -683,6 +683,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 .paySavingsDebt(
                                   amount: currentPay,
                                   deductFromBudget: false,
+                                  description:
+                                      'Deficit payment allocated from new budget set',
                                 );
 
                             // 2. Set net daily budget
@@ -1235,6 +1237,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 .paySavingsDebt(
                                   amount: currentAmount,
                                   deductFromBudget: true,
+                                  description:
+                                      'Deficit payment from today\'s budget allowance',
                                 );
                           } else if (paymentSource == 1) {
                             if (vaultSavings < currentAmount) {
@@ -1253,6 +1257,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 .paySavingsDebt(
                                   amount: currentAmount,
                                   deductFromBudget: false,
+                                  description:
+                                      'Deficit payment from settled savings vault',
                                 );
                             ref
                                 .read(budgetBuddyControllerProvider.notifier)
@@ -1264,6 +1270,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 .paySavingsDebt(
                                   amount: currentAmount,
                                   deductFromBudget: false,
+                                  description:
+                                      'Direct deficit payment (cash / external)',
                                 );
                           }
 

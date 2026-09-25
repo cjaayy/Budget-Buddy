@@ -51,7 +51,7 @@ class _SavingsTokens {
 
 
 
-enum SavingsSection { daily, monthly }
+enum SavingsSection { daily, monthly, logs }
 
 class SavingsScreen extends ConsumerStatefulWidget {
   const SavingsScreen({super.key, this.isTogetherOnly = false});
@@ -243,7 +243,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Historical Balance Logs',
+                              _activeSection == SavingsSection.logs
+                                  ? 'Vault Activity & Logs'
+                                  : 'Historical Balance Logs',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -257,17 +259,22 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Daily / Monthly Toggle
-                    _buildSectionToggle(context, tokens),
+                    // Daily / Monthly / Vault Logs Toggle
+                    _buildSectionToggle(
+                      context,
+                      tokens,
+                      logCount: state.vaultLog.length,
+                    ),
                     const SizedBox(height: 12),
 
-                    // History Bento Card with Records
+                    // History Bento Card with Records & Vault Logs
                     _buildHistoryCard(
                       context,
                       records: records,
                       availableMonths: availableMonths,
                       currentClock: currentClock,
                       tokens: tokens,
+                      vaultLogs: state.vaultLog,
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -978,7 +985,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         .totalSavings;
                     ref
                         .read(budgetBuddyControllerProvider.notifier)
-                        .setTotalSavings(currentVault + amount);
+                        .setTotalSavings(
+                          currentVault + amount,
+                          logDescription: 'Manual deposit to vault',
+                        );
 
                     if (dialogContext.mounted) {
                       Navigator.of(dialogContext).pop();
@@ -2019,6 +2029,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                   .paySavingsDebt(
                                     amount: currentPayDebtAmount,
                                     deductFromBudget: true,
+                                    description:
+                                        'Deficit paid using today\'s budget allowance',
                                   );
                               if (widget.isTogetherOnly) {
                                 final double newTogether = (currentTodayBudget -
@@ -2047,6 +2059,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                   .paySavingsDebt(
                                     amount: currentPayDebtAmount,
                                     deductFromBudget: false,
+                                    description:
+                                        'Deficit paid using settled savings vault',
                                   );
                               ref
                                   .read(budgetBuddyControllerProvider.notifier)
@@ -2060,6 +2074,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                   .paySavingsDebt(
                                     amount: currentPayDebtAmount,
                                     deductFromBudget: false,
+                                    description:
+                                        'Direct deficit payment (cash / external)',
                                   );
                             }
 
@@ -2139,8 +2155,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     );
   }
 
-  /// Segmented Daily / Monthly toggle
-  Widget _buildSectionToggle(BuildContext context, _SavingsTokens tokens) {
+  /// Segmented Daily / Monthly / Vault Logs toggle
+  Widget _buildSectionToggle(
+    BuildContext context,
+    _SavingsTokens tokens, {
+    int logCount = 0,
+  }) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -2150,6 +2170,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       ),
       child: Row(
         children: <Widget>[
+          // 1. Daily Records
           Expanded(
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
@@ -2172,16 +2193,16 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                   children: <Widget>[
                     Icon(
                       Icons.calendar_today_rounded,
-                      size: 13,
+                      size: 12,
                       color: _activeSection == SavingsSection.daily
                           ? Colors.white
                           : tokens.textSecondary,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 5),
                     Text(
-                      'Daily Records',
+                      'Daily',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: _activeSection == SavingsSection.daily
                             ? FontWeight.w800
                             : FontWeight.w600,
@@ -2196,6 +2217,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
           ),
           const SizedBox(width: 4),
+
+          // 2. Monthly Records
           Expanded(
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
@@ -2218,20 +2241,68 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                   children: <Widget>[
                     Icon(
                       Icons.calendar_month_rounded,
-                      size: 13,
+                      size: 12,
                       color: _activeSection == SavingsSection.monthly
                           ? Colors.white
                           : tokens.textSecondary,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 5),
                     Text(
-                      'Monthly Records',
+                      'Monthly',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: _activeSection == SavingsSection.monthly
                             ? FontWeight.w800
                             : FontWeight.w600,
                         color: _activeSection == SavingsSection.monthly
+                            ? Colors.white
+                            : tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+
+          // 3. Vault Logs / Activity
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                if (_activeSection != SavingsSection.logs) {
+                  setState(() => _activeSection = SavingsSection.logs);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: _activeSection == SavingsSection.logs
+                      ? _SavingsTokens.savingsGreen
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      size: 12,
+                      color: _activeSection == SavingsSection.logs
+                          ? Colors.white
+                          : tokens.textSecondary,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Vault Logs',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: _activeSection == SavingsSection.logs
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: _activeSection == SavingsSection.logs
                             ? Colors.white
                             : tokens.textSecondary,
                       ),
@@ -2246,13 +2317,14 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     );
   }
 
-  /// History Bento Card containing the list of daily or monthly savings records
+  /// History Bento Card containing the list of daily or monthly savings records or vault logs
   Widget _buildHistoryCard(
     BuildContext context, {
     required List<DailyRecord> records,
     required List<DateTime> availableMonths,
     required DateTime currentClock,
     required _SavingsTokens tokens,
+    required List<VaultLogEntry> vaultLogs,
   }) {
     return BentoCard(
       padding: const EdgeInsets.all(14),
@@ -2260,7 +2332,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          if (records.isEmpty)
+          if (_activeSection == SavingsSection.logs)
+            _buildVaultLogsView(context, vaultLogs: vaultLogs, tokens: tokens)
+          else if (records.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -2326,6 +2400,427 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  /// Vault Transaction Logs View
+  Widget _buildVaultLogsView(
+    BuildContext context, {
+    required List<VaultLogEntry> vaultLogs,
+    required _SavingsTokens tokens,
+  }) {
+    if (vaultLogs.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_SavingsTokens.targetGold, 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  size: 28,
+                  color: _SavingsTokens.targetGold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'No Vault Activity Yet',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Transactions such as vault deposits, withdrawals, auto-saved budget surplus, and deficit payments will appear here.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: tokens.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10, left: 2, right: 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text(
+                'All Transactions',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textSecondary,
+                ),
+              ),
+              SoftPill(
+                text:
+                    '${vaultLogs.length} ${vaultLogs.length == 1 ? 'entry' : 'entries'}',
+                color: _SavingsTokens.savingsGreen,
+                fontSize: 10,
+              ),
+            ],
+          ),
+        ),
+        ...vaultLogs.map(
+          (VaultLogEntry entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildVaultLogTile(
+              context,
+              entry: entry,
+              tokens: tokens,
+              onTap: () => _showVaultLogDetailSheet(
+                context,
+                entry: entry,
+                tokens: tokens,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Individual Vault Log Tile with rich Bento styling
+  Widget _buildVaultLogTile(
+    BuildContext context, {
+    required VaultLogEntry entry,
+    required _SavingsTokens tokens,
+    required VoidCallback onTap,
+  }) {
+    final bool isAutoSave = entry.type == VaultLogType.autoSave;
+    final bool isDeposit = entry.type == VaultLogType.deposit;
+    final bool isWithdraw = entry.type == VaultLogType.withdraw;
+    final bool isToBudget = entry.description.toLowerCase().contains('budget');
+
+    final Color accentColor = isAutoSave || isDeposit
+        ? _SavingsTokens.savingsGreen
+        : (isWithdraw
+            ? (isToBudget ? _SavingsTokens.targetGold : _SavingsTokens.deficitRed)
+            : _SavingsTokens.targetGold);
+
+    final IconData icon = isAutoSave
+        ? Icons.auto_awesome_rounded
+        : (isDeposit
+            ? Icons.add_circle_outline_rounded
+            : (isWithdraw
+                ? (isToBudget
+                    ? Icons.swap_horiz_rounded
+                    : Icons.arrow_upward_rounded)
+                : Icons.shield_rounded));
+
+    final String typeTitle = isAutoSave
+        ? 'Surplus Auto-Saved'
+        : (isDeposit
+            ? 'Vault Deposit'
+            : (isWithdraw
+                ? (isToBudget ? 'Withdrawal → Budget' : 'Cash Out (Vault)')
+                : 'Deficit Paid'));
+
+    final String tagLabel = isAutoSave
+        ? 'AUTO-SAVE'
+        : (isDeposit
+            ? 'DEPOSIT'
+            : (isWithdraw
+                ? (isToBudget ? 'TO BUDGET' : 'CASH OUT')
+                : 'DEFICIT PAID'));
+
+    final String amountPrefix = (isAutoSave || isDeposit) ? '+' : '-';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: tokens.subCardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: tokens.cardBorder.withValues(alpha: 0.7),
+              width: 1.0,
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              // Type Icon
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: tokens.tint(accentColor, 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 18, color: accentColor),
+              ),
+              const SizedBox(width: 10),
+
+              // Title, description & date
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      typeTitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      entry.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      DateFormat('MMM d, y • h:mm a').format(entry.dateTime),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Amount & Tag
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Text(
+                    '$amountPrefix${formatPeso(entry.amount)}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: accentColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  SoftPill(
+                    text: tagLabel,
+                    color: accentColor,
+                    fontSize: 8.5,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Detail Modal Sheet for a Vault Log entry
+  void _showVaultLogDetailSheet(
+    BuildContext context, {
+    required VaultLogEntry entry,
+    required _SavingsTokens tokens,
+  }) {
+    final bool isAutoSave = entry.type == VaultLogType.autoSave;
+    final bool isDeposit = entry.type == VaultLogType.deposit;
+    final bool isWithdraw = entry.type == VaultLogType.withdraw;
+    final bool isToBudget = entry.description.toLowerCase().contains('budget');
+
+    final Color accentColor = isAutoSave || isDeposit
+        ? _SavingsTokens.savingsGreen
+        : (isWithdraw
+            ? (isToBudget ? _SavingsTokens.targetGold : _SavingsTokens.deficitRed)
+            : _SavingsTokens.targetGold);
+
+    final String typeTitle = isAutoSave
+        ? 'Surplus Auto-Saved'
+        : (isDeposit
+            ? 'Vault Deposit'
+            : (isWithdraw
+                ? (isToBudget
+                    ? 'Withdrawal → Today\'s Budget'
+                    : 'Cash Out from Vault')
+                : 'Deficit Payment'));
+
+    final String amountPrefix = (isAutoSave || isDeposit) ? '+' : '-';
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext sheetCtx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: tokens.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: tokens.cardBorder),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              // Handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: tokens.cardBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Title and badge
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Text(
+                    'Transaction Details',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: tokens.textPrimary,
+                    ),
+                  ),
+                  SoftPill(
+                    text: entry.type.name.toUpperCase(),
+                    color: accentColor,
+                    fontSize: 10,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Amount Card
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: tokens.tint(accentColor, 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    Text(
+                      '$amountPrefix${formatPeso(entry.amount)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      typeTitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Meta Details
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: tokens.subCardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    _buildDetailRow(
+                      tokens: tokens,
+                      label: 'Action',
+                      value: typeTitle,
+                      valueColor: accentColor,
+                    ),
+                    Divider(color: tokens.cardBorder, height: 16),
+                    _buildDetailRow(
+                      tokens: tokens,
+                      label: 'Description',
+                      value: entry.description,
+                    ),
+                    Divider(color: tokens.cardBorder, height: 16),
+                    _buildDetailRow(
+                      tokens: tokens,
+                      label: 'Date & Time',
+                      value: DateFormat('MMMM d, y • h:mm:ss a')
+                          .format(entry.dateTime),
+                    ),
+                    if (entry.id.isNotEmpty) ...<Widget>[
+                      Divider(color: tokens.cardBorder, height: 16),
+                      _buildDetailRow(
+                        tokens: tokens,
+                        label: 'Reference ID',
+                        value: entry.id.length > 12
+                            ? entry.id.substring(0, 12).toUpperCase()
+                            : entry.id.toUpperCase(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Close Button (Solid Dark Green #0F766E)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetCtx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _SavingsTokens.savingsGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    'Close',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -1082,6 +1082,48 @@ class PeriodReport {
   }
 }
 
+// ─────────────────────────────────────────────
+// Vault Transaction Log
+// ─────────────────────────────────────────────
+
+enum VaultLogType { deposit, withdraw, autoSave, payDebt }
+
+class VaultLogEntry {
+  VaultLogEntry({
+    required this.id,
+    required this.type,
+    required this.amount,
+    required this.description,
+    required this.dateTime,
+  });
+
+  final String id;
+  final VaultLogType type;
+  final double amount;
+  final String description;
+  final DateTime dateTime;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'type': type.name,
+        'amount': amount,
+        'description': description,
+        'dateTime': dateTime.toIso8601String(),
+      };
+
+  factory VaultLogEntry.fromJson(Map<String, dynamic> json) => VaultLogEntry(
+        id: json['id'] as String? ?? '',
+        type: VaultLogType.values.firstWhere(
+          (VaultLogType t) => t.name == json['type'],
+          orElse: () => VaultLogType.deposit,
+        ),
+        amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+        description: json['description'] as String? ?? '',
+        dateTime: DateTime.tryParse(json['dateTime'] as String? ?? '') ??
+            DateTime.now(),
+      );
+}
+
 class BudgetBuddyState {
   const BudgetBuddyState({
     required this.settings,
@@ -1110,8 +1152,10 @@ class BudgetBuddyState {
     required this.periodReports,
     double? savingsDebt = 0.0,
     double? totalSavings = 0.0,
+    List<VaultLogEntry>? vaultLog,
   })  : _savingsDebt = savingsDebt,
-        _totalSavings = totalSavings;
+        _totalSavings = totalSavings,
+        _vaultLog = vaultLog ?? const <VaultLogEntry>[];
 
   final BudgetSettings settings;
   final List<ExpenseEntry> expenses;
@@ -1139,9 +1183,11 @@ class BudgetBuddyState {
   final List<PeriodReport> periodReports;
   final double? _savingsDebt;
   final double? _totalSavings;
+  final List<VaultLogEntry>? _vaultLog;
 
   double get savingsDebt => _savingsDebt ?? 0.0;
   double get totalSavings => _totalSavings ?? 0.0;
+  List<VaultLogEntry> get vaultLog => _vaultLog ?? const <VaultLogEntry>[];
 
   factory BudgetBuddyState.initial() {
     return BudgetBuddyState(
@@ -1171,6 +1217,7 @@ class BudgetBuddyState {
       periodReports: const <PeriodReport>[],
       savingsDebt: 0.0,
       totalSavings: 0.0,
+      vaultLog: const <VaultLogEntry>[],
     );
   }
 
@@ -1201,6 +1248,7 @@ class BudgetBuddyState {
     List<PeriodReport>? periodReports,
     double? savingsDebt,
     double? totalSavings,
+    List<VaultLogEntry>? vaultLog,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -1243,6 +1291,7 @@ class BudgetBuddyState {
       periodReports: periodReports ?? this.periodReports,
       savingsDebt: savingsDebt ?? this.savingsDebt,
       totalSavings: totalSavings ?? this.totalSavings,
+      vaultLog: vaultLog ?? this.vaultLog,
     );
   }
 
@@ -1289,6 +1338,7 @@ class BudgetBuddyState {
           periodReports.map((PeriodReport report) => report.toJson()).toList(),
       'savingsDebt': savingsDebt,
       'totalSavings': totalSavings,
+      'vaultLog': vaultLog.map((VaultLogEntry e) => e.toJson()).toList(),
     };
   }
 
@@ -1368,6 +1418,11 @@ class BudgetBuddyState {
           const <PeriodReport>[],
       savingsDebt: (json['savingsDebt'] as num?)?.toDouble() ?? 0.0,
       totalSavings: (json['totalSavings'] as num?)?.toDouble() ?? 0.0,
+      vaultLog: (json['vaultLog'] as List<dynamic>?)
+              ?.map((dynamic item) => VaultLogEntry.fromJson(
+                    (item as Map).cast<String, dynamic>()))
+              .toList() ??
+          const <VaultLogEntry>[],
     );
   }
 
