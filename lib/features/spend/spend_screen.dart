@@ -289,12 +289,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     _handleSpendAction(
       context,
       amountToSpend: _currentAmount,
+      isBatch: true,
       onProceed: ({bool isDebt = false}) => _doAddToQueue(isDebt: isDebt),
     );
   }
 
   void _doAddToQueue({bool isDebt = false}) {
     HapticFeedback.mediumImpact();
+    final double itemAmount = _currentAmount;
     final String enteredTitle = _titleController.text.trim();
     final String categoryTitle = _effectiveCategoryTitle;
     final String title =
@@ -305,7 +307,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         _PendingSpendItem(
           id: '${DateTime.now().microsecondsSinceEpoch}_${_pendingSpends.length}',
           title: title,
-          amount: _currentAmount,
+          amount: itemAmount,
           category: _effectiveBudgetCategory,
           color: isDebt ? _SpendTokens.expenseRed : _effectiveCategoryColor,
           icon: isDebt ? Icons.receipt_long_rounded : _effectiveCategoryIcon,
@@ -322,8 +324,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     showAppAlert(
       context,
       message: isDebt
-          ? 'Added "$title" to batch as Debt (${formatPeso(_currentAmount)})'
-          : 'Added "$title" to batch queue (${formatPeso(_currentAmount)})',
+          ? 'Added "$title" to batch as Debt (${formatPeso(itemAmount)})'
+          : 'Added "$title" to batch queue (${formatPeso(itemAmount)})',
       title: isDebt ? 'Added as Debt' : 'Notice',
       icon: isDebt ? Icons.warning_amber_rounded : Icons.info_outline_rounded,
       accentColor: isDebt ? _SpendTokens.expenseRed : _SpendTokens.budgetGold,
@@ -364,6 +366,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     _handleSpendAction(
       context,
       amountToSpend: amountToSubmit,
+      isBatch: _pendingSpends.isNotEmpty,
       onProceed: ({bool isDebt = false}) =>
           _doSubmitSpend(context, isDebt: isDebt),
     );
@@ -467,6 +470,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     BuildContext context, {
     required double amountToSpend,
     required void Function({bool isDebt}) onProceed,
+    bool isBatch = false,
   }) {
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final BudgetSummary summary = widget.isTogetherOnly
@@ -502,115 +506,9 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
       }
     }
 
-    // 1. Budget is zero or not configured
-    if (currentBudget <= 0) {
-      showDialog<void>(
-        context: context,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            backgroundColor: tokens.cardBg,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: BorderSide(color: tokens.cardBorder, width: 1.0),
-            ),
-            titlePadding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            actionsPadding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-            icon: const Icon(
-              Icons.warning_amber_rounded,
-              color: _SpendTokens.budgetGold,
-              size: 40,
-            ),
-            title: Text(
-              widget.isTogetherOnly
-                  ? 'Budget Together Required'
-                  : 'Today\'s Budget Required',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-                color: tokens.textPrimary,
-              ),
-            ),
-            content: Text(
-              widget.isTogetherOnly
-                  ? 'Your Budget Together is ₱0.00. You cannot spend unless you add budget in Today\'s Budget Plan.'
-                  : 'Your budget for today is ₱0.00. You cannot spend unless you add budget in Today\'s Budget Plan.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: tokens.textSecondary,
-              ),
-            ),
-            actions: <Widget>[
-              SizedBox(
-                width: double.infinity,
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: tokens.textSecondary,
-                          side: BorderSide(color: tokens.cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(dialogContext).pop();
-                          navigateToPlanner();
-                        },
-                        icon: const Icon(Icons.add_circle_outline_rounded,
-                            size: 16, color: Colors.white),
-                        label: Text(
-                          'Add in Budget',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12.5,
-                            color: Colors.white,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _SpendTokens.budgetGold,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      );
-      return;
-    }
-
-    // 2. Max Budget Reached (remaining <= 0 OR amountToSpend > remaining):
-    // Offer Debt or Add in Budget
-    if (remaining <= 0 || amountToSpend > remaining) {
+    // Max Budget Reached, Exceeded, or Budget is Zero:
+    // Prompt with the selected batch/spend price, Debt, or Add in Budget options.
+    if (currentBudget <= 0 || remaining <= 0 || amountToSpend > remaining) {
       showDialog<void>(
         context: context,
         builder: (BuildContext dialogContext) {
@@ -634,7 +532,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               size: 40,
             ),
             title: Text(
-              'Max Budget Reached',
+              currentBudget <= 0
+                  ? (widget.isTogetherOnly
+                      ? 'Budget Together Required'
+                      : 'Today\'s Budget Required')
+                  : 'Max Budget Reached',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800,
@@ -646,18 +548,141 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  // Prominent Batch / Spend Price Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: tokens.tint(_SpendTokens.expenseRed, 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _SpendTokens.expenseRed.withValues(alpha: 0.25),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        Text(
+                          isBatch ? 'Batch Amount Selected' : 'Spend Amount',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: tokens.textSecondary,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatPeso(amountToSpend),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            color: _SpendTokens.expenseRed,
+                            letterSpacing: -1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Budget Context Breakdown Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: tokens.subCardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: tokens.cardBorder, width: 1.0),
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Text(
+                              'Today\'s Budget',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: tokens.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              formatPeso(currentBudget),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: tokens.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Text(
+                              'Spent Today',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: tokens.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              formatPeso(currentSpent),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _SpendTokens.expenseRed,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (overAmount > 0) ...<Widget>[
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text(
+                                'Exceeds Safe Limit By',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _SpendTokens.expenseRed,
+                                ),
+                              ),
+                              Text(
+                                formatPeso(overAmount),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: _SpendTokens.expenseRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    'Today\'s budget limit reached (${formatPeso(currentSpent)} / ${formatPeso(currentBudget)}).\n'
-                    '${overAmount > 0 ? "Exceeds safe limit by ${formatPeso(overAmount)}.\n\n" : "\n"}'
-                    'Choose how you want to handle this spend:',
+                    currentBudget <= 0
+                        ? 'No daily budget is set for today. Choose how you want to handle this spend:'
+                        : 'Today\'s budget limit reached. Choose how you want to handle this spend:',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                       color: tokens.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 12),
+
                   // Option 1: Charge to Debt
                   Material(
                     color: Colors.transparent,
@@ -729,6 +754,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+
                   // Option 2: Add in Budget
                   Material(
                     color: Colors.transparent,
