@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -100,10 +99,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             index: activeIndex,
             children: _pages,
           ),
-          if (kDebugMode)
-            const Positioned.fill(
-              child: BudgetAiAssistant(),
-            ),
+          const Positioned.fill(
+            child: BudgetAiAssistant(),
+          ),
         ],
       ),
       bottomNavigationBar: Container(
