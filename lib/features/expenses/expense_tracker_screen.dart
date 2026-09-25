@@ -1830,8 +1830,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     ExpenseEntry expense,
     _ExpensesTokens tokens,
   ) {
-    final String cleanNoteText = _cleanNote(expense.note);
-
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1934,44 +1932,29 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   child: Column(
                     children: <Widget>[
                       _buildDetailRow(
-                        label: 'Date & Time',
-                        value: DateFormat('EEEE, MMMM d, y • h:mm a')
-                            .format(expense.dateTime),
+                        label: 'Title',
+                        value: expense.title.trim().isNotEmpty
+                            ? expense.title
+                            : (expense.spendCategory.trim().isNotEmpty
+                                ? expense.spendCategory
+                                : expense.category.label),
                         tokens: tokens,
                       ),
                       const Divider(height: 16),
                       _buildDetailRow(
                         label: 'Category',
-                        value: expense.category.label,
+                        value: expense.spendCategory.trim().isNotEmpty
+                            ? expense.spendCategory
+                            : expense.category.label,
                         tokens: tokens,
                       ),
                       const Divider(height: 16),
                       _buildDetailRow(
-                        label: 'Payment Method',
-                        value: expense.source == 'togetherSpend'
-                            ? 'Shared Together Wallet'
-                            : (expense.source == 'quick_spend' ||
-                                    expense.source == 'spend_screen'
-                                ? 'Cash / Quick Log'
-                                : 'Cash / Manual Entry'),
+                        label: 'Date & Time',
+                        value: DateFormat('EEEE, MMMM d, y • h:mm a')
+                            .format(expense.dateTime),
                         tokens: tokens,
                       ),
-                      const Divider(height: 16),
-                      _buildDetailRow(
-                        label: 'Budget Scope',
-                        value: expense.source == 'togetherSpend'
-                            ? 'Together Budget'
-                            : 'Personal Daily Budget',
-                        tokens: tokens,
-                      ),
-                      if (cleanNoteText.isNotEmpty) ...<Widget>[
-                        const Divider(height: 16),
-                        _buildDetailRow(
-                          label: 'Notes',
-                          value: cleanNoteText,
-                          tokens: tokens,
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -2225,9 +2208,19 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         TextEditingController(text: existing?.title ?? '');
     final TextEditingController amountCtrl = TextEditingController(
         text: existing != null ? existing.amount.toStringAsFixed(0) : '');
-    final TextEditingController noteCtrl =
-        TextEditingController(text: _cleanNote(existing?.note ?? ''));
+
+    final bool initialIsCustom = existing != null &&
+        existing.spendCategory.trim().isNotEmpty &&
+        !BudgetCategory.values.any((BudgetCategory c) =>
+            c.label.toLowerCase() ==
+            existing.spendCategory.trim().toLowerCase());
+
+    bool isCustomCategory = initialIsCustom;
     BudgetCategory category = existing?.category ?? BudgetCategory.food;
+    final TextEditingController customCategoryCtrl = TextEditingController(
+      text: initialIsCustom ? existing!.spendCategory.trim() : '',
+    );
+    final FocusNode customCategoryFocusNode = FocusNode();
 
     await showDialog<void>(
       context: context,
@@ -2237,178 +2230,414 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             return AlertDialog(
               backgroundColor: tokens.cardBg,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(22),
                 side: BorderSide(color: tokens.cardBorder, width: 1.0),
               ),
-              title: Text(
-                existing == null ? 'Add Expense' : 'Edit Expense',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: tokens.textPrimary,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    // Title field
-                    TextField(
-                      controller: titleCtrl,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: tokens.textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Title / Description',
-                        labelStyle: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          color: tokens.textSecondary,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: tokens.cardBorder),
-                        ),
-                        isDense: true,
-                      ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+              title: Row(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: tokens.tint(_ExpensesTokens.budgetGold, 0.14),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 12),
-
-                    // Amount field
-                    TextField(
-                      controller: amountCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
+                    child: const Icon(
+                      Icons.edit_note_rounded,
+                      size: 20,
+                      color: _ExpensesTokens.budgetGold,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      existing == null ? 'Add Expense' : 'Edit Expense',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: _ExpensesTokens.expenseRed,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Amount',
-                        prefixText: '₱ ',
-                        labelStyle: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          color: tokens.textSecondary,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: tokens.cardBorder),
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Category Selector
-                    Text(
-                      'Category',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: BudgetCategory.values.map((BudgetCategory cat) {
-                        final bool isSel = category == cat;
-                        return ChoiceChip(
-                          label: Text(cat.label),
-                          labelStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                            color: isSel ? Colors.white : tokens.textSecondary,
-                          ),
-                          selected: isSel,
-                          selectedColor: _ExpensesTokens.safeGreen,
-                          backgroundColor: tokens.subCardBg,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                            side: BorderSide(
-                              color: isSel
-                                  ? _ExpensesTokens.safeGreen
-                                  : tokens.cardBorder,
-                            ),
-                          ),
-                          onSelected: (bool selected) {
-                            if (selected) {
-                              setModalState(() {
-                                category = cat;
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Note field
-                    TextField(
-                      controller: noteCtrl,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
                         color: tokens.textPrimary,
                       ),
-                      decoration: InputDecoration(
-                        labelText: 'Additional Notes (Optional)',
-                        labelStyle: GoogleFonts.plusJakartaSans(
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.of(dialogContext).pop(),
+                    borderRadius: BorderRadius.circular(999),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded,
+                          size: 18, color: tokens.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // Title / Name of Spend
+                      Text(
+                        'Name of Spend',
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
+                          fontWeight: FontWeight.w700,
                           color: tokens.textSecondary,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: tokens.cardBorder),
-                        ),
-                        isDense: true,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: titleCtrl,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textPrimary,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'e.g., Grocery, Dinner, Taxi',
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: tokens.textMuted,
+                          ),
+                          filled: true,
+                          fillColor: tokens.subCardBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: tokens.cardBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: tokens.cardBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: _ExpensesTokens.safeGreen, width: 1.5),
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Amount field
+                      Text(
+                        'Amount',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: amountCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: _ExpensesTokens.expenseRed,
+                        ),
+                        decoration: InputDecoration(
+                          prefixText: '₱ ',
+                          prefixStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _ExpensesTokens.expenseRed,
+                          ),
+                          hintText: '0.00',
+                          filled: true,
+                          fillColor: tokens.subCardBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: tokens.cardBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: tokens.cardBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: _ExpensesTokens.expenseRed, width: 1.5),
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Category Selector with Custom Category
+                      Text(
+                        'Category',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: <Widget>[
+                          // 1. Custom Category Chip (First Line)
+                          if (isCustomCategory)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color:
+                                    tokens.tint(_ExpensesTokens.budgetGold, 0.12),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: _ExpensesTokens.budgetGold,
+                                  width: 1.6,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: _ExpensesTokens.budgetGold,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit_note_rounded,
+                                      size: 13,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 130,
+                                    child: TextField(
+                                      controller: customCategoryCtrl,
+                                      focusNode: customCategoryFocusNode,
+                                      autofocus: true,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textPrimary,
+                                      ),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 2),
+                                        border: InputBorder.none,
+                                        hintText: 'Custom category...',
+                                        hintStyle:
+                                            GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: tokens.textMuted,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  InkWell(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      setModalState(() {
+                                        isCustomCategory = false;
+                                        customCategoryCtrl.clear();
+                                        customCategoryFocusNode.unfocus();
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: tokens.tint(
+                                            _ExpensesTokens.expenseRed, 0.16),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 13,
+                                        color: _ExpensesTokens.expenseRed,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setModalState(() {
+                                  isCustomCategory = true;
+                                });
+                                customCategoryFocusNode.requestFocus();
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: tokens.subCardBg,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: tokens.cardBorder,
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.add_circle_outline_rounded,
+                                      size: 13,
+                                      color: tokens.textSecondary,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Custom',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                          // Standard Categories
+                          ...BudgetCategory.values
+                              .map((BudgetCategory cat) {
+                            final bool isSel =
+                                !isCustomCategory && category == cat;
+                            return ChoiceChip(
+                              avatar: Icon(
+                                _iconForCategory(cat),
+                                size: 14,
+                                color: isSel
+                                    ? Colors.white
+                                    : tokens.textSecondary,
+                              ),
+                              label: Text(cat.label),
+                              labelStyle: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                fontWeight: isSel
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: isSel
+                                    ? Colors.white
+                                    : tokens.textSecondary,
+                              ),
+                              selected: isSel,
+                              selectedColor: _ExpensesTokens.safeGreen,
+                              backgroundColor: tokens.subCardBg,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(999),
+                                side: BorderSide(
+                                  color: isSel
+                                      ? _ExpensesTokens.safeGreen
+                                      : tokens.cardBorder,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2),
+                              onSelected: (bool selected) {
+                                if (selected) {
+                                  HapticFeedback.selectionClick();
+                                  setModalState(() {
+                                    isCustomCategory = false;
+                                    category = cat;
+                                  });
+                                }
+                              },
+                            );
+                          }),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: <Widget>[
-                TextButton(
+                OutlinedButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.textSecondary,
+                    side: BorderSide(color: tokens.cardBorder),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   child: Text(
                     'Cancel',
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w700,
-                      color: tokens.textSecondary,
+                      fontSize: 12.5,
                     ),
                   ),
                 ),
-                FilledButton(
+                FilledButton.icon(
                   onPressed: () {
                     final double? amount =
                         double.tryParse(amountCtrl.text.trim());
-                    if (amount == null || amount <= 0) return;
+                    if (amount == null || amount <= 0) {
+                      showAppAlert(
+                        context,
+                        message:
+                            'Please enter a valid expense amount greater than ₱0.',
+                        title: 'Notice',
+                        icon: Icons.info_outline_rounded,
+                      );
+                      return;
+                    }
 
-                    final String title = titleCtrl.text.trim().isNotEmpty
+                    final String customName =
+                        customCategoryCtrl.text.trim();
+                    final String finalSpendCategory =
+                        isCustomCategory && customName.isNotEmpty
+                            ? customName
+                            : category.label;
+                    final String finalTitle = titleCtrl.text.trim().isNotEmpty
                         ? titleCtrl.text.trim()
-                        : category.label;
-                    final String note = noteCtrl.text.trim();
+                        : finalSpendCategory;
+                    final BudgetCategory finalCategory = isCustomCategory
+                        ? BudgetCategory.miscellaneous
+                        : category;
+                    final String note = existing?.note ?? '';
 
                     if (existing != null) {
                       ref
                           .read(budgetBuddyControllerProvider.notifier)
                           .updateExpense(
                             existing.copyWith(
-                              title: title,
+                              title: finalTitle,
                               amount: amount,
-                              category: category,
+                              category: finalCategory,
+                              spendCategory: finalSpendCategory,
                               note: note,
                             ),
                           );
                     } else {
-                      ref.read(budgetBuddyControllerProvider.notifier).addExpense(
-                            title: title,
+                      ref
+                          .read(budgetBuddyControllerProvider.notifier)
+                          .addExpense(
+                            title: finalTitle,
                             amount: amount,
-                            category: category,
+                            category: finalCategory,
+                            spendCategory: finalSpendCategory,
                             note: note,
                             source: widget.isTogetherOnly
                                 ? 'togetherSpend'
@@ -2417,25 +2646,31 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                     }
 
                     Navigator.of(dialogContext).pop();
-                    showAppAlert(context, message: existing != null
-                            ? 'Expense updated!'
-                            : 'Expense added!', title: 'Success', icon: Icons.check_circle_outline_rounded,
-
+                    showAppAlert(
+                      context,
+                      message: existing != null
+                          ? 'Expense updated successfully.'
+                          : 'Expense added successfully.',
+                      title: 'Success',
+                      icon: Icons.check_circle_outline_rounded,
                       accentColor: _ExpensesTokens.safeGreen,
-
                     );
                   },
+                  icon: const Icon(Icons.check_rounded,
+                      size: 15, color: Colors.white),
+                  label: Text(
+                    existing == null ? 'Add Expense' : 'Save Changes',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: Colors.white,
+                    ),
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: _ExpensesTokens.safeGreen,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    existing != null ? 'Save Changes' : 'Add',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
