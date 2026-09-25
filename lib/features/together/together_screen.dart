@@ -835,8 +835,8 @@ class _TogetherBudgetPlanViewState
         final BudgetBuddyState currentState =
             ref.read(budgetBuddyControllerProvider);
         _lastAddBase = currentState.togetherLastAddBase ?? currentBudget;
-        _lastAddAmount =
-            (currentState.togetherLastAddAmount ?? 0.0) + entered;
+        _lastAddAmount = currentState.togetherLastAddAmount ??
+            ((_lastAddAmount ?? 0.0) + entered);
         _lastAddDate = ref.read(budgetBuddyControllerProvider.notifier).now;
       } else {
         _lastAddBase = null;
@@ -1004,16 +1004,8 @@ class _TogetherBudgetPlanViewState
       return DateUtils.isSameDay(e.dateTime, currentClock);
     }).toList();
 
-    final double spent = todaySharedExpenses.fold<double>(
+    final double grossDailySpent = todaySharedExpenses.fold<double>(
         0.0, (double sum, ExpenseEntry e) => sum + e.amount);
-    final double remaining = totalBudget - spent;
-    final bool hasBudget = totalBudget > 0;
-    final bool isOver = hasBudget && remaining < 0;
-    final bool isWarning =
-        !isOver && hasBudget && spent >= (totalBudget * 0.8);
-    final double progressValue = totalBudget > 0
-        ? (spent / totalBudget).clamp(0.0, 1.0)
-        : 0.0;
 
     final double addBase = state.togetherLastAddBase ?? _lastAddBase ?? 0.0;
     final double addAmount =
@@ -1026,6 +1018,10 @@ class _TogetherBudgetPlanViewState
             addDate != null &&
             DateUtils.isSameDay(addDate, currentClock));
 
+    final double baseAbsorbedDebt = hasAddToday
+        ? (state.togetherLastAddDebtAbsorbed ?? 0.0)
+        : 0.0;
+
     final double todayPaidDebt = state.vaultLog
         .where((VaultLogEntry log) =>
             log.type == VaultLogType.payDebt &&
@@ -1035,14 +1031,34 @@ class _TogetherBudgetPlanViewState
             DateUtils.isSameDay(log.dateTime, currentClock))
         .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
 
+    final double legitimateGross =
+        (grossDailySpent - baseAbsorbedDebt).clamp(0.0, double.infinity);
+    final double extraOverspend = totalBudget > 0
+        ? (legitimateGross - totalBudget).clamp(0.0, double.infinity)
+        : legitimateGross;
+    final double debtRelief = hasAddToday
+        ? (todayPaidDebt - baseAbsorbedDebt).clamp(0.0, extraOverspend)
+        : todayPaidDebt.clamp(0.0, extraOverspend);
+    final double currentSpent =
+        (legitimateGross - debtRelief).clamp(0.0, double.infinity);
+
+    final double remaining = totalBudget - currentSpent;
+    final bool hasBudget = totalBudget > 0;
+    final bool isOver = hasBudget && remaining < 0;
+    final bool isWarning =
+        !isOver && hasBudget && currentSpent >= (totalBudget * 0.8);
+    final double progressValue = totalBudget > 0
+        ? (currentSpent / totalBudget).clamp(0.0, 1.0)
+        : 0.0;
+
     final double rawOverbudgetDebt = hasAddToday
-        ? ((state.togetherLastAddDebtAbsorbed ?? 0.0) +
-            (totalBudget > 0 && spent > totalBudget
-                ? (spent - totalBudget)
+        ? (baseAbsorbedDebt +
+            (totalBudget > 0 && grossDailySpent > totalBudget
+                ? (grossDailySpent - totalBudget)
                 : 0.0))
         : (totalBudget > 0
-            ? (spent - totalBudget).clamp(0.0, double.infinity)
-            : spent);
+            ? (grossDailySpent - totalBudget).clamp(0.0, double.infinity)
+            : grossDailySpent);
 
     final double overbudgetDebt =
         (rawOverbudgetDebt - todayPaidDebt).clamp(0.0, double.infinity);
@@ -1079,7 +1095,7 @@ class _TogetherBudgetPlanViewState
         // 2. Hero Budget Card (Remaining displayed when idle, text input when active)
         _buildHeroBudgetCard(
           totalBudget: totalBudget,
-          spent: spent,
+          spent: currentSpent,
           remaining: remaining,
           progressValue: progressValue,
           hasBudget: hasBudget,
