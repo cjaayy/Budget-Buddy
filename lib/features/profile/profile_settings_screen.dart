@@ -123,31 +123,32 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   }
 
   void _showDevUpdateModal(BuildContext context, {bool mandatory = false}) {
-    final mockInfo = AppUpdateInfo(
-      version: '1.2.0',
-      buildNumber: 15,
-      tagName: 'v1.2.0',
-      title: 'Budget Buddy v1.2.0 is Available!',
-      releaseNotes: '• Redesigned Settings and Preferences.\n'
-          '• Reset today\'s budget to 0 at 12:00 AM.\n'
-          '• Unified visual palette (Dark Red, Gold, Dark Green).\n'
-          '• Fixed expense breakdown and category tracking.\n'
-          '• Performance optimizations & UI polish.',
-      downloadUrl:
-          'https://github.com/cjaayy/Budget-Buddy/releases/download/v1.2.0/app-release.apk',
-      isUpdateAvailable: true,
-      fileSize: 25 * 1024 * 1024,
-      mandatory: mandatory,
-      publishedAt: DateTime.now(),
-    );
-
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog<void>(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) => UpdateDialog(
-        updateInfo: mockInfo,
-        currentVersion: _appVersion ??
-            const AppVersion(version: '1.0.0', buildNumber: 1),
+      barrierDismissible: !mandatory,
+      builder: (BuildContext dialogContext) => CenterUpdateDialog(
+        isDark: isDark,
+        isMandatory: mandatory,
+        currentVersion: _appVersion?.version ?? '1.0.0',
+        newVersion: '1.2.0',
+        releaseNotes: const <String>[
+          'Clean Flat Bento Minimalist UI across all modules',
+          '7-Core bottom dock with density label optimization',
+          '100% Offline database & instant local verification',
+          'Daily midnight 12:00 AM auto-reset calculation engine',
+        ],
+        onUpdateNow: () {
+          Navigator.of(dialogContext).pop();
+          showAppAlert(
+            context,
+            message: 'Update download for v1.2.0 initiated.',
+            title: 'Update Triggered',
+            icon: Icons.download_done_rounded,
+            accentColor: const Color(0xFF0F766E),
+          );
+        },
+        onBack: () => Navigator.of(dialogContext).pop(),
       ),
     );
   }
@@ -1034,13 +1035,27 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: () => _showDevUpdateModal(context),
+                onPressed: () =>
+                    _showDevUpdateModal(context, mandatory: false),
                 icon: const Icon(Icons.system_update_rounded, size: 14),
                 label: Text(
                   'Preview Update',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    _showDevUpdateModal(context, mandatory: true),
+                icon: const Icon(Icons.warning_amber_rounded, size: 14),
+                label: Text(
+                  'Required Update',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF991B1B),
                   ),
                 ),
               ),
