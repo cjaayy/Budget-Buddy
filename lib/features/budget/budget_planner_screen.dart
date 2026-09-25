@@ -427,13 +427,27 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ),
               ],
             ),
-            SoftPill(
-              text: isLocked
-                  ? 'Locked'
-                  : (_isUnlockedForEditing ? 'Editing' : 'Setup'),
-              color: isLocked ? _BudgetTokens.budgetGold : _BudgetTokens.safeGreen,
-              icon: isLocked ? Icons.lock_outline_rounded : Icons.edit_rounded,
-              fontSize: 11,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (hasBudget || ref.watch(budgetBuddyControllerProvider).dailySpent > 0) ...<Widget>[
+                  IconButton(
+                    icon: const Icon(Icons.restart_alt_rounded, size: 20),
+                    color: _BudgetTokens.expenseRed,
+                    tooltip: 'Reset Today',
+                    onPressed: _confirmAndResetBudget,
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                SoftPill(
+                  text: isLocked
+                      ? 'Locked'
+                      : (_isUnlockedForEditing ? 'Editing' : 'Setup'),
+                  color: isLocked ? _BudgetTokens.budgetGold : _BudgetTokens.safeGreen,
+                  icon: isLocked ? Icons.lock_outline_rounded : Icons.edit_rounded,
+                  fontSize: 11,
+                ),
+              ],
             ),
           ],
         ),
@@ -958,40 +972,67 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         ],
       );
     } else if (hasBudget) {
-      return Row(
+      return Column(
         children: <Widget>[
-          // Cancel Button (Solid Dark Red)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: () => _cancelEditing(currentBudget),
-              icon: const Icon(Icons.close_rounded, size: 16),
-              label: const Text('Cancel'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                backgroundColor: _BudgetTokens.expenseRed,
-                foregroundColor: Colors.white,
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Row(
+            children: <Widget>[
+              // Cancel Button
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _cancelEditing(currentBudget),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text('Cancel'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                    backgroundColor: tokens.subCardBg,
+                    foregroundColor: tokens.textPrimary,
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: tokens.cardBorder),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              // Save / Update Button (Solid Dark Green)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _dailyController.text.trim().isNotEmpty
+                      ? () => _confirmAndUpdateBudget(currentBudget)
+                      : null,
+                  icon: const Icon(Icons.check_circle_rounded, size: 16),
+                  label: const Text('Save & Lock'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                    backgroundColor: _BudgetTokens.safeGreen,
+                    foregroundColor: Colors.white,
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          // Save / Update Button (Solid Dark Green)
-          Expanded(
+          const SizedBox(height: 8),
+          // Reset Button (Solid Dark Red)
+          SizedBox(
+            width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _dailyController.text.trim().isNotEmpty
-                  ? () => _confirmAndUpdateBudget(currentBudget)
-                  : null,
-              icon: const Icon(Icons.check_circle_rounded, size: 16),
-              label: const Text('Save & Lock'),
+              onPressed: _confirmAndResetBudget,
+              icon: const Icon(Icons.restart_alt_rounded, size: 16),
+              label: const Text('Reset Today'),
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                backgroundColor: _BudgetTokens.safeGreen,
+                minimumSize: const Size.fromHeight(42),
+                backgroundColor: _BudgetTokens.expenseRed,
                 foregroundColor: Colors.white,
                 textStyle: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
@@ -1007,26 +1048,55 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       );
     } else {
       // First Time Set Target
-      return SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed:
-              _dailyController.text.trim().isNotEmpty ? _saveBudget : null,
-          icon: const Icon(Icons.check_circle_rounded, size: 16),
-          label: const Text('Save & Lock Today\'s Budget'),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(46),
-            backgroundColor: _BudgetTokens.safeGreen,
-            foregroundColor: Colors.white,
-            textStyle: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+      final double dailySpent =
+          ref.watch(budgetBuddyControllerProvider).dailySpent;
+      return Column(
+        children: <Widget>[
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed:
+                  _dailyController.text.trim().isNotEmpty ? _saveBudget : null,
+              icon: const Icon(Icons.check_circle_rounded, size: 16),
+              label: const Text('Save & Lock Today\'s Budget'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                backgroundColor: _BudgetTokens.safeGreen,
+                foregroundColor: Colors.white,
+                textStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
-        ),
+          if (dailySpent > 0) ...<Widget>[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _confirmAndResetBudget,
+                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                label: const Text('Reset Today\'s Spending'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(42),
+                  backgroundColor: _BudgetTokens.expenseRed,
+                  foregroundColor: Colors.white,
+                  textStyle: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       );
     }
   }
