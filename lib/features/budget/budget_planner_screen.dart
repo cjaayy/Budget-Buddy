@@ -66,6 +66,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   bool _isAddMode = false;
   double? _lastAddBase;
   double? _lastAddAmount;
+  DateTime? _lastAddDate; // tracks which calendar day the last add was done
 
   @override
   void initState() {
@@ -180,25 +181,15 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     required double addedAmount,
     required double targetAmount,
   }) async {
-    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final double debt = state.savingsDebt;
-
-    if (debt > 0) {
-      final bool? proceed = await _showNewBudgetDebtChoiceDialog(
-        proposedBudget: targetAmount,
-        debtAmount: debt,
-        isUpdate: currentBudget > 0,
-      );
-      if (proceed != true) return;
-    } else {
+    // Add Budget never touches savings debt — debt stays separate.
+    // Skip confirmation dialog when setting from zero (first-time budget set).
+    if (currentBudget > 0) {
       final bool? confirmed = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext ctx) => _CountdownConfirmationDialog(
           title: 'Confirm Add Budget',
-          message: currentBudget > 0
-              ? 'Add ${formatPeso(addedAmount)} to today\'s budget of ${formatPeso(currentBudget)} for a new total of ${formatPeso(targetAmount)}?'
-              : 'Set today\'s budget to ${formatPeso(targetAmount)}?',
+          message: 'Add ${formatPeso(addedAmount)} to today\'s budget of ${formatPeso(currentBudget)} for a new total of ${formatPeso(targetAmount)}?',
           confirmLabel: 'Save & Add',
           confirmColor: _BudgetTokens.safeGreen,
           icon: Icons.add_circle_outline_rounded,
@@ -206,34 +197,40 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           totalSeconds: 3,
         ),
       );
-
       if (!mounted || confirmed != true) return;
-
-      ref
-          .read(budgetBuddyControllerProvider.notifier)
-          .recordDailyBudget(amount: targetAmount);
-
-      setState(() {
-        _isInputActive = false;
-        _isAddMode = false;
-        _dailyController.clear();
-        if (currentBudget > 0) {
-          _lastAddBase = currentBudget;
-          _lastAddAmount = addedAmount;
-        } else {
-          _lastAddBase = null;
-          _lastAddAmount = null;
-        }
-      });
-
-      showAppAlert(
-        context,
-        message: 'Today\'s budget increased to ${formatPeso(targetAmount)}!',
-        title: 'Success',
-        icon: Icons.check_circle_outline_rounded,
-        accentColor: _BudgetTokens.safeGreen,
-      );
     }
+    if (!mounted) return;
+
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .recordDailyBudget(amount: targetAmount);
+
+    setState(() {
+      _isInputActive = false;
+      _isAddMode = false;
+      _dailyController.clear();
+      if (currentBudget > 0) {
+        _lastAddBase = currentBudget;
+        _lastAddAmount = addedAmount;
+        _lastAddDate = DateTime(
+          ref.read(budgetBuddyControllerProvider.notifier).now.year,
+          ref.read(budgetBuddyControllerProvider.notifier).now.month,
+          ref.read(budgetBuddyControllerProvider.notifier).now.day,
+        );
+      } else {
+        _lastAddBase = null;
+        _lastAddAmount = null;
+        _lastAddDate = null;
+      }
+    });
+
+    showAppAlert(
+      context,
+      message: 'Today\'s budget increased to ${formatPeso(targetAmount)}!',
+      title: 'Success',
+      icon: Icons.check_circle_outline_rounded,
+      accentColor: _BudgetTokens.safeGreen,
+    );
   }
 
   Future<void> _handleBudgetSubmissionWithDebtCheck({
@@ -241,58 +238,62 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     double? previousBudget,
     required bool isUpdate,
   }) async {
-    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final double debt = state.savingsDebt;
-
-    if (debt > 0) {
-      final bool? proceed = await _showNewBudgetDebtChoiceDialog(
-        proposedBudget: targetAmount,
-        debtAmount: debt,
-        isUpdate: isUpdate,
+    // Debt is NEVER touched here — it can only be paid from the Savings screen.
+    // Always show countdown confirmation then save budget.
+    if (isUpdate && previousBudget != null) {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext ctx) => _CountdownConfirmationDialog(
+          title: 'Confirm Budget Update',
+          message:
+              'Update today\'s budget from ${formatPeso(previousBudget)} to ${formatPeso(targetAmount)}?',
+          confirmLabel: 'Update Now',
+          confirmColor: _BudgetTokens.safeGreen,
+          icon: Icons.sync_rounded,
+          autoConfirm: false,
+          totalSeconds: 3,
+        ),
       );
-      if (proceed != true) return;
-    } else {
-      if (isUpdate && previousBudget != null) {
-        final bool? confirmed = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext ctx) => _CountdownConfirmationDialog(
-            title: 'Confirm Budget Update',
-            message:
-                'Update today\'s budget from ${formatPeso(previousBudget)} to ${formatPeso(targetAmount)}?',
-            confirmLabel: 'Update Now',
-            confirmColor: _BudgetTokens.safeGreen,
-            icon: Icons.sync_rounded,
-            autoConfirm: false,
-            totalSeconds: 3,
-          ),
-        );
-
-        if (!mounted || confirmed != true) {
-          return;
-        }
-      }
-
-      ref
-          .read(budgetBuddyControllerProvider.notifier)
-          .recordDailyBudget(amount: targetAmount);
-
-      setState(() {
-        _isInputActive = false;
-        _isAddMode = false;
-        _dailyController.clear();
-      });
-
-      showAppAlert(
-        context,
-        message: isUpdate
-            ? 'Today\'s budget updated to ${formatPeso(targetAmount)}!'
-            : 'Today\'s budget set to ${formatPeso(targetAmount)}!',
-        title: 'Success',
-        icon: Icons.check_circle_outline_rounded,
-        accentColor: _BudgetTokens.safeGreen,
+      if (!mounted || confirmed != true) return;
+    } else if (!isUpdate) {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext ctx) => _CountdownConfirmationDialog(
+          title: 'Set Today\'s Budget',
+          message: 'Set today\'s budget to ${formatPeso(targetAmount)}?',
+          confirmLabel: 'Set Budget',
+          confirmColor: _BudgetTokens.safeGreen,
+          icon: Icons.check_circle_outline_rounded,
+          autoConfirm: false,
+          totalSeconds: 3,
+        ),
       );
+      if (!mounted || confirmed != true) return;
     }
+
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .recordDailyBudget(amount: targetAmount);
+
+    setState(() {
+      _isInputActive = false;
+      _isAddMode = false;
+      _dailyController.clear();
+      _lastAddBase = null;
+      _lastAddAmount = null;
+    });
+
+    showAppAlert(
+      context,
+      message: isUpdate
+          ? 'Today\'s budget updated to ${formatPeso(targetAmount)}!'
+          : 'Today\'s budget set to ${formatPeso(targetAmount)}!',
+      title: 'Success',
+      icon: Icons.check_circle_outline_rounded,
+      accentColor: _BudgetTokens.safeGreen,
+    );
   }
 
   Future<bool?> _showNewBudgetDebtChoiceDialog({
@@ -1562,21 +1563,37 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final bool isWarning =
         !isOver && hasBudget && currentSpent >= (currentBudget * 0.8);
 
-    // Listen to external resets (e.g. 12 AM midnight reset)
+    // Listen to external resets (e.g. 12 AM midnight reset, +1 day, Reset All)
     ref.listen<BudgetBuddyState>(budgetBuddyControllerProvider,
         (BudgetBuddyState? prev, BudgetBuddyState next) {
       final double? nextLimit = next.settings.dailyLimit;
       final double? prevLimit = prev?.settings.dailyLimit;
+      // Detect day change: dailyPeriodStart moved to a new day
+      final DateTime? prevDay = prev?.dailyPeriodStart;
+      final DateTime? nextDay = next.dailyPeriodStart;
+      final bool dayChanged = prevDay != null &&
+          nextDay != null &&
+          (prevDay.year != nextDay.year ||
+              prevDay.month != nextDay.month ||
+              prevDay.day != nextDay.day);
       if (nextLimit != prevLimit) {
         if (nextLimit == null || nextLimit <= 0) {
-          if (_dailyController.text.isNotEmpty || _isInputActive) {
-            setState(() {
-              _isInputActive = false;
-              _isAddMode = false;
-              _dailyController.clear();
-            });
-          }
+          setState(() {
+            _isInputActive = false;
+            _isAddMode = false;
+            _dailyController.clear();
+            _lastAddBase = null;
+            _lastAddAmount = null;
+            _lastAddDate = null;
+          });
         }
+      } else if (dayChanged) {
+        // Day rolled over — clear the add card
+        setState(() {
+          _lastAddBase = null;
+          _lastAddAmount = null;
+          _lastAddDate = null;
+        });
       }
     });
 
@@ -1614,7 +1631,195 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 3. Action Buttons (Cancel / Save when input is active; Add, Edit, Reset when idle)
+            // 3. Standalone Debt Card (shown separately when debt exists)
+            if (state.savingsDebt > 0) ...<Widget>[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_BudgetTokens.expenseRed, 0.07),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _BudgetTokens.expenseRed.withValues(alpha: 0.30),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _BudgetTokens.expenseRed.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.account_balance_wallet_rounded, size: 18, color: _BudgetTokens.expenseRed),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Outstanding Debt',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _BudgetTokens.expenseRed,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatPeso(state.savingsDebt),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: _BudgetTokens.expenseRed,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Debt is separate from your daily budget. Add Budget will NOT deduct this.',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _showDirectPayDebtSheet(
+                        context,
+                        savingsDebt: state.savingsDebt,
+                        currentBudget: currentBudget,
+                        tokens: tokens,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: _BudgetTokens.expenseRed,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(Icons.payment_rounded, size: 14, color: Colors.white),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Pay',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // 3b. Today's Budget Added Card (only shows for today's add, clears at midnight)
+            if (_lastAddBase != null &&
+                _lastAddAmount != null &&
+                _lastAddDate != null &&
+                _lastAddDate!.year == currentClock.year &&
+                _lastAddDate!.month == currentClock.month &&
+                _lastAddDate!.day == currentClock.day) ...<Widget>[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_BudgetTokens.safeGreen, 0.07),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _BudgetTokens.safeGreen.withValues(alpha: 0.28),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _BudgetTokens.safeGreen.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.add_circle_rounded, size: 18, color: _BudgetTokens.safeGreen),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Budget Added Today',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _BudgetTokens.safeGreen,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          RichText(
+                            text: TextSpan(
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.2,
+                              ),
+                              children: <InlineSpan>[
+                                TextSpan(
+                                  text: formatPeso(_lastAddBase!),
+                                  style: TextStyle(color: tokens.textSecondary),
+                                ),
+                                TextSpan(
+                                  text: '  +  ',
+                                  style: TextStyle(color: tokens.textMuted),
+                                ),
+                                TextSpan(
+                                  text: formatPeso(_lastAddAmount!),
+                                  style: const TextStyle(color: _BudgetTokens.safeGreen),
+                                ),
+                                TextSpan(
+                                  text: '  =  ',
+                                  style: TextStyle(color: tokens.textMuted),
+                                ),
+                                TextSpan(
+                                  text: formatPeso(_lastAddBase! + _lastAddAmount!),
+                                  style: const TextStyle(color: _BudgetTokens.safeGreen),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Today\'s budget was increased. Debt is NOT affected.',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // 4. Action Buttons (Cancel / Save when input is active; Add, Edit, Reset when idle)
             _buildActionButtons(
               context,
               currentBudget: currentBudget,
@@ -1769,76 +1974,124 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
           // Main Hero Amount Display: Shows Remaining when idle, or TextField equation when active
           if (isTyping)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Expanded(
-                  child: TextField(
-                    controller: _dailyController,
-                    focusNode: _focusNode,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d*\.?\d{0,2}')),
-                    ],
-                    autofocus: true,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
-                      fontWeight: FontWeight.w900,
-                      color: _BudgetTokens.budgetGold,
-                      letterSpacing: -0.6,
+                // Equation label inline when in add mode
+                if (_isAddMode && currentBudget > 0) ...<Widget>[
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                      children: <InlineSpan>[
+                        TextSpan(
+                          text: '${currentBudget == currentBudget.roundToDouble() ? currentBudget.toStringAsFixed(0) : currentBudget.toStringAsFixed(2)}',
+                          style: TextStyle(color: tokens.textSecondary),
+                        ),
+                        TextSpan(
+                          text: '  +  ',
+                          style: TextStyle(color: tokens.textMuted),
+                        ),
+                        TextSpan(
+                          text: _dailyController.text.isEmpty ? '0' : _dailyController.text,
+                          style: const TextStyle(color: _BudgetTokens.budgetGold),
+                        ),
+                        TextSpan(
+                          text: '  =  ',
+                          style: TextStyle(color: tokens.textMuted),
+                        ),
+                        TextSpan(
+                          text: '${(currentBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}',
+                          style: const TextStyle(color: _BudgetTokens.safeGreen),
+                        ),
+                      ],
                     ),
-                    decoration: InputDecoration(
-                      prefixText: (_isAddMode && currentBudget > 0)
-                          ? '${currentBudget == currentBudget.roundToDouble() ? currentBudget.toStringAsFixed(0) : currentBudget.toStringAsFixed(2)} + '
-                          : '₱ ',
-                      prefixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
-                        fontWeight: FontWeight.w900,
-                        color: tokens.textSecondary,
-                        letterSpacing: -0.6,
-                      ),
-                      suffixText: (_isAddMode && currentBudget > 0)
-                          ? ' = ${(currentBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}'
-                          : null,
-                      suffixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        color: _BudgetTokens.safeGreen,
-                        letterSpacing: -0.6,
-                      ),
-                      hintText: (_isAddMode && currentBudget > 0) ? '0' : '0.00',
-                      hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
-                        fontWeight: FontWeight.w900,
-                        color: _BudgetTokens.budgetGold.withValues(alpha: 0.35),
-                        letterSpacing: -0.6,
-                      ),
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _saveBudget(),
                   ),
+                  const SizedBox(height: 4),
+                ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: TextField(
+                        controller: _dailyController,
+                        focusNode: _focusNode,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d{0,2}')),
+                        ],
+                        autofocus: true,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: _BudgetTokens.budgetGold,
+                          letterSpacing: -0.8,
+                        ),
+                        decoration: InputDecoration(
+                          prefixText: '₱ ',
+                          prefixStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            color: tokens.textSecondary,
+                            letterSpacing: -0.8,
+                          ),
+                          hintText: '0',
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            color: _BudgetTokens.budgetGold.withValues(alpha: 0.35),
+                            letterSpacing: -0.8,
+                          ),
+                          isDense: true,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        onSubmitted: (_) => _saveBudget(),
+                      ),
+                    ),
+                    if (_dailyController.text.isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _dailyController.clear();
+                          });
+                          _focusNode.requestFocus();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _BudgetTokens.expenseRed.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _BudgetTokens.expenseRed.withValues(alpha: 0.35),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const Icon(Icons.close_rounded, size: 13, color: _BudgetTokens.expenseRed),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Clear',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _BudgetTokens.expenseRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                if (_dailyController.text.isNotEmpty)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.clear_rounded,
-                      size: 20,
-                      color: _BudgetTokens.expenseRed,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _dailyController.clear();
-                      });
-                    },
-                  ),
               ],
             )
           else
@@ -1884,26 +2137,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ],
               ),
             ),
-          // Last add equation tag (shown after a successful add)
-          if (!isTyping && _lastAddBase != null && _lastAddAmount != null) ...<Widget>[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: tokens.tint(_BudgetTokens.safeGreen, 0.10),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _BudgetTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
-              ),
-              child: Text(
-                '${_lastAddBase!.toStringAsFixed(0)} + ${_lastAddAmount!.toStringAsFixed(0)} = ${(_lastAddBase! + _lastAddAmount!).toStringAsFixed(0)} added to today\'s budget',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _BudgetTokens.safeGreen,
-                ),
-              ),
-            ),
-          ],
+          // (inline add pill removed — standalone card below hero card shows this info)
           const SizedBox(height: 2),
 
           // Context Subtitle below amount

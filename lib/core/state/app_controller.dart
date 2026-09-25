@@ -219,13 +219,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   double get savingsDebt => state.savingsDebt;
   double get totalSavings => state.totalSavings;
 
-  /// Applies the budget surplus & savings debt logic:
-  /// - If Today's Budget > Today's Expenses:
-  ///     surplus = Today's Budget - Today's Expenses.
-  ///     If savingsDebt > 0: Deduct surplus from savingsDebt first to pay off past over-budget debt.
-  ///     Any leftover surplus after paying off debt goes to totalSavings.
-  /// - If Today's Expenses > Today's Budget:
-  ///     Add the over-budget difference to savingsDebt.
+  /// Applies the budget surplus & savings debt logic at midnight settlement:
+  /// - If Today's Budget > Today's Expenses: surplus goes directly to totalSavings.
+  ///   Debt is NEVER auto-paid from surplus — it must be paid explicitly via paySavingsDebt.
+  /// - If Today's Expenses > Today's Budget: Add the over-budget difference to savingsDebt.
   void applyDailyBudgetSurplusAndDebt({
     required double budget,
     required double expenses,
@@ -235,17 +232,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
     if (budget > expenses) {
       final double surplus = budget - expenses;
-      if (currentDebt > 0) {
-        if (surplus >= currentDebt) {
-          final double leftoverSurplus = surplus - currentDebt;
-          currentDebt = 0.0;
-          currentSavings += leftoverSurplus;
-        } else {
-          currentDebt -= surplus;
-        }
-      } else {
-        currentSavings += surplus;
-      }
+      // Surplus goes directly to savings. Debt is separate and paid only explicitly.
+      currentSavings += surplus;
     } else if (expenses > budget) {
       final double overBudget = expenses - budget;
       currentDebt += overBudget;
@@ -1224,6 +1212,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     required double amount,
     DateTime? date,
   }) {
+    // GUARD: recordDailyBudget must NEVER reduce savingsDebt.
+    // Snapshot debt before any internal chain and restore it after.
+    final double lockedDebt = state.savingsDebt;
+
     final DateTime budgetDate = DateTime(
       (date ?? now).year,
       (date ?? now).month,
@@ -1252,6 +1244,12 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _recalculatePeriodSpending(now);
     _backfillMissingDays(currentDate: now);
     _persist();
+
+    // Restore debt if anything in the chain accidentally changed it.
+    if (state.savingsDebt != lockedDebt) {
+      state = state.copyWith(savingsDebt: lockedDebt);
+      _repository.saveState(state);
+    }
   }
 
   void clearDailyBudget({DateTime? date}) {

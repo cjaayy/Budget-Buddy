@@ -1119,77 +1119,105 @@ class _TogetherBudgetPlanViewState
 
           // Main Hero Amount Display: Shows Remaining when idle, or TextField when active
           if (isTyping)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Expanded(
-                  child: TextField(
-                    controller: _dailyController,
-                    focusNode: _focusNode,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d*\.?\d{0,2}')),
-                    ],
-                    autofocus: true,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: (_isAddMode && totalBudget > 0) ? 26 : 34,
-                      fontWeight: FontWeight.w900,
-                      color: _TogetherTokens.budgetGold,
-                      letterSpacing: -0.6,
+                if (_isAddMode && totalBudget > 0) ...<Widget>[
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                      children: <InlineSpan>[
+                        TextSpan(
+                          text: '${totalBudget == totalBudget.roundToDouble() ? totalBudget.toStringAsFixed(0) : totalBudget.toStringAsFixed(2)}',
+                          style: TextStyle(color: tokens.textSecondary),
+                        ),
+                        TextSpan(text: '  +  ', style: TextStyle(color: tokens.textMuted)),
+                        TextSpan(
+                          text: _dailyController.text.isEmpty ? '0' : _dailyController.text,
+                          style: const TextStyle(color: _TogetherTokens.budgetGold),
+                        ),
+                        TextSpan(text: '  =  ', style: TextStyle(color: tokens.textMuted)),
+                        TextSpan(
+                          text: '${(totalBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}',
+                          style: const TextStyle(color: _TogetherTokens.safeGreen),
+                        ),
+                      ],
                     ),
-                    decoration: InputDecoration(
-                      prefixText: (_isAddMode && totalBudget > 0)
-                          ? '${totalBudget == totalBudget.roundToDouble() ? totalBudget.toStringAsFixed(0) : totalBudget.toStringAsFixed(2)} + '
-                          : '₱ ',
-                      prefixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: (_isAddMode && totalBudget > 0) ? 26 : 34,
-                        fontWeight: FontWeight.w900,
-                        color: tokens.textSecondary,
-                        letterSpacing: -0.6,
-                      ),
-                      suffixText: (_isAddMode && totalBudget > 0)
-                          ? ' = ${(totalBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}'
-                          : null,
-                      suffixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        color: _TogetherTokens.safeGreen,
-                        letterSpacing: -0.6,
-                      ),
-                      hintText: (_isAddMode && totalBudget > 0) ? '0' : '0.00',
-                      hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: (_isAddMode && totalBudget > 0) ? 26 : 34,
-                        fontWeight: FontWeight.w900,
-                        color:
-                            _TogetherTokens.budgetGold.withValues(alpha: 0.35),
-                        letterSpacing: -0.6,
-                      ),
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _saveBudget(),
                   ),
+                  const SizedBox(height: 4),
+                ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: TextField(
+                        controller: _dailyController,
+                        focusNode: _focusNode,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d{0,2}')),
+                        ],
+                        autofocus: true,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: _TogetherTokens.budgetGold,
+                          letterSpacing: -0.8,
+                        ),
+                        decoration: InputDecoration(
+                          prefixText: '₱ ',
+                          prefixStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            color: tokens.textSecondary,
+                            letterSpacing: -0.8,
+                          ),
+                          hintText: '0',
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            color: _TogetherTokens.budgetGold.withValues(alpha: 0.35),
+                            letterSpacing: -0.8,
+                          ),
+                          isDense: true,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        onSubmitted: (_) => _saveBudget(),
+                      ),
+                    ),
+                    if (_dailyController.text.isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() { _dailyController.clear(); });
+                          _focusNode.requestFocus();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _TogetherTokens.spentRed.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: _TogetherTokens.spentRed.withValues(alpha: 0.35), width: 1.0),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const Icon(Icons.close_rounded, size: 13, color: _TogetherTokens.spentRed),
+                              const SizedBox(width: 3),
+                              Text('Clear', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: _TogetherTokens.spentRed)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                if (_dailyController.text.isNotEmpty)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.clear_rounded,
-                      size: 20,
-                      color: _TogetherTokens.spentRed,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _dailyController.clear();
-                      });
-                    },
-                  ),
               ],
             )
           else
