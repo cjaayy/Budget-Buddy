@@ -217,8 +217,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       _isAddMode = false;
       _dailyController.clear();
       if (currentBudget > 0) {
-        _lastAddBase = currentBudget;
-        _lastAddAmount = addedAmount;
+        final BudgetBuddyState currentState =
+            ref.read(budgetBuddyControllerProvider);
+        _lastAddBase = currentState.lastAddBase ?? currentBudget;
+        _lastAddAmount = (currentState.lastAddAmount ?? 0.0) + addedAmount;
         _lastAddDate = ref.read(budgetBuddyControllerProvider.notifier).now;
       } else {
         _lastAddBase = null;
@@ -1578,12 +1580,23 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final double addBase = state.lastAddBase ?? _lastAddBase ?? 0.0;
     final double addAmount = state.lastAddAmount ?? _lastAddAmount ?? 0.0;
     final DateTime? addDate = state.lastAddDate ?? _lastAddDate;
-    final bool hasAddToday = addBase > 0 &&
-        addAmount > 0 &&
-        addDate != null &&
-        DateUtils.isSameDay(addDate, currentClock);
+    final bool hasAddToday = (state.lastAddDebtAbsorbed != null &&
+            state.lastAddDebtAbsorbed! > 0) ||
+        (addBase > 0 &&
+            addAmount > 0 &&
+            addDate != null &&
+            DateUtils.isSameDay(addDate, currentClock));
 
-    final double overbudgetDebt = hasAddToday
+    final double todayPaidDebt = state.vaultLog
+        .where((VaultLogEntry log) =>
+            log.type == VaultLogType.payDebt &&
+            log.isTogether != true &&
+            !log.description.toLowerCase().contains('together') &&
+            log.description.toLowerCase().contains('deficit payment') &&
+            DateUtils.isSameDay(log.dateTime, currentClock))
+        .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+    final double rawOverbudgetDebt = hasAddToday
         ? ((state.lastAddDebtAbsorbed ?? 0.0) +
             (currentBudget > 0 && grossDailySpent > currentBudget
                 ? (grossDailySpent - currentBudget)
@@ -1591,6 +1604,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         : (currentBudget > 0
             ? (grossDailySpent - currentBudget).clamp(0.0, double.infinity)
             : grossDailySpent);
+
+    final double overbudgetDebt =
+        (rawOverbudgetDebt - todayPaidDebt).clamp(0.0, double.infinity);
 
     final double effectiveDebt = (state.savingsDebt > 0 && overbudgetDebt == 0)
         ? state.savingsDebt

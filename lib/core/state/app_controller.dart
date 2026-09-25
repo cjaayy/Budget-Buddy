@@ -624,17 +624,17 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         ? (legitimateGross - todayBudget).clamp(0.0, double.infinity)
         : legitimateGross;
 
-    final double todayDebtAbsorbed = baseAbsorbedDebt + extraOverspend;
+    final double activeDebtRelief = hasAddToday
+        ? (todayPaidDebt - baseAbsorbedDebt).clamp(0.0, extraOverspend)
+        : todayPaidDebt.clamp(0.0, extraOverspend);
 
-    final double dailyDebtRelief = todayPaidDebt.clamp(0.0, todayDebtAbsorbed);
-
-    // netDailySpent excludes debt-absorbed overspend so remaining = budget - legitimate spend
+    // netDailySpent isolates legitimate daily spend without double-penalizing absorbed debt
     final double netDailySpent =
-        (grossDailySpent - todayDebtAbsorbed - dailyDebtRelief).clamp(0.0, double.infinity);
+        (legitimateGross - activeDebtRelief).clamp(0.0, double.infinity);
     final double netWeeklySpent =
-        (grossWeeklySpent - dailyDebtRelief).clamp(0.0, double.infinity);
+        (grossWeeklySpent - activeDebtRelief).clamp(0.0, double.infinity);
     final double netMonthlySpent =
-        (grossMonthlySpent - dailyDebtRelief).clamp(0.0, double.infinity);
+        (grossMonthlySpent - activeDebtRelief).clamp(0.0, double.infinity);
 
     state = state.copyWith(
       dailySpent: netDailySpent,
@@ -1249,11 +1249,31 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         state.dailyPeriodStart ?? _periodStart(BudgetPeriod.daily, now);
     final double grossSpentBeforeAdd = _sumExpensesSince(dailyStart, now);
 
-    // Any spending prior to the add that exceeded currentBudget is absorbed into debt.
-    // It must NOT reduce the newly added budget allowance.
-    final double debtAbsorbed = currentBudget > 0
-        ? (grossSpentBeforeAdd - currentBudget).clamp(0.0, double.infinity)
-        : grossSpentBeforeAdd;
+    final bool hasPriorAddToday = state.lastAddDate != null &&
+        _isSameDay(state.lastAddDate!, budgetDate);
+
+    final double priorAbsorbed = hasPriorAddToday
+        ? (state.lastAddDebtAbsorbed ?? 0.0)
+        : (state.lastAddDebtAbsorbed ?? 0.0);
+
+    // Legitimate spending prior to the new add is total spent minus already absorbed debt
+    final double legitimatePriorGross =
+        (grossSpentBeforeAdd - priorAbsorbed).clamp(0.0, double.infinity);
+
+    // Any new overspending beyond currentBudget that wasn't absorbed before
+    final double newOverspend = currentBudget > 0
+        ? (legitimatePriorGross - currentBudget).clamp(0.0, double.infinity)
+        : (priorAbsorbed > 0 ? 0.0 : grossSpentBeforeAdd);
+
+    final double debtAbsorbed = priorAbsorbed + newOverspend;
+
+    final double? base = (hasPriorAddToday && state.lastAddBase != null)
+        ? state.lastAddBase
+        : (currentBudget > 0 ? currentBudget : null);
+
+    final double totalAdded = hasPriorAddToday
+        ? ((state.lastAddAmount ?? 0.0) + addedAmount)
+        : addedAmount;
 
     final List<BudgetEntry> updatedEntries = <BudgetEntry>[
       ...state.budgetEntries.where(
@@ -1268,8 +1288,8 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     state = state.copyWith(
       budgetEntries: updatedEntries,
       dailyPeriodStart: budgetDate,
-      lastAddBase: currentBudget > 0 ? currentBudget : null,
-      lastAddAmount: addedAmount,
+      lastAddBase: base,
+      lastAddAmount: totalAdded,
       lastAddDate: budgetDate,
       lastAddDebtAbsorbed: debtAbsorbed,
       settings: state.settings.copyWith(
@@ -1312,13 +1332,16 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         return left.date.compareTo(right.date);
       });
 
+    final bool preserveAdd = state.lastAddDate != null &&
+        _isSameDay(state.lastAddDate!, budgetDate);
+
     state = state.copyWith(
       budgetEntries: updatedEntries,
       dailyPeriodStart: budgetDate,
-      lastAddBase: null,
-      lastAddAmount: null,
-      lastAddDate: null,
-      lastAddDebtAbsorbed: null,
+      lastAddBase: preserveAdd ? state.lastAddBase : null,
+      lastAddAmount: preserveAdd ? state.lastAddAmount : null,
+      lastAddDate: preserveAdd ? state.lastAddDate : null,
+      lastAddDebtAbsorbed: preserveAdd ? state.lastAddDebtAbsorbed : null,
       settings: state.settings.copyWith(
         dailyLimit: amount > 0 ? amount : null,
         hasConfiguredBudget: amount > 0 ||
