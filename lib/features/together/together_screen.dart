@@ -959,10 +959,6 @@ class _TogetherBudgetPlanViewState
           hasBudget: hasBudget,
           tokens: tokens,
         ),
-        const SizedBox(height: 10),
-
-        // 4. Quick Amount Increments (+₱100, +₱200, +₱300, +₱500, +₱1,000)
-        _buildQuickAmountIncrements(tokens),
         const SizedBox(height: 24),
       ],
     );
@@ -1220,6 +1216,10 @@ class _TogetherBudgetPlanViewState
                   isOver ? _TogetherTokens.spentRed : tokens.textSecondary,
             ),
           ),
+          const SizedBox(height: 10),
+
+          // Quick Amount Increments (Preset Numbers close to Budget Input)
+          _buildQuickAmountIncrements(tokens),
           const SizedBox(height: 12),
 
           // Compact Budget Breakdown Strip (Target, Spent, Remaining Context)

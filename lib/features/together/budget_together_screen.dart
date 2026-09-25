@@ -76,12 +76,25 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     HapticFeedback.lightImpact();
     setState(() {
       _isInputActive = true;
-      final double currentVal =
-          double.tryParse(_dailyController.text.trim()) ?? 0.0;
-      final double nextAmount = currentVal + amount;
+      final bool isAllSelected = _dailyController.selection.start == 0 &&
+          _dailyController.selection.end == _dailyController.text.length &&
+          _dailyController.text.isNotEmpty;
+
+      double nextAmount;
+      if (isAllSelected) {
+        nextAmount = amount;
+      } else {
+        final double currentVal =
+            double.tryParse(_dailyController.text.replaceAll('+', '').trim()) ??
+                0.0;
+        nextAmount = currentVal + amount;
+      }
       _dailyController.text = nextAmount == nextAmount.roundToDouble()
           ? nextAmount.toStringAsFixed(0)
           : nextAmount.toStringAsFixed(2);
+      _dailyController.selection = TextSelection.collapsed(
+        offset: _dailyController.text.length,
+      );
     });
     _focusNode.requestFocus();
   }
@@ -322,10 +335,6 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
               hasBudget: hasBudget,
               tokens: tokens,
             ),
-            const SizedBox(height: 10),
-
-            // 4. Quick Amount Increments (+₱100, +₱200, +₱300, +₱500, +₱1,000)
-            _buildQuickAmountIncrements(tokens),
             const SizedBox(height: 20),
           ],
         ),
@@ -588,6 +597,10 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                   : tokens.textSecondary,
             ),
           ),
+          const SizedBox(height: 10),
+
+          // Quick Amount Increments (Preset Numbers close to Budget Input)
+          _buildQuickAmountIncrements(tokens),
           const SizedBox(height: 12),
 
           // Compact Budget Breakdown Strip (Target, Spent, Remaining Context)
