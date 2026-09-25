@@ -11,6 +11,7 @@ import '../../core/state/app_controller.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/budget_cards.dart';
 import 'package:budgetbuddy/core/utils/alert_dialog.dart';
+import '../savings/savings_screen.dart';
 
 /// Clean Modern Bento Tokens for Today's Budget Planner Screen.
 /// Emphasizes Gold (#D97706) as primary focus with Dark Teal (#0F766E) and Dark Red (#991B1B).
@@ -201,9 +202,15 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     }
     if (!mounted) return;
 
-    ref
-        .read(budgetBuddyControllerProvider.notifier)
-        .recordDailyBudget(amount: targetAmount);
+    if (currentBudget > 0) {
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .addDailyBudget(addedAmount: addedAmount);
+    } else {
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .recordDailyBudget(amount: targetAmount);
+    }
 
     setState(() {
       _isInputActive = false;
@@ -212,11 +219,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       if (currentBudget > 0) {
         _lastAddBase = currentBudget;
         _lastAddAmount = addedAmount;
-        _lastAddDate = DateTime(
-          ref.read(budgetBuddyControllerProvider.notifier).now.year,
-          ref.read(budgetBuddyControllerProvider.notifier).now.month,
-          ref.read(budgetBuddyControllerProvider.notifier).now.day,
-        );
+        _lastAddDate = ref.read(budgetBuddyControllerProvider.notifier).now;
       } else {
         _lastAddBase = null;
         _lastAddAmount = null;
@@ -1563,6 +1566,36 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final bool isWarning =
         !isOver && hasBudget && currentSpent >= (currentBudget * 0.8);
 
+    final DateTime todayStart =
+        DateTime(currentClock.year, currentClock.month, currentClock.day);
+    final double grossDailySpent = state.expenses
+        .where((ExpenseEntry e) =>
+            e.source != 'togetherSpend' &&
+            !e.dateTime.isBefore(todayStart) &&
+            !e.dateTime.isAfter(currentClock))
+        .fold(0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+
+    final double addBase = state.lastAddBase ?? _lastAddBase ?? 0.0;
+    final double addAmount = state.lastAddAmount ?? _lastAddAmount ?? 0.0;
+    final DateTime? addDate = state.lastAddDate ?? _lastAddDate;
+    final bool hasAddToday = addBase > 0 &&
+        addAmount > 0 &&
+        addDate != null &&
+        DateUtils.isSameDay(addDate, currentClock);
+
+    final double overbudgetDebt = hasAddToday
+        ? ((state.lastAddDebtAbsorbed ?? 0.0) +
+            (currentBudget > 0 && grossDailySpent > currentBudget
+                ? (grossDailySpent - currentBudget)
+                : 0.0))
+        : (currentBudget > 0
+            ? (grossDailySpent - currentBudget).clamp(0.0, double.infinity)
+            : grossDailySpent);
+
+    final double effectiveDebt = (state.savingsDebt > 0 && overbudgetDebt == 0)
+        ? state.savingsDebt
+        : (state.savingsDebt + overbudgetDebt);
+
     // Listen to external resets (e.g. 12 AM midnight reset, +1 day, Reset All)
     ref.listen<BudgetBuddyState>(budgetBuddyControllerProvider,
         (BudgetBuddyState? prev, BudgetBuddyState next) {
@@ -1626,13 +1659,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               hasBudget: hasBudget,
               isOver: isOver,
               isWarning: isWarning,
-              savingsDebt: state.savingsDebt,
+              savingsDebt: effectiveDebt,
               tokens: tokens,
             ),
             const SizedBox(height: 12),
 
-            // 3. Standalone Debt Card (shown separately when debt exists)
-            if (state.savingsDebt > 0) ...<Widget>[
+            // 3. Standalone Over Budget Debt Card (shown separately when debt exists)
+            if (effectiveDebt > 0) ...<Widget>[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
@@ -1660,7 +1693,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'Outstanding Debt',
+                            'Over Budget Debt',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -1670,7 +1703,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            formatPeso(state.savingsDebt),
+                            formatPeso(effectiveDebt),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
@@ -1680,7 +1713,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Debt is separate from your daily budget. Add Budget will NOT deduct this.',
+                            'Debt is separate from your daily budget and can only be paid in Savings.',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
@@ -1692,12 +1725,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => _showDirectPayDebtSheet(
-                        context,
-                        savingsDebt: state.savingsDebt,
-                        currentBudget: currentBudget,
-                        tokens: tokens,
-                      ),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SavingsScreen(),
+                          ),
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         decoration: BoxDecoration(
@@ -1707,12 +1741,12 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            const Icon(Icons.payment_rounded, size: 14, color: Colors.white),
+                            const Icon(Icons.savings_rounded, size: 14, color: Colors.white),
                             const SizedBox(height: 2),
                             Text(
-                              'Pay',
+                              'Pay in Savings',
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                               ),
@@ -1728,12 +1762,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             ],
 
             // 3b. Today's Budget Added Card (only shows for today's add, clears at midnight)
-            if (_lastAddBase != null &&
-                _lastAddAmount != null &&
-                _lastAddDate != null &&
-                _lastAddDate!.year == currentClock.year &&
-                _lastAddDate!.month == currentClock.month &&
-                _lastAddDate!.day == currentClock.day) ...<Widget>[
+            if (hasAddToday) ...<Widget>[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
@@ -1779,7 +1808,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               ),
                               children: <InlineSpan>[
                                 TextSpan(
-                                  text: formatPeso(_lastAddBase!),
+                                  text: formatPeso(addBase),
                                   style: TextStyle(color: tokens.textSecondary),
                                 ),
                                 TextSpan(
@@ -1787,7 +1816,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                   style: TextStyle(color: tokens.textMuted),
                                 ),
                                 TextSpan(
-                                  text: formatPeso(_lastAddAmount!),
+                                  text: formatPeso(addAmount),
                                   style: const TextStyle(color: _BudgetTokens.safeGreen),
                                 ),
                                 TextSpan(
@@ -1795,7 +1824,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                   style: TextStyle(color: tokens.textMuted),
                                 ),
                                 TextSpan(
-                                  text: formatPeso(_lastAddBase! + _lastAddAmount!),
+                                  text: formatPeso(addBase + addAmount),
                                   style: const TextStyle(color: _BudgetTokens.safeGreen),
                                 ),
                               ],
@@ -2152,7 +2181,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     ? 'No daily budget set. Tap "Add Budget" below.'
                     : (isOver
                         ? 'Budget exceeded by ${formatPeso(remaining.abs())}'
-                        : 'Safe remaining balance to spend today')),
+                        : (savingsDebt > 0
+                            ? 'Can spend overbudget: ${formatPeso(remaining)}'
+                            : 'Safe remaining balance to spend today'))),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
@@ -2298,76 +2329,6 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _BudgetTokens.expenseRed,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // Savings Debt Alert
-          if (savingsDebt > 0) ...<Widget>[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: tokens.tint(_BudgetTokens.expenseRed, 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _BudgetTokens.expenseRed.withValues(alpha: 0.25),
-                  width: 1.0,
-                ),
-              ),
-              child: Row(
-                children: <Widget>[
-                  const Icon(
-                    Icons.history_rounded,
-                    size: 15,
-                    color: _BudgetTokens.expenseRed,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Running Debt: ${formatPeso(savingsDebt)} will be settled from upcoming surplus.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _BudgetTokens.expenseRed,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => _showDirectPayDebtSheet(
-                      context,
-                      savingsDebt: savingsDebt,
-                      currentBudget: currentBudget,
-                      tokens: tokens,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _BudgetTokens.expenseRed,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          const Icon(Icons.payment_rounded,
-                              size: 11, color: Colors.white),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Pay Debt',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),

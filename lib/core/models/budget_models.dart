@@ -1160,6 +1160,10 @@ class BudgetBuddyState {
     double? totalSavings = 0.0,
     List<VaultLogEntry>? vaultLog,
     DateTime? simulatedDateTime,
+    this.lastAddBase,
+    this.lastAddAmount,
+    this.lastAddDate,
+    this.lastAddDebtAbsorbed,
   })  : _savingsDebt = savingsDebt,
         _totalSavings = totalSavings,
         _vaultLog = vaultLog ?? const <VaultLogEntry>[],
@@ -1193,6 +1197,10 @@ class BudgetBuddyState {
   final double? _totalSavings;
   final List<VaultLogEntry>? _vaultLog;
   final DateTime? _simulatedDateTime;
+  final double? lastAddBase;
+  final double? lastAddAmount;
+  final DateTime? lastAddDate;
+  final double? lastAddDebtAbsorbed;
 
   DateTime? get simulatedDateTime => _simulatedDateTime;
   DateTime get effectiveDate => _simulatedDateTime ?? DateTime.now();
@@ -1232,6 +1240,10 @@ class BudgetBuddyState {
       totalSavings: 0.0,
       vaultLog: const <VaultLogEntry>[],
       simulatedDateTime: null,
+      lastAddBase: null,
+      lastAddAmount: null,
+      lastAddDate: null,
+      lastAddDebtAbsorbed: null,
     );
   }
 
@@ -1265,6 +1277,10 @@ class BudgetBuddyState {
     List<VaultLogEntry>? vaultLog,
     Object? simulatedDateTime = _simulatedDateTimeSentinel,
     bool clearSimulatedDateTime = false,
+    Object? lastAddBase = _lastAddBaseSentinel,
+    Object? lastAddAmount = _lastAddAmountSentinel,
+    Object? lastAddDate = _lastAddDateSentinel,
+    Object? lastAddDebtAbsorbed = _lastAddDebtAbsorbedSentinel,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -1313,6 +1329,18 @@ class BudgetBuddyState {
           : (identical(simulatedDateTime, _simulatedDateTimeSentinel)
               ? this.simulatedDateTime
               : simulatedDateTime as DateTime?),
+      lastAddBase: identical(lastAddBase, _lastAddBaseSentinel)
+          ? this.lastAddBase
+          : lastAddBase as double?,
+      lastAddAmount: identical(lastAddAmount, _lastAddAmountSentinel)
+          ? this.lastAddAmount
+          : lastAddAmount as double?,
+      lastAddDate: identical(lastAddDate, _lastAddDateSentinel)
+          ? this.lastAddDate
+          : lastAddDate as DateTime?,
+      lastAddDebtAbsorbed: identical(lastAddDebtAbsorbed, _lastAddDebtAbsorbedSentinel)
+          ? this.lastAddDebtAbsorbed
+          : lastAddDebtAbsorbed as double?,
     );
   }
 
@@ -1327,6 +1355,14 @@ class BudgetBuddyState {
   static const Object _monthlyPeriodStartSentinel = Object();
 
   static const Object _simulatedDateTimeSentinel = Object();
+
+  static const Object _lastAddBaseSentinel = Object();
+
+  static const Object _lastAddAmountSentinel = Object();
+
+  static const Object _lastAddDateSentinel = Object();
+
+  static const Object _lastAddDebtAbsorbedSentinel = Object();
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -1363,6 +1399,10 @@ class BudgetBuddyState {
       'totalSavings': totalSavings,
       'vaultLog': vaultLog.map((VaultLogEntry e) => e.toJson()).toList(),
       'simulatedDateTime': simulatedDateTime?.toIso8601String(),
+      'lastAddBase': lastAddBase,
+      'lastAddAmount': lastAddAmount,
+      'lastAddDate': lastAddDate?.toIso8601String(),
+      'lastAddDebtAbsorbed': lastAddDebtAbsorbed,
     };
   }
 
@@ -1450,6 +1490,12 @@ class BudgetBuddyState {
       simulatedDateTime: json['simulatedDateTime'] != null
           ? DateTime.tryParse(json['simulatedDateTime'] as String)
           : null,
+      lastAddBase: (json['lastAddBase'] as num?)?.toDouble(),
+      lastAddAmount: (json['lastAddAmount'] as num?)?.toDouble(),
+      lastAddDate: json['lastAddDate'] != null
+          ? DateTime.tryParse(json['lastAddDate'] as String)
+          : null,
+      lastAddDebtAbsorbed: (json['lastAddDebtAbsorbed'] as num?)?.toDouble(),
     );
   }
 
