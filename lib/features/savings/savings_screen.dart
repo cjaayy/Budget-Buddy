@@ -98,26 +98,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             r.remainingBalance > 0)
         .fold(0.0, (double sum, DailyRecord r) => sum + r.remainingBalance);
 
-    final double effectiveBaseSavings = state.totalSavings > pastDailySavings
-        ? state.totalSavings
-        : pastDailySavings;
+    final double effectiveBaseSavings = state.totalSavings;
 
     final double savingsAmount = widget.isTogetherOnly
         ? dailyRemainingSavings
         : (effectiveBaseSavings + todaySaved);
 
     final double dailyDeficits = records.fold(0.0, (double sum, DailyRecord r) {
-      if (r.budget > 0 && r.remainingBalance < 0) {
-        return sum + r.remainingBalance.abs();
-      } else if (r.budget <= 0 && r.totalSpent > 0) {
-        return sum + r.totalSpent;
-      }
-      return sum;
-    });
-
-    final double pastDeficits = records
-        .where((DailyRecord r) => !DateUtils.isSameDay(r.date, currentClock))
-        .fold(0.0, (double sum, DailyRecord r) {
       if (r.budget > 0 && r.remainingBalance < 0) {
         return sum + r.remainingBalance.abs();
       } else if (r.budget <= 0 && r.totalSpent > 0) {
@@ -134,9 +121,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             : todayRecord.totalSpent)
         : 0.0;
 
-    final double effectiveBaseDebt = state.savingsDebt > pastDeficits
-        ? state.savingsDebt
-        : pastDeficits;
+    final double effectiveBaseDebt = state.savingsDebt;
 
     final double debtAmount = widget.isTogetherOnly
         ? dailyDeficits
@@ -385,26 +370,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             r.remainingBalance > 0)
         .fold(0.0, (double sum, DailyRecord r) => sum + r.remainingBalance);
 
-    final double effectiveBaseSavings = state.totalSavings > pastDailySavings
-        ? state.totalSavings
-        : pastDailySavings;
+    final double effectiveBaseSavings = state.totalSavings;
 
     final double settledVaultSavings = state.totalSavings;
 
     final double savingsAmount = widget.isTogetherOnly
         ? dailyRemainingSavings
         : (effectiveBaseSavings + todaySaved);
-
-    final double pastDeficits = records
-        .where((DailyRecord r) => !DateUtils.isSameDay(r.date, currentClock))
-        .fold(0.0, (double sum, DailyRecord r) {
-      if (r.budget > 0 && r.remainingBalance < 0) {
-        return sum + r.remainingBalance.abs();
-      } else if (r.budget <= 0 && r.totalSpent > 0) {
-        return sum + r.totalSpent;
-      }
-      return sum;
-    });
 
     final double todayDeficit = (todayRecord != null &&
             ((todayRecord.budget > 0 && todayRecord.remainingBalance < 0) ||
@@ -414,9 +386,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             : todayRecord.totalSpent)
         : 0.0;
 
-    final double effectiveBaseDebt = state.savingsDebt > pastDeficits
-        ? state.savingsDebt
-        : pastDeficits;
+    final double effectiveBaseDebt = state.savingsDebt;
 
     final double debtAmount = widget.isTogetherOnly
         ? dailyDeficits
@@ -2197,22 +2167,60 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             } else if (debtPaymentSource == 1) {
                               // From Savings Vault
                               if (effectiveSavings < currentPayDebtAmount) {
-                                showAppAlert(sheetContext,
-                                  message: 'Payment exceeds vault savings (${formatPeso(effectiveSavings)})!',
+                                showAppAlert(
+                                  sheetContext,
+                                  message:
+                                      'Payment exceeds vault savings (${formatPeso(effectiveSavings)})!',
                                   title: 'Alert',
                                   icon: Icons.warning_amber_rounded,
                                   accentColor: _SavingsTokens.deficitRed,
                                 );
                                 return;
                               }
-                              ref
-                                  .read(budgetBuddyControllerProvider.notifier)
-                                  .paySavingsDebt(
-                                    amount: currentPayDebtAmount,
-                                    deductFromBudget: false,
-                                    description:
-                                        'Deficit paid using settled savings vault',
-                                  );
+                              final double currentSavingsDebt =
+                                  state.savingsDebt;
+                              final double debtCover =
+                                  currentPayDebtAmount <= currentSavingsDebt
+                                      ? currentPayDebtAmount
+                                      : currentSavingsDebt;
+                              final double remainingPayment =
+                                  currentPayDebtAmount - debtCover;
+
+                              if (debtCover > 0) {
+                                ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .paySavingsDebt(
+                                      amount: debtCover,
+                                      deductFromBudget: false,
+                                      description:
+                                          'Deficit paid using settled savings vault',
+                                    );
+                              }
+                              if (remainingPayment > 0) {
+                                if (widget.isTogetherOnly) {
+                                  final double currentTogether =
+                                      state.togetherBudget;
+                                  ref
+                                      .read(budgetBuddyControllerProvider.notifier)
+                                      .setTogetherBudget(currentTogether +
+                                          remainingPayment);
+                                } else {
+                                  final double currentBudget =
+                                      state.settings.dailyLimit ?? 0.0;
+                                  ref
+                                      .read(budgetBuddyControllerProvider.notifier)
+                                      .recordDailyBudget(amount: currentBudget +
+                                          remainingPayment);
+                                }
+                                ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .addVaultLog(
+                                      type: VaultLogType.payDebt,
+                                      amount: remainingPayment,
+                                      description:
+                                          'Today\'s deficit paid using settled savings vault',
+                                    );
+                              }
                               ref
                                   .read(budgetBuddyControllerProvider.notifier)
                                   .setTotalSavings((effectiveSavings -
@@ -2220,14 +2228,50 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                       .clamp(0.0, double.infinity));
                             } else {
                               // Direct payment
-                              ref
-                                  .read(budgetBuddyControllerProvider.notifier)
-                                  .paySavingsDebt(
-                                    amount: currentPayDebtAmount,
-                                    deductFromBudget: false,
-                                    description:
-                                        'Direct deficit payment (cash / external)',
-                                  );
+                              final double currentSavingsDebt =
+                                  state.savingsDebt;
+                              final double debtCover =
+                                  currentPayDebtAmount <= currentSavingsDebt
+                                      ? currentPayDebtAmount
+                                      : currentSavingsDebt;
+                              final double remainingPayment =
+                                  currentPayDebtAmount - debtCover;
+
+                              if (debtCover > 0) {
+                                ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .paySavingsDebt(
+                                      amount: debtCover,
+                                      deductFromBudget: false,
+                                      description:
+                                          'Direct deficit payment (cash / external)',
+                                    );
+                              }
+                              if (remainingPayment > 0) {
+                                if (widget.isTogetherOnly) {
+                                  final double currentTogether =
+                                      state.togetherBudget;
+                                  ref
+                                      .read(budgetBuddyControllerProvider.notifier)
+                                      .setTogetherBudget(currentTogether +
+                                          remainingPayment);
+                                } else {
+                                  final double currentBudget =
+                                      state.settings.dailyLimit ?? 0.0;
+                                  ref
+                                      .read(budgetBuddyControllerProvider.notifier)
+                                      .recordDailyBudget(amount: currentBudget +
+                                          remainingPayment);
+                                }
+                                ref
+                                    .read(budgetBuddyControllerProvider.notifier)
+                                    .addVaultLog(
+                                      type: VaultLogType.payDebt,
+                                      amount: remainingPayment,
+                                      description:
+                                          'Today\'s deficit paid via direct payment (cash / external)',
+                                    );
+                              }
                             }
 
                             final double remainingDebt =
