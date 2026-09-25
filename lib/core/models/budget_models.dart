@@ -1164,6 +1164,10 @@ class BudgetBuddyState {
     this.lastAddAmount,
     this.lastAddDate,
     this.lastAddDebtAbsorbed,
+    this.togetherLastAddBase,
+    this.togetherLastAddAmount,
+    this.togetherLastAddDate,
+    this.togetherLastAddDebtAbsorbed,
   })  : _savingsDebt = savingsDebt,
         _totalSavings = totalSavings,
         _vaultLog = vaultLog ?? const <VaultLogEntry>[],
@@ -1201,6 +1205,10 @@ class BudgetBuddyState {
   final double? lastAddAmount;
   final DateTime? lastAddDate;
   final double? lastAddDebtAbsorbed;
+  final double? togetherLastAddBase;
+  final double? togetherLastAddAmount;
+  final DateTime? togetherLastAddDate;
+  final double? togetherLastAddDebtAbsorbed;
 
   DateTime? get simulatedDateTime => _simulatedDateTime;
   DateTime get effectiveDate => _simulatedDateTime ?? DateTime.now();
@@ -1244,6 +1252,10 @@ class BudgetBuddyState {
       lastAddAmount: null,
       lastAddDate: null,
       lastAddDebtAbsorbed: null,
+      togetherLastAddBase: null,
+      togetherLastAddAmount: null,
+      togetherLastAddDate: null,
+      togetherLastAddDebtAbsorbed: null,
     );
   }
 
@@ -1281,6 +1293,10 @@ class BudgetBuddyState {
     Object? lastAddAmount = _lastAddAmountSentinel,
     Object? lastAddDate = _lastAddDateSentinel,
     Object? lastAddDebtAbsorbed = _lastAddDebtAbsorbedSentinel,
+    Object? togetherLastAddBase = _togetherLastAddBaseSentinel,
+    Object? togetherLastAddAmount = _togetherLastAddAmountSentinel,
+    Object? togetherLastAddDate = _togetherLastAddDateSentinel,
+    Object? togetherLastAddDebtAbsorbed = _togetherLastAddDebtAbsorbedSentinel,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -1341,6 +1357,21 @@ class BudgetBuddyState {
       lastAddDebtAbsorbed: identical(lastAddDebtAbsorbed, _lastAddDebtAbsorbedSentinel)
           ? this.lastAddDebtAbsorbed
           : lastAddDebtAbsorbed as double?,
+      togetherLastAddBase: identical(togetherLastAddBase, _togetherLastAddBaseSentinel)
+          ? this.togetherLastAddBase
+          : togetherLastAddBase as double?,
+      togetherLastAddAmount:
+          identical(togetherLastAddAmount, _togetherLastAddAmountSentinel)
+              ? this.togetherLastAddAmount
+              : togetherLastAddAmount as double?,
+      togetherLastAddDate:
+          identical(togetherLastAddDate, _togetherLastAddDateSentinel)
+              ? this.togetherLastAddDate
+              : togetherLastAddDate as DateTime?,
+      togetherLastAddDebtAbsorbed: identical(
+              togetherLastAddDebtAbsorbed, _togetherLastAddDebtAbsorbedSentinel)
+          ? this.togetherLastAddDebtAbsorbed
+          : togetherLastAddDebtAbsorbed as double?,
     );
   }
 
@@ -1363,6 +1394,14 @@ class BudgetBuddyState {
   static const Object _lastAddDateSentinel = Object();
 
   static const Object _lastAddDebtAbsorbedSentinel = Object();
+
+  static const Object _togetherLastAddBaseSentinel = Object();
+
+  static const Object _togetherLastAddAmountSentinel = Object();
+
+  static const Object _togetherLastAddDateSentinel = Object();
+
+  static const Object _togetherLastAddDebtAbsorbedSentinel = Object();
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -1403,6 +1442,10 @@ class BudgetBuddyState {
       'lastAddAmount': lastAddAmount,
       'lastAddDate': lastAddDate?.toIso8601String(),
       'lastAddDebtAbsorbed': lastAddDebtAbsorbed,
+      'togetherLastAddBase': togetherLastAddBase,
+      'togetherLastAddAmount': togetherLastAddAmount,
+      'togetherLastAddDate': togetherLastAddDate?.toIso8601String(),
+      'togetherLastAddDebtAbsorbed': togetherLastAddDebtAbsorbed,
     };
   }
 
@@ -1496,6 +1539,13 @@ class BudgetBuddyState {
           ? DateTime.tryParse(json['lastAddDate'] as String)
           : null,
       lastAddDebtAbsorbed: (json['lastAddDebtAbsorbed'] as num?)?.toDouble(),
+      togetherLastAddBase: (json['togetherLastAddBase'] as num?)?.toDouble(),
+      togetherLastAddAmount: (json['togetherLastAddAmount'] as num?)?.toDouble(),
+      togetherLastAddDate: json['togetherLastAddDate'] != null
+          ? DateTime.tryParse(json['togetherLastAddDate'] as String)
+          : null,
+      togetherLastAddDebtAbsorbed:
+          (json['togetherLastAddDebtAbsorbed'] as num?)?.toDouble(),
     );
   }
 

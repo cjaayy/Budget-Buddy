@@ -77,9 +77,20 @@ final budgetTogetherSummaryProvider =
   }
 
   final double grossDailyTogetherSpent = sumSince(dailyStart);
+  final bool hasTogetherAddToday = (state.togetherLastAddDebtAbsorbed != null &&
+          state.togetherLastAddDebtAbsorbed! > 0) ||
+      (state.togetherLastAddDate != null &&
+          DateUtils.isSameDay(state.togetherLastAddDate!, now));
+  final double togetherAbsorbedDebt = hasTogetherAddToday
+      ? (state.togetherLastAddDebtAbsorbed ?? 0.0)
+      : 0.0;
+  final double legitimateGrossDailyTogether =
+      (grossDailyTogetherSpent - togetherAbsorbedDebt)
+          .clamp(0.0, double.infinity);
   final double togetherOverspent = togetherBudget > 0
-      ? (grossDailyTogetherSpent - togetherBudget).clamp(0.0, double.infinity)
-      : grossDailyTogetherSpent;
+      ? (legitimateGrossDailyTogether - togetherBudget)
+          .clamp(0.0, double.infinity)
+      : legitimateGrossDailyTogether;
   final double togetherPaidDebt = state.vaultLog
       .where((VaultLogEntry log) =>
           log.type == VaultLogType.payDebt &&
@@ -88,10 +99,11 @@ final budgetTogetherSummaryProvider =
           log.description.toLowerCase().contains('deficit payment') &&
           DateUtils.isSameDay(log.dateTime, now))
       .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
-  final double togetherDebtRelief =
-      togetherPaidDebt.clamp(0.0, togetherOverspent);
+  final double togetherDebtRelief = hasTogetherAddToday
+      ? (togetherPaidDebt - togetherAbsorbedDebt).clamp(0.0, togetherOverspent)
+      : togetherPaidDebt.clamp(0.0, togetherOverspent);
   final double netDailyTogetherSpent =
-      (grossDailyTogetherSpent - togetherDebtRelief)
+      (legitimateGrossDailyTogether - togetherDebtRelief)
           .clamp(0.0, double.infinity);
 
   final BudgetBuddyState togetherState = state.copyWith(
@@ -876,6 +888,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         lastAddAmount: null,
         lastAddDate: null,
         lastAddDebtAbsorbed: null,
+        togetherLastAddBase: null,
+        togetherLastAddAmount: null,
+        togetherLastAddDate: null,
+        togetherLastAddDebtAbsorbed: null,
         settings: state.settings.copyWith(
           dailyLimit: null,
           hasConfiguredBudget: state.settings.weeklyLimit != null ||
@@ -1106,7 +1122,81 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void setTogetherBudget(double amount) {
-    state = state.copyWith(togetherBudget: amount > 0 ? amount : 0);
+    final DateTime budgetDate = DateTime(now.year, now.month, now.day);
+    final bool preserveAdd = state.togetherLastAddDate != null &&
+        _isSameDay(state.togetherLastAddDate!, budgetDate);
+
+    state = state.copyWith(
+      togetherBudget: amount > 0 ? amount : 0,
+      togetherLastAddBase:
+          (amount <= 0 || !preserveAdd) ? null : state.togetherLastAddBase,
+      togetherLastAddAmount:
+          (amount <= 0 || !preserveAdd) ? null : state.togetherLastAddAmount,
+      togetherLastAddDate:
+          (amount <= 0 || !preserveAdd) ? null : state.togetherLastAddDate,
+      togetherLastAddDebtAbsorbed: (amount <= 0 || !preserveAdd)
+          ? null
+          : state.togetherLastAddDebtAbsorbed,
+    );
+    _recalculatePeriodSpending(now);
+    _backfillMissingDays(currentDate: now);
+    _persist();
+  }
+
+  void addTogetherDailyBudget({
+    required double addedAmount,
+    DateTime? date,
+  }) {
+    if (addedAmount <= 0) return;
+    final DateTime targetDate = date ?? now;
+    final DateTime budgetDate = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+    );
+
+    final double currentBudget = state.togetherBudget;
+    final double newTotalBudget = currentBudget + addedAmount;
+
+    final double grossSpentBeforeAdd = state.expenses
+        .where((ExpenseEntry expense) =>
+            expense.source == 'togetherSpend' &&
+            _isSameDay(expense.dateTime, budgetDate))
+        .fold(0.0, (double sum, ExpenseEntry expense) => sum + expense.amount);
+
+    final bool hasPriorAddToday = state.togetherLastAddDate != null &&
+        _isSameDay(state.togetherLastAddDate!, budgetDate);
+
+    final double priorAbsorbed = hasPriorAddToday
+        ? (state.togetherLastAddDebtAbsorbed ?? 0.0)
+        : 0.0;
+
+    final double legitimatePriorGross =
+        (grossSpentBeforeAdd - priorAbsorbed).clamp(0.0, double.infinity);
+
+    final double newOverspend = currentBudget > 0
+        ? (legitimatePriorGross - currentBudget).clamp(0.0, double.infinity)
+        : (priorAbsorbed > 0 ? 0.0 : grossSpentBeforeAdd);
+
+    final double debtAbsorbed = priorAbsorbed + newOverspend;
+
+    final double? base = (hasPriorAddToday && state.togetherLastAddBase != null)
+        ? state.togetherLastAddBase
+        : (currentBudget > 0 ? currentBudget : null);
+
+    final double totalAdded = hasPriorAddToday
+        ? ((state.togetherLastAddAmount ?? 0.0) + addedAmount)
+        : addedAmount;
+
+    state = state.copyWith(
+      togetherBudget: newTotalBudget,
+      togetherLastAddBase: base,
+      togetherLastAddAmount: totalAdded,
+      togetherLastAddDate: budgetDate,
+      togetherLastAddDebtAbsorbed: debtAbsorbed,
+    );
+    _recalculatePeriodSpending(now);
+    _backfillMissingDays(currentDate: now);
     _persist();
   }
 
@@ -1548,6 +1638,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
       favoriteMealIds: <String>[],
       savedActivityPlans: <ActivitySuggestion>[],
       togetherBudget: 0.0,
+      togetherLastAddBase: null,
+      togetherLastAddAmount: null,
+      togetherLastAddDate: null,
+      togetherLastAddDebtAbsorbed: null,
       dailySpent: 0.0,
       weeklySpent: 0.0,
       monthlySpent: 0.0,

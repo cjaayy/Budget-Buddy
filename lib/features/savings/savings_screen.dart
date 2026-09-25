@@ -119,15 +119,24 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       return sum;
     });
 
-    final bool hasAddToday = !widget.isTogetherOnly &&
-        ((state.lastAddDebtAbsorbed != null && state.lastAddDebtAbsorbed! > 0) ||
+    final bool hasAddToday = widget.isTogetherOnly
+        ? ((state.togetherLastAddDebtAbsorbed != null &&
+                state.togetherLastAddDebtAbsorbed! > 0) ||
+            (state.togetherLastAddBase != null &&
+                state.togetherLastAddAmount != null &&
+                state.togetherLastAddDate != null &&
+                DateUtils.isSameDay(state.togetherLastAddDate!, currentClock)))
+        : ((state.lastAddDebtAbsorbed != null &&
+                state.lastAddDebtAbsorbed! > 0) ||
             (state.lastAddBase != null &&
                 state.lastAddAmount != null &&
                 state.lastAddDate != null &&
                 DateUtils.isSameDay(state.lastAddDate!, currentClock)));
 
     final double baseAbsorbedDebt = hasAddToday
-        ? (state.lastAddDebtAbsorbed ?? 0.0)
+        ? (widget.isTogetherOnly
+            ? (state.togetherLastAddDebtAbsorbed ?? 0.0)
+            : (state.lastAddDebtAbsorbed ?? 0.0))
         : 0.0;
 
     final double todayPaidDebt = state.vaultLog
@@ -154,7 +163,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         ((todayRecordDeficit + baseAbsorbedDebt) - todayPaidDebt)
             .clamp(0.0, double.infinity);
 
-    final double effectiveTogetherDebt = dailyDeficits;
+    final double effectiveTogetherDebt = dailyDeficits +
+        (widget.isTogetherOnly
+            ? ((baseAbsorbedDebt - todayPaidDebt).clamp(0.0, double.infinity))
+            : 0.0);
 
     final double effectiveBaseDebt = state.savingsDebt;
 
@@ -420,15 +432,24 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       return widget.isTogetherOnly ? isTogetherLog : !isTogetherLog;
     }).toList();
 
-    final bool hasAddToday = !widget.isTogetherOnly &&
-        ((state.lastAddDebtAbsorbed != null && state.lastAddDebtAbsorbed! > 0) ||
+    final bool hasAddToday = widget.isTogetherOnly
+        ? ((state.togetherLastAddDebtAbsorbed != null &&
+                state.togetherLastAddDebtAbsorbed! > 0) ||
+            (state.togetherLastAddBase != null &&
+                state.togetherLastAddAmount != null &&
+                state.togetherLastAddDate != null &&
+                DateUtils.isSameDay(state.togetherLastAddDate!, currentClock)))
+        : ((state.lastAddDebtAbsorbed != null &&
+                state.lastAddDebtAbsorbed! > 0) ||
             (state.lastAddBase != null &&
                 state.lastAddAmount != null &&
                 state.lastAddDate != null &&
                 DateUtils.isSameDay(state.lastAddDate!, currentClock)));
 
     final double baseAbsorbedDebt = hasAddToday
-        ? (state.lastAddDebtAbsorbed ?? 0.0)
+        ? (widget.isTogetherOnly
+            ? (state.togetherLastAddDebtAbsorbed ?? 0.0)
+            : (state.lastAddDebtAbsorbed ?? 0.0))
         : 0.0;
 
     final double todayPaidDebt = state.vaultLog
@@ -455,7 +476,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         ((todayRecordDeficit + baseAbsorbedDebt) - todayPaidDebt)
             .clamp(0.0, double.infinity);
 
-    final double effectiveTogetherDebt = dailyDeficits;
+    final double effectiveTogetherDebt = dailyDeficits +
+        (widget.isTogetherOnly
+            ? ((baseAbsorbedDebt - todayPaidDebt).clamp(0.0, double.infinity))
+            : 0.0);
 
     final double effectiveBaseDebt = state.savingsDebt;
 
@@ -4245,12 +4269,22 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               DateUtils.isSameDay(log.dateTime, date))
           .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
 
+      final bool hasTogetherAddOnDate = state.togetherLastAddDate != null &&
+          DateUtils.isSameDay(state.togetherLastAddDate!, date) &&
+          (state.togetherLastAddDebtAbsorbed ?? 0.0) > 0;
+      final double absorbedOnDate = hasTogetherAddOnDate
+          ? (state.togetherLastAddDebtAbsorbed ?? 0.0)
+          : 0.0;
+      final double legitimateSpent =
+          (totalSpent - absorbedOnDate).clamp(0.0, double.infinity);
       final double dayOverspent = dayBudget > 0
-          ? (totalSpent - dayBudget).clamp(0.0, double.infinity)
-          : totalSpent;
-      final double debtRelief = paidDebt.clamp(0.0, dayOverspent);
+          ? (legitimateSpent - dayBudget).clamp(0.0, double.infinity)
+          : legitimateSpent;
+      final double debtRelief = hasTogetherAddOnDate
+          ? (paidDebt - absorbedOnDate).clamp(0.0, dayOverspent)
+          : paidDebt.clamp(0.0, dayOverspent);
       final double effectiveSpent =
-          (totalSpent - debtRelief).clamp(0.0, double.infinity);
+          (legitimateSpent - debtRelief).clamp(0.0, double.infinity);
 
       final double savings =
           dayBudget > 0 ? dayBudget - effectiveSpent : -effectiveSpent;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -546,7 +547,10 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
             index: _selectedModuleIndex ?? 0,
             children: <Widget>[
               // View 1: Together Budget Plan
-              _TogetherBudgetPlanView(tokens: tokens),
+              _TogetherBudgetPlanView(
+                tokens: tokens,
+                onOpenSavings: () => setState(() => _selectedModuleIndex = 3),
+              ),
               // View 2: Together Quick Spend Log (Tactile Keypad & Batch Queue)
               const SpendScreen(isTogetherOnly: true),
               // View 3: Together Expense History & Log (Filters & Detail Sheets)
@@ -570,6 +574,14 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
       _ => 'Budget Together',
     };
 
+    final Color moduleColor = switch (_selectedModuleIndex) {
+      0 => _TogetherTokens.budgetGold,
+      1 => _TogetherTokens.budgetGold,
+      2 => _TogetherTokens.spentRed,
+      3 => _TogetherTokens.safeGreen,
+      _ => _TogetherTokens.budgetGold,
+    };
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: BoxDecoration(
@@ -588,25 +600,31 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: tokens.subCardBg,
+                  color: moduleColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: tokens.cardBorder),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: moduleColor.withValues(alpha: 0.35),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Icon(
+                    const Icon(
                       Icons.arrow_back_rounded,
                       size: 16,
-                      color: tokens.textPrimary,
+                      color: Colors.white,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Back to List',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: tokens.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -639,10 +657,12 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
 class _TogetherBudgetPlanView extends ConsumerStatefulWidget {
   const _TogetherBudgetPlanView({
     required this.tokens,
+    this.onOpenSavings,
     super.key,
   });
 
   final _TogetherTokens tokens;
+  final VoidCallback? onOpenSavings;
 
   @override
   ConsumerState<_TogetherBudgetPlanView> createState() =>
@@ -657,6 +677,7 @@ class _TogetherBudgetPlanViewState
   bool _isAddMode = false;
   double? _lastAddBase;
   double? _lastAddAmount;
+  DateTime? _lastAddDate;
 
   @override
   void initState() {
@@ -732,7 +753,7 @@ class _TogetherBudgetPlanViewState
     });
   }
 
-  void _saveBudget() {
+  Future<void> _saveBudget() async {
     final String text = _dailyController.text.trim();
     final double? entered = double.tryParse(text);
     if (entered == null || entered <= 0) {
@@ -750,21 +771,77 @@ class _TogetherBudgetPlanViewState
     final double target = _isAddMode ? (currentBudget + entered) : entered;
     final bool wasAddMode = _isAddMode;
 
+    if (wasAddMode) {
+      if (currentBudget > 0) {
+        final bool? confirmed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext ctx) => _CountdownConfirmationDialog(
+            title: 'Confirm Add Budget',
+            message:
+                'Add ${formatPeso(entered)} to today\'s shared budget of ${formatPeso(currentBudget)} for a new total of ${formatPeso(target)}?',
+            confirmLabel: 'Save & Add',
+            confirmColor: _TogetherTokens.safeGreen,
+            icon: Icons.add_circle_outline_rounded,
+            autoConfirm: false,
+            totalSeconds: 3,
+          ),
+        );
+        if (!mounted || confirmed != true) return;
+      }
+      if (!mounted) return;
+
+      if (currentBudget > 0) {
+        ref
+            .read(budgetBuddyControllerProvider.notifier)
+            .addTogetherDailyBudget(addedAmount: entered);
+      } else {
+        ref
+            .read(budgetBuddyControllerProvider.notifier)
+            .setTogetherBudget(target);
+      }
+    } else {
+      if (currentBudget > 0) {
+        final bool? confirmed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext ctx) => _CountdownConfirmationDialog(
+            title: 'Confirm Budget Update',
+            message:
+                'Update today\'s shared budget from ${formatPeso(currentBudget)} to ${formatPeso(target)}?',
+            confirmLabel: 'Update Now',
+            confirmColor: _TogetherTokens.safeGreen,
+            icon: Icons.sync_rounded,
+            autoConfirm: false,
+            totalSeconds: 3,
+          ),
+        );
+        if (!mounted || confirmed != true) return;
+      }
+      if (!mounted) return;
+
+      ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .setTogetherBudget(target);
+    }
+
     _focusNode.unfocus();
-    ref
-        .read(budgetBuddyControllerProvider.notifier)
-        .setTogetherBudget(target);
 
     setState(() {
       _isInputActive = false;
       _isAddMode = false;
       _dailyController.clear();
       if (wasAddMode && currentBudget > 0) {
-        _lastAddBase = currentBudget;
-        _lastAddAmount = entered;
+        final BudgetBuddyState currentState =
+            ref.read(budgetBuddyControllerProvider);
+        _lastAddBase = currentState.togetherLastAddBase ?? currentBudget;
+        _lastAddAmount =
+            (currentState.togetherLastAddAmount ?? 0.0) + entered;
+        _lastAddDate = ref.read(budgetBuddyControllerProvider.notifier).now;
       } else {
         _lastAddBase = null;
         _lastAddAmount = null;
+        _lastAddDate = null;
       }
     });
 
@@ -875,6 +952,9 @@ class _TogetherBudgetPlanViewState
                         _isInputActive = false;
                         _isAddMode = false;
                         _dailyController.clear();
+                        _lastAddBase = null;
+                        _lastAddAmount = null;
+                        _lastAddDate = null;
                       });
                       showAppAlert(
                         context,
@@ -935,6 +1015,40 @@ class _TogetherBudgetPlanViewState
         ? (spent / totalBudget).clamp(0.0, 1.0)
         : 0.0;
 
+    final double addBase = state.togetherLastAddBase ?? _lastAddBase ?? 0.0;
+    final double addAmount =
+        state.togetherLastAddAmount ?? _lastAddAmount ?? 0.0;
+    final DateTime? addDate = state.togetherLastAddDate ?? _lastAddDate;
+    final bool hasAddToday = (state.togetherLastAddDebtAbsorbed != null &&
+            state.togetherLastAddDebtAbsorbed! > 0) ||
+        (addBase > 0 &&
+            addAmount > 0 &&
+            addDate != null &&
+            DateUtils.isSameDay(addDate, currentClock));
+
+    final double todayPaidDebt = state.vaultLog
+        .where((VaultLogEntry log) =>
+            log.type == VaultLogType.payDebt &&
+            (log.isTogether == true ||
+                log.description.toLowerCase().contains('together')) &&
+            log.description.toLowerCase().contains('deficit payment') &&
+            DateUtils.isSameDay(log.dateTime, currentClock))
+        .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
+
+    final double rawOverbudgetDebt = hasAddToday
+        ? ((state.togetherLastAddDebtAbsorbed ?? 0.0) +
+            (totalBudget > 0 && spent > totalBudget
+                ? (spent - totalBudget)
+                : 0.0))
+        : (totalBudget > 0
+            ? (spent - totalBudget).clamp(0.0, double.infinity)
+            : spent);
+
+    final double overbudgetDebt =
+        (rawOverbudgetDebt - todayPaidDebt).clamp(0.0, double.infinity);
+
+    final double effectiveDebt = overbudgetDebt;
+
     // Listen to external resets
     ref.listen<BudgetBuddyState>(budgetBuddyControllerProvider,
         (BudgetBuddyState? prev, BudgetBuddyState next) {
@@ -971,9 +1085,173 @@ class _TogetherBudgetPlanViewState
           hasBudget: hasBudget,
           isOver: isOver,
           isWarning: isWarning,
+          savingsDebt: effectiveDebt,
           tokens: tokens,
         ),
         const SizedBox(height: 12),
+
+        // 2b. Standalone Over Budget Debt Card (shown separately when debt exists)
+        if (effectiveDebt > 0) ...<Widget>[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: tokens.tint(_TogetherTokens.spentRed, 0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _TogetherTokens.spentRed.withValues(alpha: 0.30),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _TogetherTokens.spentRed.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.account_balance_wallet_rounded,
+                      size: 18, color: _TogetherTokens.spentRed),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Over Budget Debt',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _TogetherTokens.spentRed,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatPeso(effectiveDebt),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: _TogetherTokens.spentRed,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Debt is separate from your shared budget and can only be paid in Savings.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    widget.onOpenSavings?.call();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: _TogetherTokens.spentRed,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const Icon(Icons.savings_rounded,
+                            size: 14, color: Colors.white),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Pay in Savings',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        // 2c. Today's Budget Added Card (only shows for today's add, clears at midnight)
+        if (hasAddToday &&
+            (addBase > 0 ||
+                (state.togetherLastAddDebtAbsorbed ?? 0) > 0)) ...<Widget>[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: tokens.tint(_TogetherTokens.safeGreen, 0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _TogetherTokens.safeGreen.withValues(alpha: 0.28),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _TogetherTokens.safeGreen.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add_circle_rounded,
+                      size: 18, color: _TogetherTokens.safeGreen),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Budget Added Today',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _TogetherTokens.safeGreen,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${formatPeso(addBase)} + ${formatPeso(addAmount)} = ${formatPeso(addBase + addAmount)}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: tokens.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Added ${formatPeso(addAmount)} to shared daily budget.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
 
         // 3. Action Buttons (Cancel / Save when input is active; Add, Edit, Reset when idle)
         _buildActionButtons(
@@ -1040,6 +1318,7 @@ class _TogetherBudgetPlanViewState
     required bool hasBudget,
     required bool isOver,
     required bool isWarning,
+    required double savingsDebt,
     required _TogetherTokens tokens,
   }) {
     final bool isTyping = _isInputActive;
@@ -1263,26 +1542,6 @@ class _TogetherBudgetPlanViewState
                 ],
               ),
             ),
-          // Last add equation tag
-          if (!isTyping && _lastAddBase != null && _lastAddAmount != null) ...<Widget>[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: tokens.tint(_TogetherTokens.safeGreen, 0.10),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _TogetherTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
-              ),
-              child: Text(
-                '${_lastAddBase!.toStringAsFixed(0)} + ${_lastAddAmount!.toStringAsFixed(0)} = ${(_lastAddBase! + _lastAddAmount!).toStringAsFixed(0)} added to shared budget',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _TogetherTokens.safeGreen,
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 2),
 
           // Context Subtitle below amount
@@ -1297,7 +1556,9 @@ class _TogetherBudgetPlanViewState
                     ? 'No shared budget set yet. Tap "Add Budget" below.'
                     : (isOver
                         ? 'Budget exceeded by ${formatPeso(remaining.abs())}'
-                        : 'Safe remaining balance for shared spending')),
+                        : (savingsDebt > 0
+                            ? 'Can spend overbudget: ${formatPeso(remaining)}'
+                            : 'Safe remaining balance for shared spending'))),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
@@ -1651,6 +1912,231 @@ class _TogetherBudgetPlanViewState
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// A clean modal confirmation dialog with countdown timer and GoogleFonts.plusJakartaSans
+class _CountdownConfirmationDialog extends StatefulWidget {
+  const _CountdownConfirmationDialog({
+    required this.title,
+    required this.message,
+    required this.confirmLabel,
+    required this.confirmColor,
+    required this.icon,
+    this.autoConfirm = false,
+    this.totalSeconds = 3,
+  });
+
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final Color confirmColor;
+  final IconData icon;
+  final bool autoConfirm;
+  final int totalSeconds;
+
+  @override
+  State<_CountdownConfirmationDialog> createState() =>
+      _CountdownConfirmationDialogState();
+}
+
+class _CountdownConfirmationDialogState
+    extends State<_CountdownConfirmationDialog> {
+  late int _secondsRemaining;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _secondsRemaining = widget.totalSeconds;
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        setState(() {
+          _secondsRemaining = 0;
+        });
+        if (widget.autoConfirm) {
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color cardBg =
+        isDark ? const Color(0xFF111827) : const Color(0xFFFFFFFF);
+    final Color cardBorder =
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final Color textPrimary =
+        isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final Color textSecondary =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final double progress = widget.totalSeconds > 0
+        ? (_secondsRemaining / widget.totalSeconds)
+        : 0.0;
+
+    return AlertDialog(
+      backgroundColor: cardBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: cardBorder, width: 1.0),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      actionsPadding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      title: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: widget.confirmColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(widget.icon, color: widget.confirmColor, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              widget.title,
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              widget.message,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            BentoHealthBar(
+              progress: progress,
+              color: widget.confirmColor,
+              height: 5,
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(
+                  _secondsRemaining > 0
+                      ? 'Timer: $_secondsRemaining s'
+                      : 'Timer done. Ready to confirm.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: widget.confirmColor,
+                  ),
+                ),
+                Icon(
+                  _secondsRemaining > 0
+                      ? Icons.timer_outlined
+                      : Icons.touch_app_rounded,
+                  size: 13,
+                  color: widget.confirmColor,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        // Solid Red Cancel Button
+        FilledButton.icon(
+          onPressed: () {
+            _timer?.cancel();
+            Navigator.of(context).pop(false);
+          },
+          icon: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
+          label: Text(
+            'Cancel',
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontSize: 12,
+            ),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: _TogetherTokens.spentRed,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        // Countdown Action Button
+        FilledButton.icon(
+          onPressed: _secondsRemaining == 0
+              ? () {
+                  _timer?.cancel();
+                  Navigator.of(context).pop(true);
+                }
+              : null,
+          icon: Icon(
+            _secondsRemaining == 0
+                ? Icons.check_circle_rounded
+                : Icons.hourglass_top_rounded,
+            size: 14,
+            color: Colors.white,
+          ),
+          label: Text(
+            _secondsRemaining > 0
+                ? 'Wait (${_secondsRemaining}s)'
+                : widget.confirmLabel,
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              fontSize: 12,
+            ),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: widget.confirmColor,
+            disabledBackgroundColor:
+                widget.confirmColor.withValues(alpha: 0.45),
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
