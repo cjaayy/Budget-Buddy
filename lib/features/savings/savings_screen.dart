@@ -1,11 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/budget_models.dart';
 import '../../core/state/app_controller.dart';
@@ -52,76 +49,7 @@ class _SavingsTokens {
       color.withValues(alpha: alpha);
 }
 
-/// Savings Goal Model with local persistence support
-class SavingsGoal {
-  const SavingsGoal({
-    required this.id,
-    required this.title,
-    required this.targetAmount,
-    required this.currentAmount,
-    this.targetDate,
-    this.iconKey = 'emergency',
-    this.note = '',
-  });
 
-  final String id;
-  final String title;
-  final double targetAmount;
-  final double currentAmount;
-  final DateTime? targetDate;
-  final String iconKey;
-  final String note;
-
-  double get progress => targetAmount > 0
-      ? (currentAmount / targetAmount).clamp(0.0, 1.0)
-      : 0.0;
-
-  int get percentage => (progress * 100).round();
-
-  SavingsGoal copyWith({
-    String? id,
-    String? title,
-    double? targetAmount,
-    double? currentAmount,
-    DateTime? targetDate,
-    String? iconKey,
-    String? note,
-  }) {
-    return SavingsGoal(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      targetAmount: targetAmount ?? this.targetAmount,
-      currentAmount: currentAmount ?? this.currentAmount,
-      targetDate: targetDate ?? this.targetDate,
-      iconKey: iconKey ?? this.iconKey,
-      note: note ?? this.note,
-    );
-  }
-
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'title': title,
-        'targetAmount': targetAmount,
-        'currentAmount': currentAmount,
-        'targetDate': targetDate?.toIso8601String(),
-        'iconKey': iconKey,
-        'note': note,
-      };
-
-  factory SavingsGoal.fromJson(Map<String, dynamic> json) {
-    return SavingsGoal(
-      id: json['id'] as String? ?? UniqueKey().toString(),
-      title: json['title'] as String? ?? 'Savings Target',
-      targetAmount: (json['targetAmount'] as num?)?.toDouble() ?? 10000.0,
-      currentAmount: (json['currentAmount'] as num?)?.toDouble() ?? 0.0,
-      targetDate: json['targetDate'] != null
-          ? DateTime.tryParse(json['targetDate'] as String)
-          : null,
-      iconKey: json['iconKey'] as String? ?? 'emergency',
-      note: json['note'] as String? ?? '',
-    );
-  }
-}
 
 enum SavingsSection { daily, monthly }
 
@@ -135,95 +63,7 @@ class SavingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SavingsScreenState extends ConsumerState<SavingsScreen> {
-  static const String _goalsPrefsKey = 'budgetbuddy_savings_goals_v2';
   SavingsSection _activeSection = SavingsSection.daily;
-
-  List<SavingsGoal> _goals = <SavingsGoal>[];
-  bool _isGoalsLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadGoals();
-  }
-
-  Future<void> _loadGoals() async {
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? rawJson = prefs.getString(_goalsPrefsKey);
-      if (rawJson != null && rawJson.isNotEmpty) {
-        final dynamic decoded = jsonDecode(rawJson);
-        if (decoded is List) {
-          setState(() {
-            _goals = decoded
-                .map((e) => SavingsGoal.fromJson(e as Map<String, dynamic>))
-                .toList();
-            _isGoalsLoaded = true;
-          });
-          return;
-        }
-      }
-    } catch (_) {
-      // Fallback to starter goals
-    }
-
-    // Default starter goals
-    setState(() {
-      _goals = <SavingsGoal>[
-        SavingsGoal(
-          id: 'goal_emergency',
-          title: 'Emergency Fund',
-          targetAmount: 25000,
-          currentAmount: 10000,
-          targetDate: DateTime.now().add(const Duration(days: 120)),
-          iconKey: 'emergency',
-          note: '3-6 months essential buffer',
-        ),
-        SavingsGoal(
-          id: 'goal_gadget',
-          title: 'New Phone / Tech',
-          targetAmount: 35000,
-          currentAmount: 12500,
-          targetDate: DateTime.now().add(const Duration(days: 60)),
-          iconKey: 'phone',
-          note: 'Device upgrade fund',
-        ),
-        SavingsGoal(
-          id: 'goal_vacation',
-          title: 'Dream Vacation',
-          targetAmount: 20000,
-          currentAmount: 4000,
-          targetDate: DateTime.now().add(const Duration(days: 90)),
-          iconKey: 'vacation',
-          note: 'Island getaway trip',
-        ),
-      ];
-      _isGoalsLoaded = true;
-    });
-    _saveGoals();
-  }
-
-  Future<void> _saveGoals() async {
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String raw =
-          jsonEncode(_goals.map((SavingsGoal g) => g.toJson()).toList());
-      await prefs.setString(_goalsPrefsKey, raw);
-    } catch (_) {}
-  }
-
-  IconData _iconForGoalKey(String key) {
-    return switch (key) {
-      'emergency' || 'shield' => Icons.shield_rounded,
-      'phone' || 'gadget' => Icons.phone_iphone_rounded,
-      'vacation' || 'travel' => Icons.flight_takeoff_rounded,
-      'home' => Icons.home_rounded,
-      'school' || 'education' => Icons.school_rounded,
-      'car' || 'vehicle' => Icons.directions_car_rounded,
-      'shopping' => Icons.shopping_bag_rounded,
-      _ => Icons.savings_rounded,
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +75,72 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
     final List<DailyRecord> records = _getRecords(state, currentClock);
     final List<DateTime> availableMonths = _availableMonths(records);
+
+    final DailyRecord? todayRecord = records.cast<DailyRecord?>().firstWhere(
+      (DailyRecord? r) =>
+          r != null && DateUtils.isSameDay(r.date, currentClock),
+      orElse: () => null,
+    );
+    final double todaySaved = (todayRecord != null &&
+            todayRecord.budget > 0 &&
+            todayRecord.remainingBalance > 0)
+        ? todayRecord.remainingBalance
+        : 0.0;
+
+    final double dailyRemainingSavings = records
+        .where((DailyRecord r) => r.budget > 0 && r.remainingBalance > 0)
+        .fold(0.0, (double sum, DailyRecord r) => sum + r.remainingBalance);
+
+    final double pastDailySavings = records
+        .where((DailyRecord r) =>
+            !DateUtils.isSameDay(r.date, currentClock) &&
+            r.budget > 0 &&
+            r.remainingBalance > 0)
+        .fold(0.0, (double sum, DailyRecord r) => sum + r.remainingBalance);
+
+    final double effectiveBaseSavings = state.totalSavings > pastDailySavings
+        ? state.totalSavings
+        : pastDailySavings;
+
+    final double savingsAmount = widget.isTogetherOnly
+        ? dailyRemainingSavings
+        : (effectiveBaseSavings + todaySaved);
+
+    final double dailyDeficits = records.fold(0.0, (double sum, DailyRecord r) {
+      if (r.budget > 0 && r.remainingBalance < 0) {
+        return sum + r.remainingBalance.abs();
+      } else if (r.budget <= 0 && r.totalSpent > 0) {
+        return sum + r.totalSpent;
+      }
+      return sum;
+    });
+
+    final double pastDeficits = records
+        .where((DailyRecord r) => !DateUtils.isSameDay(r.date, currentClock))
+        .fold(0.0, (double sum, DailyRecord r) {
+      if (r.budget > 0 && r.remainingBalance < 0) {
+        return sum + r.remainingBalance.abs();
+      } else if (r.budget <= 0 && r.totalSpent > 0) {
+        return sum + r.totalSpent;
+      }
+      return sum;
+    });
+
+    final double todayDeficit = (todayRecord != null &&
+            ((todayRecord.budget > 0 && todayRecord.remainingBalance < 0) ||
+                (todayRecord.budget <= 0 && todayRecord.totalSpent > 0)))
+        ? (todayRecord.remainingBalance < 0
+            ? todayRecord.remainingBalance.abs()
+            : todayRecord.totalSpent)
+        : 0.0;
+
+    final double effectiveBaseDebt = state.savingsDebt > pastDeficits
+        ? state.savingsDebt
+        : pastDeficits;
+
+    final double debtAmount = widget.isTogetherOnly
+        ? dailyDeficits
+        : (effectiveBaseDebt + todayDeficit);
 
     final double togetherSpent = widget.isTogetherOnly
         ? state.expenses
@@ -286,126 +192,27 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       context,
                       state: state,
                       togetherSpent: togetherSpent,
+                      records: records,
+                      currentClock: currentClock,
                       tokens: tokens,
                     ),
                     const SizedBox(height: 14),
 
                     // 4. Quick Action Buttons
-                    _buildQuickActionButtons(context, state: state, tokens: tokens),
+                    _buildQuickActionButtons(
+                      context,
+                      state: state,
+                      tokens: tokens,
+                      savingsAmount: savingsAmount,
+                      debtAmount: debtAmount,
+                    ),
                     const SizedBox(height: 20),
 
-                    // 3. Savings Goals Section Title
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: tokens.tint(_SavingsTokens.targetGold, 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.flag_rounded,
-                                size: 16,
-                                color: _SavingsTokens.targetGold,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Savings Goals & Targets',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: tokens.textPrimary,
-                                letterSpacing: -0.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SoftPill(
-                          text: '${_goals.length} active',
-                          color: _SavingsTokens.savingsGreen,
-                          fontSize: 11,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                   ],
                 ),
               ),
             ),
-
-            // 3. Savings Goals Bento Cards Stack
-            if (_goals.isEmpty && _isGoalsLoaded)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: BentoCard(
-                    padding: const EdgeInsets.all(24),
-                    borderRadius: 18,
-                    child: Column(
-                      children: <Widget>[
-                        Icon(Icons.savings_outlined,
-                            size: 36, color: tokens.textMuted),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No Savings Goals Yet',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Create your first savings target to track your milestone progress.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: () =>
-                              _showAddOrEditGoalSheet(context, tokens: tokens),
-                          icon: const Icon(Icons.add_rounded, size: 16),
-                          label: const Text('Add Goal'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _SavingsTokens.savingsGreen,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (BuildContext context, int index) {
-                      final SavingsGoal goal = _goals[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _buildGoalTileCard(
-                          context,
-                          goal: goal,
-                          tokens: tokens,
-                        ),
-                      );
-                    },
-                    childCount: _goals.length,
-                  ),
-                ),
-              ),
 
             // 5. Daily & Monthly Historical Archive Section
             SliverToBoxAdapter(
@@ -478,7 +285,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     DateTime currentClock,
     _SavingsTokens tokens,
   ) {
-    final int activeCount = _goals.length;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
@@ -498,7 +304,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              '$activeCount active ${activeCount == 1 ? "goal" : "goals"} • Track wealth & manage deficits',
+              'Track your vault & manage deficits',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -522,213 +328,405 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     BuildContext context, {
     required BudgetBuddyState state,
     required double togetherSpent,
+    required List<DailyRecord> records,
+    required DateTime currentClock,
     required _SavingsTokens tokens,
   }) {
-    final double savingsAmount =
-        widget.isTogetherOnly ? state.togetherBudget : state.totalSavings;
-    final double debtAmount =
-        widget.isTogetherOnly ? togetherSpent : state.savingsDebt;
+    // 1. Calculate accumulated daily savings across all days where budget had remaining balance
+    final double dailyRemainingSavings = records
+        .where((DailyRecord r) => r.budget > 0 && r.remainingBalance > 0)
+        .fold(0.0, (double sum, DailyRecord r) => sum + r.remainingBalance);
+
+    // 2. Identify today's specific savings from today's budget
+    final DailyRecord? todayRecord = records.cast<DailyRecord?>().firstWhere(
+      (DailyRecord? r) =>
+          r != null && DateUtils.isSameDay(r.date, currentClock),
+      orElse: () => null,
+    );
+    final double todaySaved = (todayRecord != null &&
+            todayRecord.budget > 0 &&
+            todayRecord.remainingBalance > 0)
+        ? todayRecord.remainingBalance
+        : 0.0;
+
+    // 3. Accumulated deficit from days where spending exceeded budget
+    final double dailyDeficits = records.fold(0.0, (double sum, DailyRecord r) {
+      if (r.budget > 0 && r.remainingBalance < 0) {
+        return sum + r.remainingBalance.abs();
+      } else if (r.budget <= 0 && r.totalSpent > 0) {
+        return sum + r.totalSpent;
+      }
+      return sum;
+    });
+
+    final double pastDailySavings = records
+        .where((DailyRecord r) =>
+            !DateUtils.isSameDay(r.date, currentClock) &&
+            r.budget > 0 &&
+            r.remainingBalance > 0)
+        .fold(0.0, (double sum, DailyRecord r) => sum + r.remainingBalance);
+
+    final double effectiveBaseSavings = state.totalSavings > pastDailySavings
+        ? state.totalSavings
+        : pastDailySavings;
+
+    final double savingsAmount = widget.isTogetherOnly
+        ? dailyRemainingSavings
+        : (effectiveBaseSavings + todaySaved);
+
+    final double pastDeficits = records
+        .where((DailyRecord r) => !DateUtils.isSameDay(r.date, currentClock))
+        .fold(0.0, (double sum, DailyRecord r) {
+      if (r.budget > 0 && r.remainingBalance < 0) {
+        return sum + r.remainingBalance.abs();
+      } else if (r.budget <= 0 && r.totalSpent > 0) {
+        return sum + r.totalSpent;
+      }
+      return sum;
+    });
+
+    final double todayDeficit = (todayRecord != null &&
+            ((todayRecord.budget > 0 && todayRecord.remainingBalance < 0) ||
+                (todayRecord.budget <= 0 && todayRecord.totalSpent > 0)))
+        ? (todayRecord.remainingBalance < 0
+            ? todayRecord.remainingBalance.abs()
+            : todayRecord.totalSpent)
+        : 0.0;
+
+    final double effectiveBaseDebt = state.savingsDebt > pastDeficits
+        ? state.savingsDebt
+        : pastDeficits;
+
+    final double debtAmount = widget.isTogetherOnly
+        ? dailyDeficits
+        : (effectiveBaseDebt + todayDeficit);
+
     final bool hasDebt = debtAmount > 0;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // Hero Bento 1: Total Savings Vault (Dark Green #0F766E)
-        Expanded(
-          child: BentoCard(
-            borderRadius: 24,
-            padding: const EdgeInsets.all(16),
-            borderColor: _SavingsTokens.savingsGreen.withValues(alpha: 0.35),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Row(
+          children: <Widget>[
+            // Hero Bento 1: Total Savings Vault (Dark Green #0F766E)
+            Expanded(
+              child: BentoCard(
+                borderRadius: 24,
+                padding: const EdgeInsets.all(16),
+                borderColor: _SavingsTokens.savingsGreen.withValues(alpha: 0.35),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: tokens.tint(_SavingsTokens.savingsGreen, 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.savings_rounded,
-                        size: 16,
-                        color: _SavingsTokens.savingsGreen,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: tokens.tint(_SavingsTokens.savingsGreen, 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.savings_rounded,
+                            size: 16,
+                            color: _SavingsTokens.savingsGreen,
+                          ),
+                        ),
+                        // Quick Deposit trigger
+                        InkWell(
+                          onTap: () =>
+                              _showQuickDepositSheet(context, tokens: tokens),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _SavingsTokens.savingsGreen,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                const Icon(Icons.add_rounded,
+                                    size: 12, color: Colors.white),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Deposit',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.isTogetherOnly
+                          ? 'Together Savings Vault'
+                          : 'Total Savings Vault',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.textSecondary,
                       ),
                     ),
-                    // Quick Deposit trigger
-                    InkWell(
-                      onTap: () => _showQuickDepositSheet(context, tokens: tokens),
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        formatPeso(savingsAmount),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
                           color: _SavingsTokens.savingsGreen,
-                          borderRadius: BorderRadius.circular(999),
+                          letterSpacing: -0.6,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const Icon(Icons.add_rounded,
-                                size: 12, color: Colors.white),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Deposit',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      todaySaved > 0
+                          ? '+${formatPeso(todaySaved)} saved today from budget'
+                          : 'Accumulated daily savings',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: todaySaved > 0
+                            ? _SavingsTokens.savingsGreen
+                            : tokens.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Hero Bento 2: Running Deficit / Debt Tracker (Dark Red #991B1B)
+            Expanded(
+              child: BentoCard(
+                borderRadius: 24,
+                padding: const EdgeInsets.all(16),
+                onTap: hasDebt
+                    ? () => _showWithdrawOrCoverDeficitSheet(
+                          context,
+                          state: state,
+                          tokens: tokens,
+                          savingsAmount: savingsAmount,
+                          debtAmount: debtAmount,
+                          initialTab: 1,
+                        )
+                    : null,
+                borderColor: hasDebt
+                    ? _SavingsTokens.deficitRed.withValues(alpha: 0.35)
+                    : _SavingsTokens.savingsGreen.withValues(alpha: 0.25),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: tokens.tint(
+                              hasDebt
+                                  ? _SavingsTokens.deficitRed
+                                  : _SavingsTokens.savingsGreen,
+                              0.12,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            hasDebt
+                                ? Icons.warning_amber_rounded
+                                : Icons.check_circle_rounded,
+                            size: 16,
+                            color: hasDebt
+                                ? _SavingsTokens.deficitRed
+                                : _SavingsTokens.savingsGreen,
+                          ),
+                        ),
+                        if (hasDebt)
+                          InkWell(
+                            onTap: () => _showWithdrawOrCoverDeficitSheet(
+                              context,
+                              state: state,
+                              tokens: tokens,
+                              savingsAmount: savingsAmount,
+                              debtAmount: debtAmount,
+                              initialTab: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _SavingsTokens.deficitRed,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  const Icon(Icons.payment_rounded,
+                                      size: 11, color: Colors.white),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Pay Debt',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          )
+                        else
+                          SoftPill(
+                            text: 'Clean Record',
+                            color: _SavingsTokens.savingsGreen,
+                            fontSize: 10,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.isTogetherOnly
+                          ? 'Together Deficit'
+                          : 'Running Deficit',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.textSecondary,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  widget.isTogetherOnly ? 'Tab Budget' : 'Total Savings Vault',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: tokens.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    formatPeso(savingsAmount),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: _SavingsTokens.savingsGreen,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Accumulated balance',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
-                    color: tokens.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Hero Bento 2: Running Deficit / Debt Tracker (Dark Red #991B1B)
-        Expanded(
-          child: BentoCard(
-            borderRadius: 24,
-            padding: const EdgeInsets.all(16),
-            borderColor: hasDebt
-                ? _SavingsTokens.deficitRed.withValues(alpha: 0.35)
-                : _SavingsTokens.savingsGreen.withValues(alpha: 0.25),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: tokens.tint(
-                          hasDebt
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        hasDebt ? formatPeso(debtAmount) : '₱0.00',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: hasDebt
                               ? _SavingsTokens.deficitRed
                               : _SavingsTokens.savingsGreen,
-                          0.12,
+                          letterSpacing: -0.6,
                         ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        hasDebt
-                            ? Icons.warning_amber_rounded
-                            : Icons.check_circle_rounded,
-                        size: 16,
-                        color: hasDebt
-                            ? _SavingsTokens.deficitRed
-                            : _SavingsTokens.savingsGreen,
                       ),
                     ),
-                    SoftPill(
-                      text: hasDebt ? 'Deficit to Pay' : 'Clean Record',
-                      color: hasDebt
-                          ? _SavingsTokens.deficitRed
-                          : _SavingsTokens.savingsGreen,
-                      fontSize: 10,
+                    const SizedBox(height: 4),
+                    Text(
+                      hasDebt
+                          ? 'Over-budget deficit to recover'
+                          : 'No outstanding debt',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textMuted,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  widget.isTogetherOnly ? 'Tab Spent' : 'Running Deficit',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: tokens.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    hasDebt ? formatPeso(debtAmount) : '₱0.00',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: hasDebt
-                          ? _SavingsTokens.deficitRed
-                          : _SavingsTokens.savingsGreen,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  hasDebt ? 'Rolled over deficit' : 'No outstanding debt',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
-                    color: tokens.textMuted,
-                  ),
-                ),
-              ],
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Daily Savings Rollover Banner
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: tokens.subCardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: tokens.cardBorder),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_SavingsTokens.savingsGreen, 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.auto_graph_rounded,
+                  size: 16,
+                  color: _SavingsTokens.savingsGreen,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      todaySaved > 0
+                          ? "Today's Budget Saved: +${formatPeso(todaySaved)}"
+                          : "Daily Budget Savings Active",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      todaySaved > 0
+                          ? "Added to your savings vault from today's unspent budget allowance."
+                          : "Remaining allowance from every day automatically accumulates into your savings.",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  /// 4. Quick Action Buttons: Add New Goal / Deposit & Withdraw / Cover Deficit
+  /// 4. Quick Action Buttons: Deposit / Withdraw / Pay Debt
   Widget _buildQuickActionButtons(
     BuildContext context, {
     required BudgetBuddyState state,
     required _SavingsTokens tokens,
+    double? savingsAmount,
+    double? debtAmount,
   }) {
+    final double effectiveDebt = debtAmount ?? state.savingsDebt;
+    final bool hasDebt = effectiveDebt > 0;
+
     return Row(
       children: <Widget>[
-        // Add New Goal / Deposit (Solid Dark Green #0F766E)
+        // Deposit (Solid Dark Green #0F766E)
         Expanded(
           child: FilledButton.icon(
-            onPressed: () => _showAddOrEditGoalSheet(context, tokens: tokens),
-            icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+            onPressed: () => _showQuickDepositSheet(context, tokens: tokens),
+            icon: const Icon(Icons.savings_rounded, size: 15, color: Colors.white),
             label: Text(
-              'Add Goal',
+              'Deposit',
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
+                fontSize: 12,
                 color: Colors.white,
               ),
             ),
@@ -743,24 +741,30 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
 
-        // Withdraw / Cover Deficit (Solid Dark Red #991B1B)
+        // Withdraw (Solid Gold #D97706)
         Expanded(
           child: FilledButton.icon(
-            onPressed: () =>
-                _showWithdrawOrCoverDeficitSheet(context, state: state, tokens: tokens),
-            icon: const Icon(Icons.outbond_rounded, size: 16, color: Colors.white),
+            onPressed: () => _showWithdrawOrCoverDeficitSheet(
+              context,
+              state: state,
+              tokens: tokens,
+              savingsAmount: savingsAmount,
+              debtAmount: effectiveDebt,
+              initialTab: 0,
+            ),
+            icon: const Icon(Icons.outbond_rounded, size: 15, color: Colors.white),
             label: Text(
-              state.savingsDebt > 0 ? 'Cover Deficit' : 'Withdraw',
+              'Withdraw',
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
+                fontSize: 12,
                 color: Colors.white,
               ),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: _SavingsTokens.deficitRed,
+              backgroundColor: _SavingsTokens.targetGold,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
@@ -770,400 +774,54 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ),
           ),
         ),
+
+        if (hasDebt) ...<Widget>[
+          const SizedBox(width: 8),
+          // Pay Debt (Solid Dark Red #991B1B)
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => _showWithdrawOrCoverDeficitSheet(
+                context,
+                state: state,
+                tokens: tokens,
+                savingsAmount: savingsAmount,
+                debtAmount: effectiveDebt,
+                initialTab: 1,
+              ),
+              icon: const Icon(Icons.payment_rounded, size: 15, color: Colors.white),
+              label: Text(
+                'Pay Debt',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: _SavingsTokens.deficitRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  /// 3. Savings Goal Progress Tile Card (BorderRadius 18)
-  Widget _buildGoalTileCard(
-    BuildContext context, {
-    required SavingsGoal goal,
-    required _SavingsTokens tokens,
-  }) {
-    final IconData icon = _iconForGoalKey(goal.iconKey);
-    final bool isCompleted = goal.currentAmount >= goal.targetAmount;
 
-    return BentoCard(
-      padding: const EdgeInsets.all(15),
-      borderRadius: 18,
-      onTap: () => _showGoalDetailSheet(context, goal: goal, tokens: tokens),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Header: Category Icon + Title + Percentage Pill
-          Row(
-            children: <Widget>[
-              // Category icon in soft tinted box (alpha: 0.10)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: tokens.tint(
-                    isCompleted
-                        ? _SavingsTokens.savingsGreen
-                        : _SavingsTokens.targetGold,
-                    0.12,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: 17,
-                  color: isCompleted
-                      ? _SavingsTokens.savingsGreen
-                      : _SavingsTokens.targetGold,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      goal.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: tokens.textPrimary,
-                      ),
-                    ),
-                    if (goal.targetDate != null) ...<Widget>[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Target by ${DateFormat('MMM d, yyyy').format(goal.targetDate!)}',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Percentage Badge Capsule
-              SoftPill(
-                text: '${goal.percentage}% completed',
-                color: isCompleted
-                    ? _SavingsTokens.savingsGreen
-                    : _SavingsTokens.targetGold,
-                fontSize: 10.5,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
 
-          // Amounts: Current Saved vs Gold Target Goal (₱10,000 / ₱50,000)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: <Widget>[
-                  Text(
-                    formatPeso(goal.currentAmount),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: _SavingsTokens.savingsGreen,
-                    ),
-                  ),
-                  Text(
-                    ' / ${formatPeso(goal.targetAmount)}',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _SavingsTokens.targetGold,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                goal.targetAmount > goal.currentAmount
-                    ? '${formatPeso(goal.targetAmount - goal.currentAmount)} left'
-                    : 'Target Achieved! 🎉',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isCompleted
-                      ? _SavingsTokens.savingsGreen
-                      : tokens.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Clean Animated Progress Bar (Dark Green fill on soft track)
-          BentoHealthBar(
-            progress: goal.progress,
-            color: isCompleted
-                ? _SavingsTokens.savingsGreen
-                : _SavingsTokens.savingsGreen,
-            backgroundColor: tokens.subCardBg,
-            height: 7,
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 5. Goal Detail & Deposit Bottom Sheet Modal
-  void _showGoalDetailSheet(
-    BuildContext context, {
-    required SavingsGoal goal,
-    required _SavingsTokens tokens,
-  }) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: tokens.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Subtle top drag handle
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: tokens.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Title row
-                Row(
-                  children: <Widget>[
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: tokens.tint(_SavingsTokens.savingsGreen, 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _iconForGoalKey(goal.iconKey),
-                        size: 20,
-                        color: _SavingsTokens.savingsGreen,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            goal.title,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: tokens.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Goal Details & Actions',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              color: tokens.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: () => Navigator.of(sheetContext).pop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Metrics Bento Breakdown Container
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: tokens.subCardBg,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: tokens.cardBorder, width: 1.0),
-                  ),
-                  child: Column(
-                    children: <Widget>[
-                      _buildDetailRow(
-                        label: 'Saved So Far',
-                        value: formatPeso(goal.currentAmount),
-                        valueColor: _SavingsTokens.savingsGreen,
-                        tokens: tokens,
-                      ),
-                      const Divider(height: 16),
-                      _buildDetailRow(
-                        label: 'Target Goal',
-                        value: formatPeso(goal.targetAmount),
-                        valueColor: _SavingsTokens.targetGold,
-                        tokens: tokens,
-                      ),
-                      const Divider(height: 16),
-                      _buildDetailRow(
-                        label: 'Remaining',
-                        value: formatPeso(
-                            (goal.targetAmount - goal.currentAmount).clamp(0, double.infinity)),
-                        tokens: tokens,
-                      ),
-                      if (goal.targetDate != null) ...<Widget>[
-                        const Divider(height: 16),
-                        _buildDetailRow(
-                          label: 'Target Date',
-                          value: DateFormat('MMMM d, yyyy').format(goal.targetDate!),
-                          tokens: tokens,
-                        ),
-                      ],
-                      if (goal.note.trim().isNotEmpty) ...<Widget>[
-                        const Divider(height: 16),
-                        _buildDetailRow(
-                          label: 'Note',
-                          value: goal.note,
-                          tokens: tokens,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Quick Deposit Pill Trigger
-                FilledButton.icon(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    _showDepositDialog(context, targetGoal: goal, tokens: tokens);
-                  },
-                  icon: const Icon(Icons.savings_rounded,
-                      size: 15, color: Colors.white),
-                  label: Text(
-                    'Deposit Into This Goal',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _SavingsTokens.savingsGreen,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Standardized Solid Buttons: Edit Goal (Gold) & Delete Goal (Dark Red)
-                Row(
-                  children: <Widget>[
-                    // Edit Goal Button (Solid Gold #D97706)
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _showAddOrEditGoalSheet(context,
-                              existingGoal: goal, tokens: tokens);
-                        },
-                        icon: const Icon(Icons.edit_rounded,
-                            size: 15, color: Colors.white),
-                        label: Text(
-                          'Edit Goal',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _SavingsTokens.targetGold,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Delete Goal Button (Solid Dark Red #991B1B)
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () async {
-                          Navigator.of(sheetContext).pop();
-                          final bool confirmed = await _confirmDeleteGoalDialog(
-                              context, goal, tokens);
-                          if (confirmed) {
-                            setState(() {
-                              _goals.removeWhere((g) => g.id == goal.id);
-                            });
-                            await _saveGoals();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Goal removed successfully.'),
-                                  backgroundColor: _SavingsTokens.deficitRed,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 15, color: Colors.white),
-                        label: Text(
-                          'Delete Goal',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _SavingsTokens.deficitRed,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   /// Deposit Dialog
   Future<void> _showDepositDialog(
     BuildContext context, {
-    SavingsGoal? targetGoal,
     required _SavingsTokens tokens,
   }) async {
     final TextEditingController amountCtrl = TextEditingController();
-    SavingsGoal? selectedGoal = targetGoal ?? (_goals.isNotEmpty ? _goals.first : null);
 
     await showDialog<void>(
       context: context,
@@ -1206,44 +864,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (_goals.isNotEmpty) ...<Widget>[
-                      Text(
-                        'Allocate to Goal',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      DropdownButtonFormField<SavingsGoal>(
-                        value: selectedGoal,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: tokens.cardBorder),
-                          ),
-                          isDense: true,
-                        ),
-                        items: _goals.map((SavingsGoal g) {
-                          return DropdownMenuItem<SavingsGoal>(
-                            value: g,
-                            child: Text(
-                              g.title,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (SavingsGoal? val) {
-                          setModalState(() => selectedGoal = val);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
                     Text(
                       'Deposit Amount',
                       style: GoogleFonts.plusJakartaSans(
@@ -1326,21 +946,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         double.tryParse(amountCtrl.text.trim());
                     if (amount == null || amount <= 0) return;
 
-                    // 1. Update Goal Amount if selected
-                    if (selectedGoal != null) {
-                      setState(() {
-                        final int idx =
-                            _goals.indexWhere((g) => g.id == selectedGoal!.id);
-                        if (idx >= 0) {
-                          _goals[idx] = _goals[idx].copyWith(
-                            currentAmount: _goals[idx].currentAmount + amount,
-                          );
-                        }
-                      });
-                      await _saveGoals();
-                    }
-
-                    // 2. Synchronize with global vault
+                    // Synchronize with global vault
                     final double currentVault = ref
                         .read(budgetBuddyControllerProvider)
                         .totalSavings;
@@ -1394,296 +1000,29 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     _showDepositDialog(context, tokens: tokens);
   }
 
-  /// Withdraw / Cover Deficit Modal Bottom Sheet
+  /// Withdraw / Cover Deficit & Pay Debt Modal Bottom Sheet
   void _showWithdrawOrCoverDeficitSheet(
     BuildContext context, {
     required BudgetBuddyState state,
     required _SavingsTokens tokens,
+    double? savingsAmount,
+    double? debtAmount,
+    int initialTab = 0,
   }) {
-    final bool hasDeficit = state.savingsDebt > 0;
+    final double effectiveDebt = debtAmount ?? state.savingsDebt;
+    final double effectiveSavings = savingsAmount ?? state.totalSavings;
+    final double currentTodayBudget = widget.isTogetherOnly
+        ? state.togetherBudget
+        : (state.settings.dailyLimit ?? 0.0);
+    final bool hasDeficit = effectiveDebt > 0;
+
+    int activeTab = (hasDeficit && initialTab == 1) ? 1 : initialTab;
     final TextEditingController withdrawCtrl = TextEditingController();
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: tokens.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: tokens.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  children: <Widget>[
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: tokens.tint(_SavingsTokens.deficitRed, 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.outbond_rounded,
-                        size: 20,
-                        color: _SavingsTokens.deficitRed,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            hasDeficit ? 'Cover Running Deficit' : 'Withdraw Savings',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: tokens.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            hasDeficit
-                                ? 'Use savings vault to eliminate past debt'
-                                : 'Take funds from your accumulated savings',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              color: tokens.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: () => Navigator.of(sheetContext).pop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                if (hasDeficit) ...<Widget>[
-                  // Deficit Payoff Card
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: tokens.subCardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color: _SavingsTokens.deficitRed.withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        _buildDetailRow(
-                          label: 'Current Deficit',
-                          value: formatPeso(state.savingsDebt),
-                          valueColor: _SavingsTokens.deficitRed,
-                          tokens: tokens,
-                        ),
-                        const Divider(height: 16),
-                        _buildDetailRow(
-                          label: 'Vault Balance',
-                          value: formatPeso(state.totalSavings),
-                          valueColor: _SavingsTokens.savingsGreen,
-                          tokens: tokens,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Cover Deficit Button (Solid Dark Red)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(sheetContext).pop();
-                        final double currentDebt = state.savingsDebt;
-                        final double currentSavings = state.totalSavings;
-
-                        if (currentSavings <= 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Your savings vault is empty! Deposit first to cover debt.'),
-                              backgroundColor: _SavingsTokens.deficitRed,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          return;
-                        }
-
-                        if (currentSavings >= currentDebt) {
-                          ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .setTotalSavings(currentSavings - currentDebt);
-                          ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .setSavingsDebt(0.0);
-                        } else {
-                          ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .setSavingsDebt(currentDebt - currentSavings);
-                          ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .setTotalSavings(0.0);
-                        }
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Deficit successfully settled!'),
-                            backgroundColor: _SavingsTokens.savingsGreen,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.check_circle_rounded,
-                          size: 16, color: Colors.white),
-                      label: Text(
-                        'Pay Off Deficit from Savings',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _SavingsTokens.deficitRed,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ] else ...<Widget>[
-                  // Standard Withdrawal
-                  Text(
-                    'Withdraw Amount',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: withdrawCtrl,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: _SavingsTokens.deficitRed,
-                    ),
-                    decoration: InputDecoration(
-                      prefixText: '₱ ',
-                      hintText: '0.00',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: tokens.cardBorder),
-                      ),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        final double? amount =
-                            double.tryParse(withdrawCtrl.text.trim());
-                        if (amount == null || amount <= 0) return;
-
-                        final double currentVault = state.totalSavings;
-                        if (amount > currentVault) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Withdrawal amount exceeds total savings!'),
-                              backgroundColor: _SavingsTokens.deficitRed,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          return;
-                        }
-
-                        ref
-                            .read(budgetBuddyControllerProvider.notifier)
-                            .setTotalSavings(currentVault - amount);
-                        Navigator.of(sheetContext).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Withdrew ${formatPeso(amount)} from vault.'),
-                            backgroundColor: _SavingsTokens.deficitRed,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _SavingsTokens.deficitRed,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Confirm Withdrawal',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Add / Edit Goal Bottom Sheet Modal
-  void _showAddOrEditGoalSheet(
-    BuildContext context, {
-    SavingsGoal? existingGoal,
-    required _SavingsTokens tokens,
-  }) {
-    final TextEditingController titleCtrl =
-        TextEditingController(text: existingGoal?.title ?? '');
-    final TextEditingController amountCtrl = TextEditingController(
-        text: existingGoal != null
-            ? existingGoal.targetAmount.toStringAsFixed(0)
-            : '');
-    final TextEditingController currentCtrl = TextEditingController(
-        text: existingGoal != null
-            ? existingGoal.currentAmount.toStringAsFixed(0)
-            : '0');
-    final TextEditingController noteCtrl =
-        TextEditingController(text: existingGoal?.note ?? '');
-    DateTime? targetDate = existingGoal?.targetDate;
-    String iconKey = existingGoal?.iconKey ?? 'emergency';
+    final TextEditingController payDebtCtrl = TextEditingController(
+        text: effectiveDebt > 0 ? effectiveDebt.toStringAsFixed(0) : '');
+    bool addToTodayBudget = false;
+    int debtPaymentSource =
+        0; // 0: From Today's Budget, 1: From Savings Vault, 2: Direct Payment
 
     showModalBottomSheet<void>(
       context: context,
@@ -1695,106 +1034,229 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       builder: (BuildContext sheetContext) {
         return StatefulBuilder(
           builder: (BuildContext ctx, StateSetter setModalState) {
+            final double? withdrawVal =
+                double.tryParse(withdrawCtrl.text.trim());
+            final double currentWithdrawAmount = withdrawVal ?? 0.0;
+            final double? payDebtVal = double.tryParse(payDebtCtrl.text.trim());
+            final double currentPayDebtAmount = payDebtVal ?? 0.0;
+
             return SafeArea(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
                   12,
                   20,
                   MediaQuery.of(sheetContext).viewInsets.bottom + 20,
                 ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Center(
-                        child: Container(
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: tokens.cardBorder,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: tokens.cardBorder,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Header Row with Title and Close Button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Vault & Deficit Manager',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Segmented Tab Switcher (Withdraw vs Pay Deficit)
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: tokens.subCardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: tokens.cardBorder),
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          // Tab 0: Withdraw
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => setModalState(() => activeTab = 0),
+                              borderRadius: BorderRadius.circular(9),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: activeTab == 0
+                                      ? _SavingsTokens.savingsGreen
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                alignment: Alignment.center,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.outbond_rounded,
+                                      size: 14,
+                                      color: activeTab == 0
+                                          ? Colors.white
+                                          : tokens.textSecondary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Withdraw',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: activeTab == 0
+                                            ? Colors.white
+                                            : tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+
+                          // Tab 1: Pay Deficit / Debt
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => setModalState(() => activeTab = 1),
+                              borderRadius: BorderRadius.circular(9),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: activeTab == 1
+                                      ? _SavingsTokens.deficitRed
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                alignment: Alignment.center,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.payment_rounded,
+                                      size: 14,
+                                      color: activeTab == 1
+                                          ? Colors.white
+                                          : (hasDeficit
+                                              ? _SavingsTokens.deficitRed
+                                              : tokens.textSecondary),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      hasDeficit
+                                          ? 'Pay Debt (${formatPeso(effectiveDebt)})'
+                                          : 'Pay Deficit',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: activeTab == 1
+                                            ? Colors.white
+                                            : (hasDeficit
+                                                ? _SavingsTokens.deficitRed
+                                                : tokens.textSecondary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (activeTab == 0) ...<Widget>[
+                      // TAB 0: WITHDRAW FROM SAVINGS
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: tokens.subCardBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: tokens.cardBorder),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Vault Savings',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formatPeso(effectiveSavings),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: _SavingsTokens.savingsGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 24,
+                              width: 1,
+                              color: tokens.cardBorder,
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                Text(
+                                  'Today\'s Budget',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formatPeso(currentTodayBudget),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: _SavingsTokens.targetGold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
                       Text(
-                        existingGoal != null ? 'Edit Savings Goal' : 'New Savings Goal',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: tokens.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Title Field
-                      TextField(
-                        controller: titleCtrl,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: tokens.textPrimary,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Goal Title (e.g. Emergency Fund)',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: tokens.cardBorder),
-                          ),
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Target Amount Field
-                      TextField(
-                        controller: amountCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: _SavingsTokens.targetGold,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Target Amount',
-                          prefixText: '₱ ',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: tokens.cardBorder),
-                          ),
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Current Saved Field
-                      TextField(
-                        controller: currentCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: _SavingsTokens.savingsGreen,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Current Amount Already Saved',
-                          prefixText: '₱ ',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: tokens.cardBorder),
-                          ),
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Category Icon Picker
-                      Text(
-                        'Category Icon',
+                        'Withdraw Amount',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -1802,82 +1264,527 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
+                      TextField(
+                        controller: withdrawCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        onChanged: (_) => setModalState(() {}),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: addToTodayBudget
+                              ? _SavingsTokens.savingsGreen
+                              : _SavingsTokens.deficitRed,
+                        ),
+                        decoration: InputDecoration(
+                          prefixText: '₱ ',
+                          hintText: '0.00',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: tokens.cardBorder),
+                          ),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Quick Pills for Withdraw
                       Wrap(
-                        spacing: 8,
-                        children: <MapEntry<String, IconData>>[
-                          const MapEntry('emergency', Icons.shield_rounded),
-                          const MapEntry('phone', Icons.phone_iphone_rounded),
-                          const MapEntry('vacation', Icons.flight_takeoff_rounded),
-                          const MapEntry('home', Icons.home_rounded),
-                          const MapEntry('school', Icons.school_rounded),
-                          const MapEntry('car', Icons.directions_car_rounded),
-                        ].map((entry) {
-                          final bool isSel = iconKey == entry.key;
-                          return InkWell(
-                            onTap: () =>
-                                setModalState(() => iconKey = entry.key),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isSel
-                                    ? _SavingsTokens.savingsGreen
-                                    : tokens.subCardBg,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSel
-                                      ? _SavingsTokens.savingsGreen
-                                      : tokens.cardBorder,
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: <Widget>[
+                          ...<double>[100, 200, 500, 1000].map((double val) {
+                            return InkWell(
+                              onTap: () {
+                                withdrawCtrl.text = val.toStringAsFixed(0);
+                                setModalState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: tokens.subCardBg,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(color: tokens.cardBorder),
+                                ),
+                                child: Text(
+                                  '+${formatPeso(val)}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _SavingsTokens.savingsGreen,
+                                  ),
                                 ),
                               ),
-                              child: Icon(
-                                entry.value,
-                                size: 18,
-                                color: isSel ? Colors.white : tokens.textSecondary,
+                            );
+                          }),
+                          if (effectiveSavings > 0)
+                            InkWell(
+                              onTap: () {
+                                withdrawCtrl.text =
+                                    effectiveSavings.toStringAsFixed(0);
+                                setModalState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: tokens.tint(
+                                      _SavingsTokens.savingsGreen, 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                      color: _SavingsTokens.savingsGreen),
+                                ),
+                                child: Text(
+                                  'Max (${formatPeso(effectiveSavings)})',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _SavingsTokens.savingsGreen,
+                                  ),
+                                ),
                               ),
                             ),
-                          );
-                        }).toList(),
+                        ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
-                      // Target Date Trigger
+                      // Bento Toggle: Add to Today's Current Budget
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: addToTodayBudget
+                              ? tokens.tint(_SavingsTokens.savingsGreen, 0.08)
+                              : tokens.subCardBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: addToTodayBudget
+                                ? _SavingsTokens.savingsGreen
+                                : tokens.cardBorder,
+                            width: addToTodayBudget ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: tokens.tint(
+                                    addToTodayBudget
+                                        ? _SavingsTokens.savingsGreen
+                                        : tokens.textMuted,
+                                    0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.add_to_photos_rounded,
+                                size: 16,
+                                color: addToTodayBudget
+                                    ? _SavingsTokens.savingsGreen
+                                    : tokens.textMuted,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    'Add to Today\'s Budget Set',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12.5,
+                                      color: tokens.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    addToTodayBudget &&
+                                            currentWithdrawAmount > 0
+                                        ? 'Boosts today\'s budget: ${formatPeso(currentTodayBudget)} → ${formatPeso(currentTodayBudget + currentWithdrawAmount)}'
+                                        : 'Transfer withdrawn savings directly into today\'s spending allowance',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: addToTodayBudget
+                                          ? _SavingsTokens.savingsGreen
+                                          : tokens.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: addToTodayBudget,
+                              activeColor: _SavingsTokens.savingsGreen,
+                              onChanged: (bool val) {
+                                setModalState(() => addToTodayBudget = val);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Confirm Withdrawal Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            if (currentWithdrawAmount <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please enter a valid amount to withdraw.'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                            if (currentWithdrawAmount > effectiveSavings) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Withdrawal amount exceeds your vault savings!'),
+                                  backgroundColor: _SavingsTokens.deficitRed,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+
+                            ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .withdrawFromSavings(
+                                  amount: currentWithdrawAmount,
+                                  addToDailyBudget: addToTodayBudget,
+                                  isTogether: widget.isTogetherOnly,
+                                );
+                            Navigator.of(sheetContext).pop();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  addToTodayBudget
+                                      ? 'Withdrew ${formatPeso(currentWithdrawAmount)} from savings and added it to today\'s budget! (New budget: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
+                                      : 'Withdrew ${formatPeso(currentWithdrawAmount)} from savings vault.',
+                                ),
+                                backgroundColor: addToTodayBudget
+                                    ? _SavingsTokens.savingsGreen
+                                    : _SavingsTokens.deficitRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            addToTodayBudget
+                                ? Icons.add_circle_outline_rounded
+                                : Icons.outbond_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          label: Text(
+                            addToTodayBudget
+                                ? 'Withdraw & Add to Today\'s Budget'
+                                : 'Withdraw from Vault',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: addToTodayBudget
+                                ? _SavingsTokens.savingsGreen
+                                : _SavingsTokens.deficitRed,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else ...<Widget>[
+                      // TAB 1: PAY RUNNING DEFICIT / DEBT
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: tokens.subCardBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: hasDeficit
+                                ? _SavingsTokens.deficitRed
+                                    .withValues(alpha: 0.3)
+                                : tokens.cardBorder,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Running Deficit',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formatPeso(effectiveDebt),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: hasDeficit
+                                        ? _SavingsTokens.deficitRed
+                                        : _SavingsTokens.savingsGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 24,
+                              width: 1,
+                              color: tokens.cardBorder,
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: <Widget>[
+                                Text(
+                                  'Today\'s Budget',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formatPeso(currentTodayBudget),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: _SavingsTokens.targetGold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              height: 24,
+                              width: 1,
+                              color: tokens.cardBorder,
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                Text(
+                                  'Vault Savings',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formatPeso(effectiveSavings),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: _SavingsTokens.savingsGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      Text(
+                        'Choose Payment Source for Debt',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Option 0: Pay from Today's Budget
                       InkWell(
-                        onTap: () async {
-                          final DateTime? picked = await showDatePicker(
-                            context: sheetContext,
-                            initialDate: targetDate ??
-                                DateTime.now().add(const Duration(days: 90)),
-                            firstDate: DateTime.now(),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 1825)),
-                          );
-                          if (picked != null) {
-                            setModalState(() => targetDate = picked);
-                          }
-                        },
+                        onTap: () => setModalState(() => debtPaymentSource = 0),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                              horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
-                            color: tokens.subCardBg,
+                            color: debtPaymentSource == 0
+                                ? tokens.tint(_SavingsTokens.targetGold, 0.1)
+                                : tokens.subCardBg,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: tokens.cardBorder),
+                            border: Border.all(
+                              color: debtPaymentSource == 0
+                                  ? _SavingsTokens.targetGold
+                                  : tokens.cardBorder,
+                              width: debtPaymentSource == 0 ? 1.5 : 1.0,
+                            ),
                           ),
                           child: Row(
                             children: <Widget>[
-                              const Icon(Icons.calendar_today_rounded,
-                                  size: 16, color: _SavingsTokens.savingsGreen),
+                              Icon(
+                                debtPaymentSource == 0
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: debtPaymentSource == 0
+                                    ? _SavingsTokens.targetGold
+                                    : tokens.textMuted,
+                              ),
                               const SizedBox(width: 10),
-                              Text(
-                                targetDate != null
-                                    ? 'Target: ${DateFormat('MMMM d, yyyy').format(targetDate!)}'
-                                    : 'Pick Target Date (Optional)',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: tokens.textPrimary,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Pay from Today\'s Budget Allowance',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Deducts from today\'s budget (${formatPeso(currentTodayBudget)} available)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Option 1: Pay from Savings Vault
+                      InkWell(
+                        onTap: () => setModalState(() => debtPaymentSource = 1),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: debtPaymentSource == 1
+                                ? tokens.tint(_SavingsTokens.savingsGreen, 0.1)
+                                : tokens.subCardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: debtPaymentSource == 1
+                                  ? _SavingsTokens.savingsGreen
+                                  : tokens.cardBorder,
+                              width: debtPaymentSource == 1 ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                debtPaymentSource == 1
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: debtPaymentSource == 1
+                                    ? _SavingsTokens.savingsGreen
+                                    : tokens.textMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Pay from Savings Vault',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Deducts from accumulated savings (${formatPeso(effectiveSavings)} available)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Option 2: Direct / External Payment
+                      InkWell(
+                        onTap: () => setModalState(() => debtPaymentSource = 2),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: debtPaymentSource == 2
+                                ? tokens.tint(_SavingsTokens.deficitRed, 0.1)
+                                : tokens.subCardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: debtPaymentSource == 2
+                                  ? _SavingsTokens.deficitRed
+                                  : tokens.cardBorder,
+                              width: debtPaymentSource == 2 ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                debtPaymentSource == 2
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: debtPaymentSource == 2
+                                    ? _SavingsTokens.deficitRed
+                                    : tokens.textMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Direct / External Payment',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Pay down debt without touching today\'s budget or savings vault',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -1886,16 +1793,28 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Note field
-                      TextField(
-                        controller: noteCtrl,
+                      Text(
+                        'Payment Amount to Debt',
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: tokens.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: payDebtCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        onChanged: (_) => setModalState(() {}),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: _SavingsTokens.deficitRed,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Notes / Target Motivation',
+                          prefixText: '₱ ',
+                          hintText: '0.00',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(color: tokens.cardBorder),
@@ -1903,95 +1822,186 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           isDense: true,
                         ),
                       ),
+                      const SizedBox(height: 10),
+
+                      // Quick Pills for Debt Payment
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: <Widget>[
+                          ...<double>[50, 100, 200, 500].map((double val) {
+                            return InkWell(
+                              onTap: () {
+                                payDebtCtrl.text = val.toStringAsFixed(0);
+                                setModalState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: tokens.subCardBg,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(color: tokens.cardBorder),
+                                ),
+                                child: Text(
+                                  '₱${val.toStringAsFixed(0)}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _SavingsTokens.deficitRed,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                          if (effectiveDebt > 0)
+                            InkWell(
+                              onTap: () {
+                                payDebtCtrl.text =
+                                    effectiveDebt.toStringAsFixed(0);
+                                setModalState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: tokens.tint(
+                                      _SavingsTokens.deficitRed, 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                      color: _SavingsTokens.deficitRed),
+                                ),
+                                child: Text(
+                                  'Full Deficit (${formatPeso(effectiveDebt)})',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _SavingsTokens.deficitRed,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
 
-                      // Save Goal Button (Solid Dark Green #0F766E or Solid Gold #D97706 for Edit)
+                      // Confirm Debt Payment Button
                       SizedBox(
                         width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () async {
-                            final String title = titleCtrl.text.trim();
-                            final double? targetAmt =
-                                double.tryParse(amountCtrl.text.trim());
-                            final double currentAmt =
-                                double.tryParse(currentCtrl.text.trim()) ?? 0.0;
-                            if (title.isEmpty ||
-                                targetAmt == null ||
-                                targetAmt <= 0) {
-                              return;
-                            }
-
-                            if (existingGoal != null) {
-                              setState(() {
-                                final int idx = _goals.indexWhere(
-                                    (g) => g.id == existingGoal.id);
-                                if (idx >= 0) {
-                                  _goals[idx] = existingGoal.copyWith(
-                                    title: title,
-                                    targetAmount: targetAmt,
-                                    currentAmount: currentAmt,
-                                    targetDate: targetDate,
-                                    iconKey: iconKey,
-                                    note: noteCtrl.text.trim(),
-                                  );
-                                }
-                              });
-                            } else {
-                              setState(() {
-                                _goals.add(
-                                  SavingsGoal(
-                                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                    title: title,
-                                    targetAmount: targetAmt,
-                                    currentAmount: currentAmt,
-                                    targetDate: targetDate,
-                                    iconKey: iconKey,
-                                    note: noteCtrl.text.trim(),
-                                  ),
-                                );
-                              });
-                            }
-
-                            await _saveGoals();
-                            if (sheetContext.mounted) {
-                              Navigator.of(sheetContext).pop();
-                            }
-                            if (context.mounted) {
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            if (currentPayDebtAmount <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(existingGoal != null
-                                      ? 'Goal updated!'
-                                      : 'Goal created!'),
-                                  backgroundColor: existingGoal != null
-                                      ? _SavingsTokens.targetGold
-                                      : _SavingsTokens.savingsGreen,
+                                const SnackBar(
+                                  content: Text(
+                                      'Please enter an amount to pay towards debt.'),
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
+                              return;
                             }
+
+                            if (debtPaymentSource == 0) {
+                              // From Today's Budget
+                              if (currentTodayBudget < currentPayDebtAmount) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Payment exceeds today\'s budget (${formatPeso(currentTodayBudget)})!'),
+                                    backgroundColor: _SavingsTokens.deficitRed,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .paySavingsDebt(
+                                    amount: currentPayDebtAmount,
+                                    deductFromBudget: true,
+                                  );
+                              if (widget.isTogetherOnly) {
+                                final double newTogether = (currentTodayBudget -
+                                        currentPayDebtAmount)
+                                    .clamp(0.0, double.infinity);
+                                ref
+                                    .read(
+                                        budgetBuddyControllerProvider.notifier)
+                                    .setTogetherBudget(newTogether);
+                              }
+                            } else if (debtPaymentSource == 1) {
+                              // From Savings Vault
+                              if (effectiveSavings < currentPayDebtAmount) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Payment exceeds vault savings (${formatPeso(effectiveSavings)})!'),
+                                    backgroundColor: _SavingsTokens.deficitRed,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .paySavingsDebt(
+                                    amount: currentPayDebtAmount,
+                                    deductFromBudget: false,
+                                  );
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .setTotalSavings((effectiveSavings -
+                                          currentPayDebtAmount)
+                                      .clamp(0.0, double.infinity));
+                            } else {
+                              // Direct payment
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .paySavingsDebt(
+                                    amount: currentPayDebtAmount,
+                                    deductFromBudget: false,
+                                  );
+                            }
+
+                            final double remainingDebt =
+                                (effectiveDebt - currentPayDebtAmount)
+                                    .clamp(0.0, double.infinity);
+                            Navigator.of(sheetContext).pop();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Paid ${formatPeso(currentPayDebtAmount)} towards debt! Remaining deficit: ${formatPeso(remainingDebt)}.',
+                                ),
+                                backgroundColor: _SavingsTokens.savingsGreen,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
                           },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: existingGoal != null
-                                ? _SavingsTokens.targetGold
-                                : _SavingsTokens.savingsGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            existingGoal != null ? 'Save Changes' : 'Create Goal',
+                          icon: const Icon(Icons.check_circle_rounded,
+                              size: 16, color: Colors.white),
+                          label: Text(
+                            'Confirm Payment to Debt (${formatPeso(currentPayDebtAmount)})',
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
                               color: Colors.white,
                             ),
                           ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _SavingsTokens.deficitRed,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             );
@@ -2001,100 +2011,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     );
   }
 
-  Future<bool> _confirmDeleteGoalDialog(
-    BuildContext context,
-    SavingsGoal goal,
-    _SavingsTokens tokens,
-  ) async {
-    final bool? result = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: tokens.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: tokens.cardBorder, width: 1.0),
-          ),
-          title: Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: tokens.tint(_SavingsTokens.deficitRed, 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: _SavingsTokens.deficitRed,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Delete Goal?',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  color: tokens.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            'Are you sure you want to remove "${goal.title}"? Your accumulated vault savings will remain untouched.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              color: tokens.textSecondary,
-            ),
-          ),
-          actions: <Widget>[
-            FilledButton.icon(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              icon: const Icon(Icons.arrow_back_rounded,
-                  size: 14, color: Colors.white),
-              label: Text(
-                'Back',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: _SavingsTokens.savingsGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              icon: const Icon(Icons.delete_outline_rounded,
-                  size: 14, color: Colors.white),
-              label: Text(
-                'Delete',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: _SavingsTokens.deficitRed,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    return result ?? false;
-  }
 
   Widget _buildDetailRow({
     required String label,
@@ -2272,7 +2188,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                     record: record,
                     currentClock: currentClock,
                     tokens: tokens,
-                    onTap: () => _showSavingsDaySheet(context, record, tokens),
+                    onTap: () => _showSavingsDaySheet(
+                      context,
+                      record,
+                      tokens,
+                      currentClock: currentClock,
+                    ),
                   ),
                 );
               },
@@ -2319,6 +2240,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   }) {
     final bool isZeroActivity = record.isZeroActivity;
     final bool isOverspent = record.savings < 0;
+    final bool isToday = currentClock != null &&
+        DateUtils.isSameDay(record.date, currentClock);
 
     final Color accent = isZeroActivity
         ? _SavingsTokens.targetGold
@@ -2330,11 +2253,18 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ? Icons.trending_down_rounded
             : Icons.trending_up_rounded);
 
-    final String statusText = isZeroActivity
-        ? 'No budget & expenses'
-        : (isOverspent
-            ? 'Overspent ${formatPeso(record.savings.abs())}'
-            : 'Saved ${formatPeso(record.savings)}');
+    final String statusText;
+    if (isZeroActivity) {
+      statusText = 'No budget configured';
+    } else if (isOverspent) {
+      statusText = 'Over budget by ${formatPeso(record.savings.abs())}';
+    } else if (record.savings > 0) {
+      statusText = isToday
+          ? 'Saved ${formatPeso(record.savings)} for today\'s budget'
+          : 'Saved ${formatPeso(record.savings)} from daily budget';
+    } else {
+      statusText = 'Spent all ${formatPeso(record.budget)} (Exact)';
+    }
 
     final String badgeText = isZeroActivity
         ? '₱0'
@@ -2513,8 +2443,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   Future<void> _showSavingsDaySheet(
     BuildContext context,
     DailyRecord record,
-    _SavingsTokens tokens,
-  ) async {
+    _SavingsTokens tokens, {
+    DateTime? currentClock,
+  }) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2523,6 +2454,8 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext sheetContext) {
+        final bool isToday = currentClock != null &&
+            DateUtils.isSameDay(record.date, currentClock);
         final bool isZeroActivity = record.isZeroActivity;
         final bool isOverspent = record.savings < 0;
 
@@ -2582,7 +2515,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         ),
                       ),
                       Text(
-                        DateFormat('EEEE, MMM d, yyyy').format(record.date),
+                        isToday
+                            ? 'Today, ${DateFormat('MMM d, yyyy').format(record.date)}'
+                            : DateFormat('EEEE, MMM d, yyyy').format(record.date),
                         style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
@@ -2611,7 +2546,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             Text(
                               isZeroActivity
                                   ? 'Zero Activity'
-                                  : (isOverspent ? 'Overspent' : 'Saved'),
+                                  : (isOverspent
+                                      ? 'Overspent'
+                                      : (isToday
+                                          ? "Saved Today's Budget"
+                                          : 'Saved Daily Budget')),
                               style: GoogleFonts.plusJakartaSans(
                                 color: accent,
                                 fontWeight: FontWeight.w800,
@@ -2644,7 +2583,15 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         Text(
                           isZeroActivity
                               ? 'Budget ₱0 • Spent ₱0 • ₱0 balance'
-                              : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)}',
+                              : (record.budget > 0
+                                  ? (record.savings > 0
+                                      ? (isToday
+                                          ? 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)} added to today\'s savings'
+                                          : 'Spent ${formatPeso(record.totalSpent)} • Left ${formatPeso(record.remainingBalance)} added to savings vault')
+                                      : (record.savings < 0
+                                          ? 'Spent ${formatPeso(record.totalSpent)} • Over by ${formatPeso(record.savings.abs())}'
+                                          : 'Spent ${formatPeso(record.totalSpent)} of ${formatPeso(record.budget)} (Exact)'))
+                                  : 'Spent ${formatPeso(record.totalSpent)} • No budget configured'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             color: tokens.textSecondary,
@@ -2871,7 +2818,11 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           currentClock: currentClock,
                           tokens: tokens,
                           onTap: () => _showSavingsDaySheet(
-                              sheetContext, record, tokens),
+                            sheetContext,
+                            record,
+                            tokens,
+                            currentClock: currentClock,
+                          ),
                         );
                       },
                     ),
@@ -2890,25 +2841,81 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     DateTime currentClock,
   ) {
     if (!widget.isTogetherOnly) {
-      if (state.dailyRecords.isEmpty) {
-        final DateTime today =
-            DateTime(currentClock.year, currentClock.month, currentClock.day);
-        return <DailyRecord>[
-          DailyRecord(
-            date: today,
-            budget: 0.0,
-            totalSpent: 0.0,
-            remainingBalance: 0.0,
-            savings: 0.0,
-            biggestExpenseCategory: BudgetCategory.miscellaneous.label,
-            categoryTotals: <String, double>{
-              for (final BudgetCategory category in BudgetCategory.values)
-                category.label: 0.0,
-            },
-          ),
-        ];
+      final DateTime today =
+          DateTime(currentClock.year, currentClock.month, currentClock.day);
+
+      final BudgetEntry? entry =
+          state.budgetEntries.cast<BudgetEntry?>().firstWhere(
+                (BudgetEntry? e) =>
+                    e != null && DateUtils.isSameDay(e.date, today),
+                orElse: () => null,
+              );
+
+      final double todayBudget =
+          entry?.amount ?? (state.settings.dailyLimit ?? 0.0);
+
+      final List<ExpenseEntry> todayExpenses = state.expenses
+          .where((ExpenseEntry e) =>
+              e.source != 'togetherSpend' &&
+              DateUtils.isSameDay(e.dateTime, today))
+          .toList();
+
+      final double todaySpent = todayExpenses.fold(
+          0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+
+      final double remainingBalance = todayBudget > 0
+          ? (todayBudget - todaySpent)
+          : (todaySpent > 0 ? -todaySpent : 0.0);
+
+      final double savings = todayBudget > 0
+          ? (todayBudget - todaySpent)
+          : (todaySpent > 0 ? -todaySpent : 0.0);
+
+      final Map<String, double> todayCategoryTotals = <String, double>{
+        for (final BudgetCategory category in BudgetCategory.values)
+          category.label: 0.0,
+      };
+      for (final ExpenseEntry expense in todayExpenses) {
+        todayCategoryTotals[expense.category.label] =
+            (todayCategoryTotals[expense.category.label] ?? 0.0) +
+                expense.amount;
       }
-      return _sortedRecords(state.dailyRecords);
+
+      final String biggestCategory = todayExpenses.isEmpty
+          ? BudgetCategory.miscellaneous.label
+          : todayExpenses
+              .reduce((ExpenseEntry a, ExpenseEntry b) =>
+                  a.amount >= b.amount ? a : b)
+              .category
+              .label;
+
+      final DailyRecord liveTodayRecord = DailyRecord(
+        date: today,
+        budget: todayBudget,
+        totalSpent: todaySpent,
+        remainingBalance: remainingBalance,
+        savings: savings,
+        biggestExpenseCategory: biggestCategory,
+        categoryTotals: todayCategoryTotals,
+      );
+
+      final List<DailyRecord> result = <DailyRecord>[];
+      bool todayFound = false;
+
+      for (final DailyRecord rec in state.dailyRecords) {
+        if (DateUtils.isSameDay(rec.date, today)) {
+          result.add(liveTodayRecord);
+          todayFound = true;
+        } else {
+          result.add(rec);
+        }
+      }
+
+      if (!todayFound) {
+        result.add(liveTodayRecord);
+      }
+
+      return _sortedRecords(result);
     }
 
     final double togetherBudget = state.togetherBudget;
@@ -2921,10 +2928,10 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     }
 
     final Set<DateTime> dates = <DateTime>{};
-    if (togetherBudget > 0) {
-      dates.add(
-          DateTime(currentClock.year, currentClock.month, currentClock.day));
-    }
+    final DateTime today =
+        DateTime(currentClock.year, currentClock.month, currentClock.day);
+    dates.add(today);
+
     for (final ExpenseEntry expense in togetherExpenses) {
       dates.add(DateTime(
           expense.dateTime.year, expense.dateTime.month, expense.dateTime.day));
@@ -2937,8 +2944,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           .toList();
       final double totalSpent =
           dayExpenses.fold(0, (double sum, ExpenseEntry e) => sum + e.amount);
+      final double dayBudget = togetherBudget;
       final double savings =
-          togetherBudget > 0 ? togetherBudget - totalSpent : -totalSpent;
+          dayBudget > 0 ? dayBudget - totalSpent : -totalSpent;
 
       final Map<String, double> categoryTotals = <String, double>{
         for (final BudgetCategory category in BudgetCategory.values)
@@ -2952,7 +2960,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       records.add(
         DailyRecord(
           date: date,
-          budget: togetherBudget,
+          budget: dayBudget,
           totalSpent: totalSpent,
           remainingBalance: savings,
           savings: savings,

@@ -256,6 +256,48 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _persist();
   }
 
+  /// Pay down savings debt, optionally deducting from today's active budget.
+  void paySavingsDebt({
+    required double amount,
+    bool deductFromBudget = false,
+  }) {
+    if (amount <= 0) return;
+    final double currentDebt = state.savingsDebt;
+    final double newDebt = (currentDebt - amount).clamp(0.0, double.infinity);
+
+    if (deductFromBudget) {
+      final double currentBudget = state.settings.dailyLimit ?? 0.0;
+      final double newBudget =
+          (currentBudget - amount).clamp(0.0, double.infinity);
+      recordDailyBudget(amount: newBudget);
+    }
+
+    setSavingsDebt(newDebt);
+  }
+
+  /// Withdraw from savings vault, optionally transferring directly into today's active budget.
+  void withdrawFromSavings({
+    required double amount,
+    bool addToDailyBudget = false,
+    bool isTogether = false,
+  }) {
+    if (amount <= 0) return;
+    final double currentSavings = state.totalSavings;
+    final double newSavings =
+        (currentSavings - amount).clamp(0.0, double.infinity);
+    setTotalSavings(newSavings);
+
+    if (addToDailyBudget) {
+      if (isTogether) {
+        final double currentTogether = state.togetherBudget;
+        setTogetherBudget(currentTogether + amount);
+      } else {
+        final double currentBudget = state.settings.dailyLimit ?? 0.0;
+        recordDailyBudget(amount: currentBudget + amount);
+      }
+    }
+  }
+
   BudgetSummary get summary => _service.computeSummary(
         state.copyWith(
           expenses: state.expenses
