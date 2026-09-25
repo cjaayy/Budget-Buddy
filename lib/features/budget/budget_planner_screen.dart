@@ -756,9 +756,18 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   }) {
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final double vaultSavings = state.totalSavings;
+    final double currentSpent = state.dailySpent;
+    final double remainingBudget =
+        (currentBudget - currentSpent).clamp(0.0, double.infinity);
+    final bool isOverBudget = currentBudget <= 0 ||
+        currentSpent >= currentBudget ||
+        (currentBudget - currentSpent) <= 0;
+    final bool canPayFromBudget = !isOverBudget && remainingBudget > 0;
     final TextEditingController payCtrl =
         TextEditingController(text: savingsDebt.toStringAsFixed(0));
-    int paymentSource = 0; // 0: From Today's Budget, 1: From Savings Vault, 2: Direct
+    int paymentSource = canPayFromBudget
+        ? 0
+        : (vaultSavings > 0 ? 1 : 2); // 0: From Today's Budget, 1: From Savings Vault, 2: Direct
 
     showModalBottomSheet<void>(
       context: context,
@@ -858,7 +867,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: <Widget>[
                               Text(
-                                'Today\'s Budget',
+                                'Today\'s Allowance',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -867,11 +876,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                formatPeso(currentBudget),
+                                formatPeso(remainingBudget),
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
-                                  color: _BudgetTokens.budgetGold,
+                                  color: canPayFromBudget
+                                      ? _BudgetTokens.budgetGold
+                                      : _BudgetTokens.expenseRed,
                                 ),
                               ),
                             ],
@@ -920,58 +931,105 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
                     // Option 0: Today's Budget
                     InkWell(
-                      onTap: () => setModalState(() => paymentSource = 0),
+                      onTap: canPayFromBudget
+                          ? () => setModalState(() => paymentSource = 0)
+                          : () {
+                              showAppAlert(
+                                context,
+                                message:
+                                    'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
+                                title: 'Overbudget',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _BudgetTokens.expenseRed,
+                              );
+                            },
                       borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: paymentSource == 0
-                              ? tokens.tint(_BudgetTokens.budgetGold, 0.1)
-                              : tokens.subCardBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: paymentSource == 0
-                                ? _BudgetTokens.budgetGold
-                                : tokens.cardBorder,
-                            width: paymentSource == 0 ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(
-                              paymentSource == 0
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_off_rounded,
-                              size: 16,
-                              color: paymentSource == 0
+                      child: Opacity(
+                        opacity: canPayFromBudget ? 1.0 : 0.45,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: paymentSource == 0 && canPayFromBudget
+                                ? tokens.tint(_BudgetTokens.budgetGold, 0.1)
+                                : tokens.subCardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: paymentSource == 0 && canPayFromBudget
                                   ? _BudgetTokens.budgetGold
-                                  : tokens.textMuted,
+                                  : tokens.cardBorder,
+                              width: paymentSource == 0 && canPayFromBudget
+                                  ? 1.5
+                                  : 1.0,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    'Pay from Today\'s Budget Allowance',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: tokens.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Deducts from today\'s spending allowance (${formatPeso(currentBudget)} available)',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
-                                      color: tokens.textSecondary,
-                                    ),
-                                  ),
-                                ],
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                paymentSource == 0 && canPayFromBudget
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: paymentSource == 0 && canPayFromBudget
+                                    ? _BudgetTokens.budgetGold
+                                    : tokens.textMuted,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Row(
+                                      children: <Widget>[
+                                        Text(
+                                          'Pay from Today\'s Budget Allowance',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: canPayFromBudget
+                                                ? tokens.textPrimary
+                                                : tokens.textMuted,
+                                          ),
+                                        ),
+                                        if (!canPayFromBudget) ...<Widget>[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: _BudgetTokens.expenseRed
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              'Overbudget',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: _BudgetTokens.expenseRed,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    Text(
+                                      canPayFromBudget
+                                          ? 'Deducts from today\'s remaining allowance (${formatPeso(remainingBudget)} available)'
+                                          : 'Unavailable — You have no budget left today (Overbudget)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: canPayFromBudget
+                                            ? tokens.textSecondary
+                                            : _BudgetTokens.expenseRed,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1199,9 +1257,22 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           }
 
                           if (paymentSource == 0) {
-                            if (currentBudget < currentAmount) {
-                              showAppAlert(context,
-                                message: 'Payment exceeds today\'s budget (${formatPeso(currentBudget)})!',
+                            if (!canPayFromBudget || remainingBudget <= 0) {
+                              showAppAlert(
+                                context,
+                                message:
+                                    'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
+                                title: 'Overbudget',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _BudgetTokens.expenseRed,
+                              );
+                              return;
+                            }
+                            if (remainingBudget < currentAmount) {
+                              showAppAlert(
+                                context,
+                                message:
+                                    'Payment (${formatPeso(currentAmount)}) exceeds today\'s remaining budget allowance (${formatPeso(remainingBudget)})!',
                                 title: 'Alert',
                                 icon: Icons.warning_amber_rounded,
                                 accentColor: _BudgetTokens.expenseRed,

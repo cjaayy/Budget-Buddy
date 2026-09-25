@@ -1060,6 +1060,18 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final double currentTodayBudget = widget.isTogetherOnly
         ? state.togetherBudget
         : (state.settings.dailyLimit ?? 0.0);
+    final double todaySpent = widget.isTogetherOnly
+        ? state.expenses
+            .where((ExpenseEntry e) => e.source == 'togetherSpend')
+            .fold(0.0, (double sum, ExpenseEntry e) => sum + e.amount)
+        : state.dailySpent;
+    final double todayAvailableBudget =
+        (currentTodayBudget - todaySpent).clamp(0.0, double.infinity);
+    final bool isOverBudgetToday = currentTodayBudget <= 0 ||
+        todaySpent >= currentTodayBudget ||
+        (currentTodayBudget - todaySpent) <= 0;
+    final bool canPayFromTodayBudget =
+        !isOverBudgetToday && todayAvailableBudget > 0;
     final bool hasDeficit = effectiveDebt > 0;
 
     int activeTab = (hasDeficit && initialTab == 1) ? 1 : initialTab;
@@ -1068,8 +1080,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
         text: effectiveDebt > 0 ? effectiveDebt.toStringAsFixed(0) : '');
     bool addToTodayBudget = false;
     int withdrawSource = 0; // 0: Add to Today's Budget, 1: Cash Out / External
-    int debtPaymentSource =
-        0; // 0: From Today's Budget, 1: From Savings Vault, 2: Direct Payment
+    int debtPaymentSource = canPayFromTodayBudget
+        ? 0
+        : (effectiveSavings > 0 ? 1 : 2); // 0: From Today's Budget, 1: From Savings Vault, 2: Direct Payment
 
     showModalBottomSheet<void>(
       context: context,
@@ -1672,7 +1685,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
                                 Text(
-                                  'Today\'s Budget',
+                                  'Today\'s Allowance',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -1681,11 +1694,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  formatPeso(currentTodayBudget),
+                                  formatPeso(todayAvailableBudget),
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: _SavingsTokens.targetGold,
+                                    color: canPayFromTodayBudget
+                                        ? _SavingsTokens.targetGold
+                                        : _SavingsTokens.deficitRed,
                                   ),
                                 ),
                               ],
@@ -1791,61 +1806,108 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
                         // Option 0: Pay from Today's Budget
                         InkWell(
-                        onTap: () => setModalState(() => debtPaymentSource = 0),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: debtPaymentSource == 0
-                                ? tokens.tint(_SavingsTokens.targetGold, 0.1)
-                                : tokens.subCardBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: debtPaymentSource == 0
-                                  ? _SavingsTokens.targetGold
-                                  : tokens.cardBorder,
-                              width: debtPaymentSource == 0 ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Icon(
-                                debtPaymentSource == 0
-                                    ? Icons.radio_button_checked_rounded
-                                    : Icons.radio_button_off_rounded,
-                                size: 16,
-                                color: debtPaymentSource == 0
-                                    ? _SavingsTokens.targetGold
-                                    : tokens.textMuted,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      'Pay from Today\'s Budget Allowance',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: tokens.textPrimary,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Deducts from today\'s budget (${formatPeso(currentTodayBudget)} available)',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        color: tokens.textSecondary,
-                                      ),
-                                    ),
-                                  ],
+                          onTap: canPayFromTodayBudget
+                              ? () => setModalState(() => debtPaymentSource = 0)
+                              : () {
+                                  showAppAlert(
+                                    sheetContext,
+                                    message:
+                                        'You are overbudget today! Cannot pay deficit from today\'s budget allowance.',
+                                    title: 'Overbudget',
+                                    icon: Icons.warning_amber_rounded,
+                                    accentColor: _SavingsTokens.deficitRed,
+                                  );
+                                },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Opacity(
+                            opacity: canPayFromTodayBudget ? 1.0 : 0.45,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: debtPaymentSource == 0 && canPayFromTodayBudget
+                                    ? tokens.tint(_SavingsTokens.targetGold, 0.1)
+                                    : tokens.subCardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: debtPaymentSource == 0 && canPayFromTodayBudget
+                                      ? _SavingsTokens.targetGold
+                                      : tokens.cardBorder,
+                                  width: debtPaymentSource == 0 && canPayFromTodayBudget
+                                      ? 1.5
+                                      : 1.0,
                                 ),
                               ),
-                            ],
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    debtPaymentSource == 0 && canPayFromTodayBudget
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 16,
+                                    color: debtPaymentSource == 0 && canPayFromTodayBudget
+                                        ? _SavingsTokens.targetGold
+                                        : tokens.textMuted,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Row(
+                                          children: <Widget>[
+                                            Text(
+                                              'Pay from Today\'s Budget Allowance',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: canPayFromTodayBudget
+                                                    ? tokens.textPrimary
+                                                    : tokens.textMuted,
+                                              ),
+                                            ),
+                                            if (!canPayFromTodayBudget) ...<Widget>[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: _SavingsTokens.deficitRed
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  'Overbudget',
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: _SavingsTokens.deficitRed,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        Text(
+                                          canPayFromTodayBudget
+                                              ? 'Deducts from today\'s remaining allowance (${formatPeso(todayAvailableBudget)} available)'
+                                              : 'Unavailable — You have no budget left today (Overbudget)',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 11,
+                                            color: canPayFromTodayBudget
+                                                ? tokens.textSecondary
+                                                : _SavingsTokens.deficitRed,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
                       const SizedBox(height: 6),
 
                       // Option 1: Pay from Savings Vault
@@ -2093,9 +2155,22 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
                             if (debtPaymentSource == 0) {
                               // From Today's Budget
-                              if (currentTodayBudget < currentPayDebtAmount) {
-                                showAppAlert(sheetContext,
-                                  message: 'Payment exceeds today\'s budget (${formatPeso(currentTodayBudget)})!',
+                              if (!canPayFromTodayBudget || todayAvailableBudget <= 0) {
+                                showAppAlert(
+                                  sheetContext,
+                                  message:
+                                      'You are overbudget today! Cannot pay deficit from today\'s budget allowance.',
+                                  title: 'Overbudget',
+                                  icon: Icons.warning_amber_rounded,
+                                  accentColor: _SavingsTokens.deficitRed,
+                                );
+                                return;
+                              }
+                              if (todayAvailableBudget < currentPayDebtAmount) {
+                                showAppAlert(
+                                  sheetContext,
+                                  message:
+                                      'Payment exceeds today\'s available budget allowance (${formatPeso(todayAvailableBudget)})!',
                                   title: 'Alert',
                                   icon: Icons.warning_amber_rounded,
                                   accentColor: _SavingsTokens.deficitRed,
