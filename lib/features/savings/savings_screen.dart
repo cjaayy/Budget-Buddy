@@ -1048,6 +1048,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final TextEditingController payDebtCtrl = TextEditingController(
         text: effectiveDebt > 0 ? effectiveDebt.toStringAsFixed(0) : '');
     bool addToTodayBudget = false;
+    int withdrawSource = 0; // 0: Add to Today's Budget, 1: Cash Out / External
     int debtPaymentSource =
         0; // 0: From Today's Budget, 1: From Savings Vault, 2: Direct Payment
 
@@ -1300,6 +1301,134 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       const SizedBox(height: 12),
 
                       Text(
+                        'Choose Withdraw Destination',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Option 0: Add to Today's Budget
+                      InkWell(
+                        onTap: () => setModalState(() => withdrawSource = 0),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: withdrawSource == 0
+                                ? tokens.tint(_SavingsTokens.targetGold, 0.1)
+                                : tokens.subCardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: withdrawSource == 0
+                                  ? _SavingsTokens.targetGold
+                                  : tokens.cardBorder,
+                              width: withdrawSource == 0 ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                withdrawSource == 0
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: withdrawSource == 0
+                                    ? _SavingsTokens.targetGold
+                                    : tokens.textMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Add to Today\'s Budget',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Transfer into today\'s allowance (${formatPeso(currentTodayBudget)} current)',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Option 1: Cash Out / External
+                      InkWell(
+                        onTap: () => setModalState(() => withdrawSource = 1),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: withdrawSource == 1
+                                ? tokens.tint(_SavingsTokens.savingsGreen, 0.1)
+                                : tokens.subCardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: withdrawSource == 1
+                                  ? _SavingsTokens.savingsGreen
+                                  : tokens.cardBorder,
+                              width: withdrawSource == 1 ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                withdrawSource == 1
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: withdrawSource == 1
+                                    ? _SavingsTokens.savingsGreen
+                                    : tokens.textMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Cash Out / External',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: tokens.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Remove from vault without adding to today\'s budget',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text(
                         'Withdraw Amount',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
@@ -1316,9 +1445,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: addToTodayBudget
-                              ? _SavingsTokens.savingsGreen
-                              : _SavingsTokens.deficitRed,
+                          color: withdrawSource == 0
+                              ? _SavingsTokens.targetGold
+                              : _SavingsTokens.savingsGreen,
                         ),
                         decoration: InputDecoration(
                           prefixText: '₱ ',
@@ -1393,82 +1522,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-
-                      // Bento Toggle: Add to Today's Current Budget
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: addToTodayBudget
-                              ? tokens.tint(_SavingsTokens.savingsGreen, 0.08)
-                              : tokens.subCardBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: addToTodayBudget
-                                ? _SavingsTokens.savingsGreen
-                                : tokens.cardBorder,
-                            width: addToTodayBudget ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: tokens.tint(
-                                    addToTodayBudget
-                                        ? _SavingsTokens.savingsGreen
-                                        : tokens.textMuted,
-                                    0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.add_to_photos_rounded,
-                                size: 16,
-                                color: addToTodayBudget
-                                    ? _SavingsTokens.savingsGreen
-                                    : tokens.textMuted,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    'Add to Today\'s Budget Set',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12.5,
-                                      color: tokens.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    addToTodayBudget &&
-                                            currentWithdrawAmount > 0
-                                        ? 'Boosts today\'s budget: ${formatPeso(currentTodayBudget)} → ${formatPeso(currentTodayBudget + currentWithdrawAmount)}'
-                                        : 'Transfer withdrawn savings directly into today\'s spending allowance',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
-                                      color: addToTodayBudget
-                                          ? _SavingsTokens.savingsGreen
-                                          : tokens.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch.adaptive(
-                              value: addToTodayBudget,
-                              activeColor: _SavingsTokens.savingsGreen,
-                              onChanged: (bool val) {
-                                setModalState(() => addToTodayBudget = val);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
                       const SizedBox(height: 16),
 
                       // Confirm Withdrawal Button
@@ -1490,7 +1543,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                      'Withdrawal amount exceeds your vault savings!'),
+                                      'Withdrawal amount exceeds your settled vault savings!'),
                                   backgroundColor: _SavingsTokens.deficitRed,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -1498,11 +1551,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               return;
                             }
 
+                            final bool addToBudget = withdrawSource == 0;
                             ref
                                 .read(budgetBuddyControllerProvider.notifier)
                                 .withdrawFromSavings(
                                   amount: currentWithdrawAmount,
-                                  addToDailyBudget: addToTodayBudget,
+                                  addToDailyBudget: addToBudget,
                                   isTogether: widget.isTogetherOnly,
                                 );
                             Navigator.of(sheetContext).pop();
@@ -1510,28 +1564,28 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  addToTodayBudget
-                                      ? 'Withdrew ${formatPeso(currentWithdrawAmount)} from savings and added it to today\'s budget! (New budget: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
-                                      : 'Withdrew ${formatPeso(currentWithdrawAmount)} from savings vault.',
+                                  addToBudget
+                                      ? 'Withdrew ${formatPeso(currentWithdrawAmount)} → added to today\'s budget! (New: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
+                                      : 'Withdrew ${formatPeso(currentWithdrawAmount)} from vault (cash out).',
                                 ),
-                                backgroundColor: addToTodayBudget
-                                    ? _SavingsTokens.savingsGreen
-                                    : _SavingsTokens.deficitRed,
+                                backgroundColor: addToBudget
+                                    ? _SavingsTokens.targetGold
+                                    : _SavingsTokens.savingsGreen,
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
                           },
                           icon: Icon(
-                            addToTodayBudget
+                            withdrawSource == 0
                                 ? Icons.add_circle_outline_rounded
                                 : Icons.outbond_rounded,
                             size: 16,
                             color: Colors.white,
                           ),
                           label: Text(
-                            addToTodayBudget
+                            withdrawSource == 0
                                 ? 'Withdraw & Add to Today\'s Budget'
-                                : 'Withdraw from Vault',
+                                : 'Cash Out from Vault',
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
@@ -1539,9 +1593,9 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: addToTodayBudget
-                                ? _SavingsTokens.savingsGreen
-                                : _SavingsTokens.deficitRed,
+                            backgroundColor: withdrawSource == 0
+                                ? _SavingsTokens.targetGold
+                                : _SavingsTokens.savingsGreen,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(
