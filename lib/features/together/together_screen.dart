@@ -59,7 +59,7 @@ class TogetherScreen extends ConsumerStatefulWidget {
 }
 
 class _TogetherScreenState extends ConsumerState<TogetherScreen> {
-  int _selectedTabIndex = 0;
+  int? _selectedModuleIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -68,72 +68,359 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _TogetherTokens tokens = _TogetherTokens(isDark);
 
-    return Scaffold(
-      backgroundColor: tokens.scaffoldBg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: <Widget>[
-            // Top Header: Title, Live Date, and Offline Workspace Pill
-            _buildTopHeader(currentClock, tokens),
-
-            // Top Segmented Pill Switcher:
-            // [ 1. Budget Plan | 2. Quick Spend | 3. History | 4. Savings & Debt ]
-            _buildSegmentedSwitcher(tokens),
-
-            // Seamless IndexedStack preserving scroll state and input cache
-            Expanded(
-              child: IndexedStack(
-                index: _selectedTabIndex,
-                children: <Widget>[
-                  // View 1: Together Budget Plan
-                  _TogetherBudgetPlanView(
-                    onNavigateToSpend: () =>
-                        setState(() => _selectedTabIndex = 1),
-                    tokens: tokens,
-                  ),
-                  // View 2: Together Quick Spend Log (Tactile Keypad & Batch Queue)
-                  const SpendScreen(isTogetherOnly: true),
-                  // View 3: Together Expense History & Log (Filters & Detail Sheets)
-                  const ExpenseTrackerScreen(isTogetherOnly: true),
-                  // View 4: Together Savings & Debt Tracker (Vault, Deficit & Goals)
-                  const SavingsScreen(isTogetherOnly: true),
-                ],
-              ),
-            ),
-          ],
+    return PopScope(
+      canPop: _selectedModuleIndex == null,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (!didPop) {
+          setState(() => _selectedModuleIndex = null);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: tokens.scaffoldBg,
+        body: SafeArea(
+          bottom: false,
+          child: _selectedModuleIndex == null
+              ? _buildHubView(currentClock, tokens)
+              : _buildModuleContainer(tokens),
         ),
       ),
     );
   }
 
+  /// Hub Menu: Overview Card + Vertical List of 4 Features
+  Widget _buildHubView(DateTime currentClock, _TogetherTokens tokens) {
+    final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
+    final double totalBudget = state.togetherBudget;
+    final List<ExpenseEntry> todaySharedExpenses = state.expenses.where((ExpenseEntry e) {
+      if (e.source != 'togetherSpend') return false;
+      return DateUtils.isSameDay(e.dateTime, currentClock);
+    }).toList();
+
+    final double spent = todaySharedExpenses.fold<double>(
+        0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+    final double remaining = totalBudget - spent;
+    final bool hasBudget = totalBudget > 0;
+    final bool isOver = remaining < 0;
+    final double progressValue = totalBudget > 0
+        ? (spent / totalBudget).clamp(0.0, 1.0)
+        : 0.0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: <Widget>[
+        // Top Header: Title, Live Date, and Hub Badge
+        _buildTopHeader(currentClock, tokens),
+        const SizedBox(height: 14),
+
+        // Shared Budget Summary Bento Card
+        _buildHubOverviewCard(
+          totalBudget: totalBudget,
+          spent: spent,
+          remaining: remaining,
+          progressValue: progressValue,
+          hasBudget: hasBudget,
+          isOver: isOver,
+          tokens: tokens,
+        ),
+        const SizedBox(height: 20),
+
+        // Section Title: Together Modules
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: tokens.tint(_TogetherTokens.safeGreen, 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.dashboard_customize_rounded,
+                    size: 15,
+                    color: _TogetherTokens.safeGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Together Modules',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+              ],
+            ),
+            SoftPill(
+              text: 'Tap to Open',
+              color: _TogetherTokens.safeGreen,
+              icon: Icons.touch_app_rounded,
+              fontSize: 10.5,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // 1. Budget Plan
+        _buildHubOptionCard(
+          index: 0,
+          title: 'Budget Plan',
+          subtitle: 'Set daily shared target, toggle lock status & view breakdown',
+          icon: Icons.calendar_today_rounded,
+          accentColor: _TogetherTokens.budgetGold,
+          badgeText: 'Planning',
+          tokens: tokens,
+        ),
+
+        // 2. Quick Spend
+        _buildHubOptionCard(
+          index: 1,
+          title: 'Quick Spend',
+          subtitle: 'Tactile numeric keypad & batch expense logger for shared costs',
+          icon: Icons.bolt_rounded,
+          accentColor: _TogetherTokens.spentRed,
+          badgeText: 'Log Spend',
+          tokens: tokens,
+        ),
+
+        // 3. Expense History
+        _buildHubOptionCard(
+          index: 2,
+          title: 'Expense History',
+          subtitle: 'Review shared transaction logs, filters & detail sheets',
+          icon: Icons.receipt_long_rounded,
+          accentColor: _TogetherTokens.budgetGold,
+          badgeText: 'History',
+          tokens: tokens,
+        ),
+
+        // 4. Savings & Debt
+        _buildHubOptionCard(
+          index: 3,
+          title: 'Savings & Debt',
+          subtitle: 'Manage shared emergency vault, debt tracker & joint goals',
+          icon: Icons.savings_rounded,
+          accentColor: _TogetherTokens.safeGreen,
+          badgeText: 'Vault & Debt',
+          tokens: tokens,
+        ),
+      ],
+    );
+  }
+
   /// Top Screen Title Header
   Widget _buildTopHeader(DateTime currentClock, _TogetherTokens tokens) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Budget Together',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: tokens.textPrimary,
+                letterSpacing: -0.6,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormat('EEEE, MMMM d, y').format(currentClock),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: tokens.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        SoftPill(
+          text: 'Shared Hub',
+          color: _TogetherTokens.budgetGold,
+          icon: Icons.people_alt_rounded,
+          fontSize: 11,
+        ),
+      ],
+    );
+  }
+
+  /// Shared Overview Card on the Hub Screen
+  Widget _buildHubOverviewCard({
+    required double totalBudget,
+    required double spent,
+    required double remaining,
+    required double progressValue,
+    required bool hasBudget,
+    required bool isOver,
+    required _TogetherTokens tokens,
+  }) {
+    return BentoCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: 20,
+      borderColor: _TogetherTokens.budgetGold.withValues(alpha: 0.35),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: tokens.tint(_TogetherTokens.budgetGold, 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.groups_rounded,
+                      size: 15,
+                      color: _TogetherTokens.budgetGold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Today's Shared Overview",
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              SoftPill(
+                text: hasBudget ? 'Active Shared' : 'No Limit Set',
+                color: hasBudget
+                    ? _TogetherTokens.budgetGold
+                    : _TogetherTokens.spentRed,
+                fontSize: 10.5,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Total Shared Target Figure
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              formatPeso(totalBudget),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+                color: _TogetherTokens.budgetGold,
+                letterSpacing: -1.0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Sub-metrics Row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: tokens.subCardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: tokens.cardBorder),
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Spent Today',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatPeso(spent),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: _TogetherTokens.spentRed,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 28,
+                  width: 1,
+                  color: tokens.cardBorder,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        isOver ? 'Deficit' : 'Safe Remaining',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        (isOver ? '-' : '') + formatPeso(remaining.abs()),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: isOver
+                              ? _TogetherTokens.spentRed
+                              : _TogetherTokens.safeGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          BentoHealthBar(
+            progress: progressValue,
+            color: _TogetherTokens.budgetGold,
+            backgroundColor: tokens.subCardBg,
+            height: 6,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                'Budget Together',
+                '${(progressValue * 100).round()}% allowance used',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: tokens.textPrimary,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                DateFormat('EEEE, MMMM d, y').format(currentClock),
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                   color: tokens.textSecondary,
+                ),
+              ),
+              Text(
+                isOver
+                    ? 'Exceeded by ${formatPeso(remaining.abs())}'
+                    : '${formatPeso(remaining > 0 ? remaining : 0)} safe balance',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: isOver
+                      ? _TogetherTokens.spentRed
+                      : _TogetherTokens.safeGreen,
                 ),
               ),
             ],
@@ -143,94 +430,191 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
     );
   }
 
-  /// Top Segmented Pill Switcher (BorderRadius 999)
-  Widget _buildSegmentedSwitcher(_TogetherTokens tokens) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: tokens.subCardBg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tokens.cardBorder),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: <Widget>[
-            _buildTabPill(
-              index: 0,
-              label: 'Budget Plan',
-              icon: Icons.calendar_today_rounded,
-              activeColor: _TogetherTokens.budgetGold,
-              tokens: tokens,
+  /// Hub List Option Card
+  Widget _buildHubOptionCard({
+    required int index,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required String badgeText,
+    required _TogetherTokens tokens,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _selectedModuleIndex = index),
+          borderRadius: BorderRadius.circular(18),
+          child: BentoCard(
+            padding: const EdgeInsets.all(16),
+            borderRadius: 18,
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: tokens.tint(accentColor, 0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.25),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 22,
+                    color: accentColor,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            title,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: tokens.textPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SoftPill(
+                            text: badgeText,
+                            color: accentColor,
+                            fontSize: 10,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: tokens.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: tokens.textMuted,
+                ),
+              ],
             ),
-            _buildTabPill(
-              index: 1,
-              label: 'Quick Spend',
-              icon: Icons.bolt_rounded,
-              activeColor: _TogetherTokens.spentRed,
-              tokens: tokens,
-            ),
-            _buildTabPill(
-              index: 2,
-              label: 'History',
-              icon: Icons.receipt_long_rounded,
-              activeColor: _TogetherTokens.budgetGold,
-              tokens: tokens,
-            ),
-            _buildTabPill(
-              index: 3,
-              label: 'Savings & Debt',
-              icon: Icons.savings_rounded,
-              activeColor: _TogetherTokens.safeGreen,
-              tokens: tokens,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTabPill({
-    required int index,
-    required String label,
-    required IconData icon,
-    required Color activeColor,
-    required _TogetherTokens tokens,
-  }) {
-    final bool isSelected = _selectedTabIndex == index;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: InkWell(
-        onTap: () => setState(() => _selectedTabIndex = index),
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-          decoration: BoxDecoration(
-            color: isSelected ? activeColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+  /// Container for the opened module with top back bar and preserved IndexedStack
+  Widget _buildModuleContainer(_TogetherTokens tokens) {
+    return Column(
+      children: <Widget>[
+        // Top Navigation Bar with Back Button
+        _buildModuleTopBar(tokens),
+
+        // Preserved IndexedStack
+        Expanded(
+          child: IndexedStack(
+            index: _selectedModuleIndex ?? 0,
             children: <Widget>[
-              Icon(
-                icon,
-                size: 13,
-                color: isSelected ? Colors.white : tokens.textSecondary,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11.5,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? Colors.white : tokens.textSecondary,
-                ),
-              ),
+              // View 1: Together Budget Plan
+              _TogetherBudgetPlanView(tokens: tokens),
+              // View 2: Together Quick Spend Log (Tactile Keypad & Batch Queue)
+              const SpendScreen(isTogetherOnly: true),
+              // View 3: Together Expense History & Log (Filters & Detail Sheets)
+              const ExpenseTrackerScreen(isTogetherOnly: true),
+              // View 4: Together Savings & Debt Tracker (Vault, Deficit & Goals)
+              const SavingsScreen(isTogetherOnly: true),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Top Bar with Back Button inside any active module
+  Widget _buildModuleTopBar(_TogetherTokens tokens) {
+    final String title = switch (_selectedModuleIndex) {
+      0 => 'Budget Plan',
+      1 => 'Quick Spend',
+      2 => 'Expense History',
+      3 => 'Savings & Debt',
+      _ => 'Budget Together',
+    };
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      decoration: BoxDecoration(
+        color: tokens.scaffoldBg,
+        border: Border(
+          bottom: BorderSide(color: tokens.cardBorder, width: 1.0),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _selectedModuleIndex = null),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: tokens.subCardBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Icons.arrow_back_rounded,
+                      size: 16,
+                      color: tokens.textPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Back to List',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              title,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: tokens.textPrimary,
+                letterSpacing: -0.4,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -241,11 +625,10 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
 /// =========================================================================
 class _TogetherBudgetPlanView extends ConsumerStatefulWidget {
   const _TogetherBudgetPlanView({
-    required this.onNavigateToSpend,
     required this.tokens,
+    super.key,
   });
 
-  final VoidCallback onNavigateToSpend;
   final _TogetherTokens tokens;
 
   @override
@@ -412,11 +795,7 @@ class _TogetherBudgetPlanViewState
         ),
         const SizedBox(height: 16),
 
-        // Category Picker Section: Show categories so the user can pick to use
-        _buildCategoryPickerSection(tokens),
-        const SizedBox(height: 18),
-
-        // Category Limits / Breakdown Section
+        // Shared Category Breakdown Section (Informational Only - No Spend Shortcuts)
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
@@ -429,7 +808,7 @@ class _TogetherBudgetPlanViewState
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.category_rounded,
+                    Icons.pie_chart_outline_rounded,
                     size: 15,
                     color: _TogetherTokens.budgetGold,
                   ),
@@ -449,33 +828,30 @@ class _TogetherBudgetPlanViewState
             SoftPill(
               text: 'Today',
               color: _TogetherTokens.budgetGold,
+              icon: Icons.pie_chart_rounded,
               fontSize: 10.5,
             ),
           ],
         ),
         const SizedBox(height: 10),
 
-        // Interactive Category Bento Tiles (Tap to Pick & Use)
+        // List of Shared Categories with Spent Amount and Health Bar (Non-interactive)
         ...BudgetCategory.values.map((BudgetCategory category) {
           final double catSpent = categorySpent[category] ?? 0.0;
           final double catShare = spent > 0 ? (catSpent / spent).clamp(0.0, 1.0) : 0.0;
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () =>
-                    _openQuickSpendForCategory(context, category, tokens),
-                borderRadius: BorderRadius.circular(16),
-                child: BentoCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  borderRadius: 16,
-                  child: Row(
+            child: BentoCard(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              borderRadius: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
                     children: <Widget>[
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: tokens.tint(_TogetherTokens.budgetGold, 0.12),
                           shape: BoxShape.circle,
@@ -486,82 +862,53 @@ class _TogetherBudgetPlanViewState
                           color: _TogetherTokens.budgetGold,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              _labelForCategory(category),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: tokens.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              catSpent > 0
-                                  ? '${(catShare * 100).round()}% of today\'s together spending'
-                                  : 'Tap to pick & spend',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: tokens.textSecondary,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          _labelForCategory(category),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: tokens.textPrimary,
+                          ),
                         ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: <Widget>[
-                          Text(
-                            catSpent > 0
-                                ? '- ${formatPeso(catSpent)}'
-                                : '₱0.00',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: catSpent > 0
-                                  ? _TogetherTokens.spentRed
-                                  : tokens.textMuted,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2.5),
-                            decoration: BoxDecoration(
-                              color: tokens.tint(_TogetherTokens.safeGreen, 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                const Icon(
-                                  Icons.add_rounded,
-                                  size: 11,
-                                  color: _TogetherTokens.safeGreen,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'Use',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: _TogetherTokens.safeGreen,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      Text(
+                        formatPeso(catSpent),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: catSpent > 0
+                              ? _TogetherTokens.spentRed
+                              : tokens.textSecondary,
+                        ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  BentoHealthBar(
+                    progress: catShare,
+                    color: _TogetherTokens.budgetGold,
+                    backgroundColor: tokens.subCardBg,
+                    height: 5,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        catSpent > 0
+                            ? '${(catShare * 100).round()}% of shared spent'
+                            : 'No shared expenses today',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           );
@@ -1112,330 +1459,6 @@ class _TogetherBudgetPlanViewState
     );
   }
 
-  /// Horizontal Category Picker Bar: Show categories so the user can pick to use
-  Widget _buildCategoryPickerSection(_TogetherTokens tokens) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: tokens.tint(_TogetherTokens.safeGreen, 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.touch_app_rounded,
-                size: 14,
-                color: _TogetherTokens.safeGreen,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Pick Category to Spend',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: tokens.textPrimary,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              'Tap to use',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: tokens.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: BudgetCategory.values.map((BudgetCategory category) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () =>
-                        _openQuickSpendForCategory(context, category, tokens),
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: tokens.cardBg,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: tokens.tint(_TogetherTokens.safeGreen, 0.35),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(
-                            _iconForCategory(category),
-                            size: 14,
-                            color: _TogetherTokens.safeGreen,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _labelForCategory(category),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: tokens.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Quick bottom sheet to log an expense for the picked category
-  void _openQuickSpendForCategory(
-    BuildContext context,
-    BudgetCategory category,
-    _TogetherTokens tokens,
-  ) {
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController noteController = TextEditingController();
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: tokens.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext sheetCtx) {
-        return StatefulBuilder(
-          builder: (BuildContext ctx, StateSetter setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  12,
-                  20,
-                  MediaQuery.of(sheetCtx).viewInsets.bottom + 20,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: tokens.cardBorder,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Header Row with Category Badge
-                    Row(
-                      children: <Widget>[
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: tokens.tint(_TogetherTokens.safeGreen, 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _iconForCategory(category),
-                            size: 18,
-                            color: _TogetherTokens.safeGreen,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Log Together Spend',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: tokens.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                _labelForCategory(category),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _TogetherTokens.safeGreen,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Amount Input
-                    TextField(
-                      controller: amountController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      autofocus: true,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: _TogetherTokens.spentRed,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Amount',
-                        prefixText: '₱ ',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: tokens.cardBorder),
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Quick Increment Chips
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: <double>[20, 50, 100, 200, 500].map((double val) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: InkWell(
-                              onTap: () {
-                                final double cur =
-                                    double.tryParse(amountController.text.trim()) ??
-                                        0;
-                                final double next = cur + val;
-                                setModalState(() {
-                                  amountController.text =
-                                      next.toStringAsFixed(0);
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(999),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: tokens.subCardBg,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: tokens.cardBorder),
-                                ),
-                                child: Text(
-                                  '+₱${val.toInt()}',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: tokens.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Note Input (optional)
-                    TextField(
-                      controller: noteController,
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13, color: tokens.textPrimary),
-                      decoration: InputDecoration(
-                        labelText: 'Note (Optional)',
-                        hintText: 'e.g. Grocery, dinner with partner',
-                        hintStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 12, color: tokens.textMuted),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: tokens.cardBorder),
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Confirm Button: Solid Dark Green (#0F766E)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          final double? amt =
-                              double.tryParse(amountController.text.trim());
-                          if (amt == null || amt <= 0) return;
-
-                          final String note = noteController.text.trim();
-                          ref
-                              .read(budgetBuddyControllerProvider.notifier)
-                              .addExpense(
-                                title:
-                                    'Together: ${_labelForCategory(category)}',
-                                amount: amt,
-                                category: category,
-                                note: note,
-                                source: 'togetherSpend',
-                              );
-
-                          Navigator.of(sheetCtx).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Logged ${formatPeso(amt)} to ${_labelForCategory(category)} in Budget Together!',
-                              ),
-                              backgroundColor: _TogetherTokens.safeGreen,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        icon:
-                            const Icon(Icons.check_circle_rounded, size: 16),
-                        label: Text(
-                          'Confirm Together Spend',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _TogetherTokens.safeGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   /// Confirm and reset today's shared budget plan back to ₱0
   void _confirmResetTodayBudget(BuildContext context, _TogetherTokens tokens) {
