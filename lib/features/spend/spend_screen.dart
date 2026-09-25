@@ -480,8 +480,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final BudgetSummary summary = widget.isTogetherOnly
         ? ref.watch(budgetTogetherSummaryProvider)
         : ref.watch(budgetSummaryProvider);
-    final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _SpendTokens tokens = _SpendTokens(isDark);
@@ -499,7 +498,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
         : (state.settings.dailyLimit ?? 0);
     final double currentSpent = dailySummary.spent;
     final double remaining = currentBudget - currentSpent;
-    final bool isOver = remaining < 0;
+    final bool hasBudget = currentBudget > 0;
+    final bool isOver = hasBudget && remaining < 0;
     final double progressValue = currentBudget > 0
         ? (currentSpent / currentBudget).clamp(0.0, 1.0)
         : 0.0;
@@ -636,11 +636,17 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               ],
             ),
             SoftPill(
-              text: isOver ? 'Budget Over' : 'Safe to Spend',
-              color: isOver ? _SpendTokens.expenseRed : _SpendTokens.safeGreen,
-              icon: isOver
-                  ? Icons.warning_amber_rounded
-                  : Icons.check_circle_outline_rounded,
+              text: currentBudget <= 0
+                  ? 'No Budget Set'
+                  : (isOver ? 'Budget Over' : 'Safe to Spend'),
+              color: currentBudget <= 0
+                  ? _SpendTokens.budgetGold
+                  : (isOver ? _SpendTokens.expenseRed : _SpendTokens.safeGreen),
+              icon: currentBudget <= 0
+                  ? Icons.info_outline_rounded
+                  : (isOver
+                      ? Icons.warning_amber_rounded
+                      : Icons.check_circle_outline_rounded),
               fontSize: 11,
             ),
           ],
@@ -666,13 +672,17 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    'Left: ${(isOver ? "-" : "") + formatPeso(remaining.abs())}',
+                    currentBudget <= 0
+                        ? 'Unbudgeted'
+                        : 'Left: ${(isOver ? "-" : "") + formatPeso(remaining.abs())}',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: isOver
-                          ? _SpendTokens.expenseRed
-                          : _SpendTokens.safeGreen,
+                      color: currentBudget <= 0
+                          ? _SpendTokens.budgetGold
+                          : (isOver
+                              ? _SpendTokens.expenseRed
+                              : _SpendTokens.safeGreen),
                     ),
                   ),
                 ],

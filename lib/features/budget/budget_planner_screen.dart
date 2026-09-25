@@ -1384,8 +1384,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final devController = ref.read(budgetBuddyControllerProvider.notifier);
-    final DateTime currentClock = devController.currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _BudgetTokens tokens = _BudgetTokens(isDark);
 
@@ -1410,7 +1409,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final double currentSpent = state.dailySpent;
     final double remaining = currentBudget - currentSpent;
     final bool isLocked = hasBudget && !_isUnlockedForEditing;
-    final bool isOver = remaining < 0;
+    final bool isOver = hasBudget && remaining < 0;
     final bool isWarning =
         !isOver && hasBudget && currentSpent >= (currentBudget * 0.8);
 
@@ -1714,11 +1713,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         : (isWarning
                             ? _BudgetTokens.budgetGold
                             : _BudgetTokens.safeGreen)),
-                icon: isOver
-                    ? Icons.warning_amber_rounded
-                    : (isWarning
-                        ? Icons.info_outline_rounded
-                        : Icons.check_circle_outline_rounded),
+                icon: !hasBudget
+                    ? Icons.info_outline_rounded
+                    : (isOver
+                        ? Icons.warning_amber_rounded
+                        : (isWarning
+                            ? Icons.info_outline_rounded
+                            : Icons.check_circle_outline_rounded)),
                 fontSize: 11,
               ),
             ],
@@ -1864,18 +1865,28 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              // Remaining Safe (Dark Green / Dark Red if over)
+              // Remaining Safe (Dark Green / Dark Red if over / Gold if no budget)
               Expanded(
                 child: BentoMetricTile(
-                  label: isOver ? 'Deficit' : 'Safe Remaining',
-                  value: (isOver ? '-' : '') + formatPeso(remaining.abs()),
-                  accentColor: isOver
-                      ? _BudgetTokens.expenseRed
-                      : _BudgetTokens.safeGreen,
-                  icon: isOver
-                      ? Icons.trending_down_rounded
-                      : Icons.savings_rounded,
-                  subtitle: isOver ? 'Over by amount' : 'Safe to spend',
+                  label: !hasBudget
+                      ? 'Remaining'
+                      : (isOver ? 'Deficit' : 'Safe Remaining'),
+                  value: !hasBudget
+                      ? formatPeso(0)
+                      : ((isOver ? '-' : '') + formatPeso(remaining.abs())),
+                  accentColor: !hasBudget
+                      ? _BudgetTokens.budgetGold
+                      : (isOver
+                          ? _BudgetTokens.expenseRed
+                          : _BudgetTokens.safeGreen),
+                  icon: !hasBudget
+                      ? Icons.savings_rounded
+                      : (isOver
+                          ? Icons.trending_down_rounded
+                          : Icons.savings_rounded),
+                  subtitle: !hasBudget
+                      ? 'No budget set'
+                      : (isOver ? 'Over by amount' : 'Safe to spend'),
                 ),
               ),
             ],

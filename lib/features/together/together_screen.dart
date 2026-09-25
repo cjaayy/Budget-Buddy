@@ -65,7 +65,7 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
   @override
   Widget build(BuildContext context) {
     final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+        ref.watch(budgetBuddyControllerProvider).effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _TogetherTokens tokens = _TogetherTokens(isDark);
 
@@ -101,7 +101,7 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
         0.0, (double sum, ExpenseEntry e) => sum + e.amount);
     final double remaining = totalBudget - spent;
     final bool hasBudget = totalBudget > 0;
-    final bool isOver = remaining < 0;
+    final bool isOver = hasBudget && remaining < 0;
     final double progressValue = totalBudget > 0
         ? (spent / totalBudget).clamp(0.0, 1.0)
         : 0.0;
@@ -368,7 +368,9 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        isOver ? 'Deficit' : 'Safe Remaining',
+                        !hasBudget
+                            ? 'Remaining'
+                            : (isOver ? 'Deficit' : 'Safe Remaining'),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -377,13 +379,17 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        (isOver ? '-' : '') + formatPeso(remaining.abs()),
+                        !hasBudget
+                            ? formatPeso(0)
+                            : ((isOver ? '-' : '') + formatPeso(remaining.abs())),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
-                          color: isOver
-                              ? _TogetherTokens.spentRed
-                              : _TogetherTokens.safeGreen,
+                          color: !hasBudget
+                              ? _TogetherTokens.budgetGold
+                              : (isOver
+                                  ? _TogetherTokens.spentRed
+                                  : _TogetherTokens.safeGreen),
                         ),
                       ),
                     ],
@@ -413,15 +419,19 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
                 ),
               ),
               Text(
-                isOver
-                    ? 'Exceeded by ${formatPeso(remaining.abs())}'
-                    : '${formatPeso(remaining > 0 ? remaining : 0)} safe balance',
+                !hasBudget
+                    ? 'No limit set'
+                    : (isOver
+                        ? 'Exceeded by ${formatPeso(remaining.abs())}'
+                        : '${formatPeso(remaining > 0 ? remaining : 0)} safe balance'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
-                  color: isOver
-                      ? _TogetherTokens.spentRed
-                      : _TogetherTokens.safeGreen,
+                  color: !hasBudget
+                      ? _TogetherTokens.budgetGold
+                      : (isOver
+                          ? _TogetherTokens.spentRed
+                          : _TogetherTokens.safeGreen),
                 ),
               ),
             ],
@@ -692,8 +702,7 @@ class _TogetherBudgetPlanViewState
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
     final _TogetherTokens tokens = widget.tokens;
 
     final double totalBudget = state.togetherBudget;
@@ -706,7 +715,7 @@ class _TogetherBudgetPlanViewState
         0.0, (double sum, ExpenseEntry e) => sum + e.amount);
     final double remaining = totalBudget - spent;
     final bool hasBudget = totalBudget > 0;
-    final bool isOver = remaining < 0;
+    final bool isOver = hasBudget && remaining < 0;
     final double progressValue = totalBudget > 0
         ? (spent / totalBudget).clamp(0.0, 1.0)
         : 0.0;
@@ -1522,11 +1531,9 @@ class _TogetherBudgetPlanViewState
                   child: FilledButton(
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
-                      final DateTime currentClock = ref
-                          .read(budgetBuddyControllerProvider.notifier)
-                          .currentEffectiveTime;
                       final BudgetBuddyState currentState =
                           ref.read(budgetBuddyControllerProvider);
+                      final DateTime currentClock = currentState.effectiveDate;
                       final List<ExpenseEntry> todayShared =
                           currentState.expenses.where((ExpenseEntry e) {
                         return e.source == 'togetherSpend' &&

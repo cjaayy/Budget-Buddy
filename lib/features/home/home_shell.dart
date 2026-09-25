@@ -52,7 +52,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final bool budgetExpired = _isBudgetExpired(state.settings);
+    final bool budgetExpired =
+        _isBudgetExpired(state.settings, state.effectiveDate);
 
     return Scaffold(
       body: Stack(
@@ -127,7 +128,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
-  bool _isBudgetExpired(BudgetSettings settings) {
+  bool _isBudgetExpired(BudgetSettings settings, DateTime now) {
     final DateTime? createdAt = settings.budgetCreatedAt;
     if (!settings.hasConfiguredBudget || createdAt == null) {
       return false;
@@ -138,6 +139,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       BudgetExpiryPeriod.weekly => const Duration(days: 7),
       BudgetExpiryPeriod.monthly => const Duration(days: 30),
     };
-    return !createdAt.add(cycle).isAfter(DateTime.now());
+    return !createdAt.add(cycle).isAfter(now);
   }
 }

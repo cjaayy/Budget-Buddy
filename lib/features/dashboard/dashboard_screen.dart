@@ -225,8 +225,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = ref.watch(budgetSummaryProvider);
-    final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _BentoTokens tokens = _BentoTokens(isDark);
 
@@ -249,7 +248,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final double spentAdjusted = activeSummary.spent;
     final double remainingAdjusted = totalBudget - spentAdjusted;
     final bool hasBudget = totalBudget > 0;
-    final bool isOver = remainingAdjusted < 0;
+    final bool isOver = hasBudget && remainingAdjusted < 0;
     final bool isWarning =
         !isOver && hasBudget && spentAdjusted >= (totalBudget * 0.8);
     final double progressValue = totalBudget > 0
@@ -636,8 +635,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     required int periodExpenseCount,
     required _BentoTokens tokens,
   }) {
-    final Color heroAccent =
-        isOver ? _BentoTokens.expenseRed : _BentoTokens.safeGreen;
+    final bool hasBudget = totalBudget > 0;
+    final Color heroAccent = !hasBudget
+        ? _BentoTokens.budgetGold
+        : (isOver ? _BentoTokens.expenseRed : _BentoTokens.safeGreen);
 
     return Column(
       children: <Widget>[
@@ -658,9 +659,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isOver
-                          ? Icons.trending_down_rounded
-                          : Icons.savings_rounded,
+                      !hasBudget
+                          ? Icons.savings_rounded
+                          : (isOver
+                              ? Icons.trending_down_rounded
+                              : Icons.savings_rounded),
                       size: 16,
                       color: heroAccent,
                     ),
@@ -679,19 +682,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                   SoftPill(
-                    text: isOver
-                        ? 'Over Budget'
-                        : (isWarning ? '80% Warning' : 'Safe to Spend'),
-                    color: isOver
-                        ? _BentoTokens.expenseRed
-                        : (isWarning
-                            ? _BentoTokens.budgetGold
-                            : _BentoTokens.safeGreen),
-                    icon: isOver
-                        ? Icons.warning_amber_rounded
-                        : (isWarning
-                            ? Icons.info_outline_rounded
-                            : Icons.check_circle_outline_rounded),
+                    text: !hasBudget
+                        ? 'No Budget Set'
+                        : (isOver
+                            ? 'Over Budget'
+                            : (isWarning ? '80% Warning' : 'Safe to Spend')),
+                    color: !hasBudget
+                        ? _BentoTokens.budgetGold
+                        : (isOver
+                            ? _BentoTokens.expenseRed
+                            : (isWarning
+                                ? _BentoTokens.budgetGold
+                                : _BentoTokens.safeGreen)),
+                    icon: !hasBudget
+                        ? Icons.info_outline_rounded
+                        : (isOver
+                            ? Icons.warning_amber_rounded
+                            : (isWarning
+                                ? Icons.info_outline_rounded
+                                : Icons.check_circle_outline_rounded)),
                     fontSize: 11,
                   ),
                 ],
@@ -703,7 +712,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  (isOver ? '-' : '') + formatPeso(remaining.abs()),
+                  !hasBudget
+                      ? formatPeso(0)
+                      : ((isOver ? '-' : '') + formatPeso(remaining.abs())),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,

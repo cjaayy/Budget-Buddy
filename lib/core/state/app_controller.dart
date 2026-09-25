@@ -131,11 +131,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   final NotificationService _notificationService;
   final Uuid _uuid = const Uuid();
   Timer? _midnightCheckTimer;
-  DateTime? _simulatedDateTime;
   DateTime? _lastSettledDate;
 
-  DateTime get now => _simulatedDateTime ?? DateTime.now();
-  bool get isTimeSimulated => _simulatedDateTime != null;
+  DateTime get now => state.simulatedDateTime ?? DateTime.now();
+  bool get isTimeSimulated => state.isTimeSimulated;
   DateTime get currentEffectiveTime => now;
 
   Future<void> setSimulatedDateTime(DateTime dateTime) async {
@@ -149,7 +148,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final bool isNewDay = newTodayStart.isAfter(currentTodayStart);
     final bool shouldForce = is12AM || isNewDay;
 
-    _simulatedDateTime = dateTime;
+    state = state.copyWith(simulatedDateTime: dateTime);
     await syncDateAndCheckMidnightReset(
       forceReset: shouldForce,
       endingDateOverride: shouldForce ? currentTodayStart : null,
@@ -162,7 +161,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         DateTime(current.year, current.month, current.day);
     final DateTime nextDayMidnight =
         DateTime(current.year, current.month, current.day + 1, 0, 0, 0);
-    _simulatedDateTime = nextDayMidnight;
+    state = state.copyWith(simulatedDateTime: nextDayMidnight);
     await syncDateAndCheckMidnightReset(
       forceReset: true,
       endingDateOverride: endingDay,
@@ -175,7 +174,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         DateTime(current.year, current.month, current.day);
     final DateTime nextDayMidnight =
         DateTime(current.year, current.month, current.day + 1);
-    _simulatedDateTime = nextDayMidnight;
+    state = state.copyWith(simulatedDateTime: nextDayMidnight);
     await syncDateAndCheckMidnightReset(
       forceReset: true,
       endingDateOverride: endingDay,
@@ -186,12 +185,12 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final DateTime current = now;
     final DateTime tonite1159 =
         DateTime(current.year, current.month, current.day, 23, 59, 0);
-    _simulatedDateTime = tonite1159;
+    state = state.copyWith(simulatedDateTime: tonite1159);
     await syncDateAndCheckMidnightReset();
   }
 
   Future<void> resetSimulatedTime() async {
-    _simulatedDateTime = null;
+    state = state.copyWith(clearSimulatedDateTime: true);
     await syncDateAndCheckMidnightReset();
   }
 
@@ -414,7 +413,21 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
 
   Future<void> _bootstrap() async {
     final BudgetBuddyState loaded = await _repository.loadState();
-    state = loaded.copyWith(isBootstrapping: false);
+    final DateTime realToday = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    DateTime? recoveredSimulation = loaded.simulatedDateTime;
+    if (recoveredSimulation == null &&
+        loaded.dailyPeriodStart != null &&
+        loaded.dailyPeriodStart!.isAfter(realToday)) {
+      recoveredSimulation = loaded.dailyPeriodStart;
+    }
+    state = loaded.copyWith(
+      isBootstrapping: false,
+      simulatedDateTime: recoveredSimulation,
+    );
     _renewBudgetIfNeeded();
     await syncDateAndCheckMidnightReset();
   }
@@ -1265,7 +1278,6 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   Future<void> resetApp() async {
-    _simulatedDateTime = null;
     _lastSettledDate = null;
     final DateTime currentRealNow = DateTime.now();
     final DateTime currentDayStart =

@@ -248,7 +248,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   List<Widget> _buildDailyReportRows(BudgetBuddyState state) {
-    final DateTime today = _startOfDay(DateTime.now());
+    final DateTime today = _startOfDay(state.effectiveDate);
     final double dailyLimit = state.settings.totalDailyBudget;
     final List<Widget> rows = <Widget>[];
 
@@ -310,7 +310,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   List<Widget> _buildWeeklyReportRows(BudgetBuddyState state) {
-    final DateTime today = _startOfDay(DateTime.now());
+    final DateTime today = _startOfDay(state.effectiveDate);
     final DateTime currentWeekStart =
         today.subtract(Duration(days: today.weekday - DateTime.monday));
     final double weeklyLimit = state.settings.weeklyBudget ?? 0;
@@ -365,7 +365,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   List<Widget> _buildMonthlyReportRows(BudgetBuddyState state) {
-    final DateTime now = DateTime.now();
+    final DateTime now = state.effectiveDate;
     final List<Widget> rows = <Widget>[];
 
     for (int monthOffset = 0; monthOffset < 4; monthOffset++) {

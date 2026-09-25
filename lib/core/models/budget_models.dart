@@ -1153,9 +1153,11 @@ class BudgetBuddyState {
     double? savingsDebt = 0.0,
     double? totalSavings = 0.0,
     List<VaultLogEntry>? vaultLog,
+    DateTime? simulatedDateTime,
   })  : _savingsDebt = savingsDebt,
         _totalSavings = totalSavings,
-        _vaultLog = vaultLog ?? const <VaultLogEntry>[];
+        _vaultLog = vaultLog ?? const <VaultLogEntry>[],
+        _simulatedDateTime = simulatedDateTime;
 
   final BudgetSettings settings;
   final List<ExpenseEntry> expenses;
@@ -1184,6 +1186,11 @@ class BudgetBuddyState {
   final double? _savingsDebt;
   final double? _totalSavings;
   final List<VaultLogEntry>? _vaultLog;
+  final DateTime? _simulatedDateTime;
+
+  DateTime? get simulatedDateTime => _simulatedDateTime;
+  DateTime get effectiveDate => _simulatedDateTime ?? DateTime.now();
+  bool get isTimeSimulated => _simulatedDateTime != null;
 
   double get savingsDebt => _savingsDebt ?? 0.0;
   double get totalSavings => _totalSavings ?? 0.0;
@@ -1218,6 +1225,7 @@ class BudgetBuddyState {
       savingsDebt: 0.0,
       totalSavings: 0.0,
       vaultLog: const <VaultLogEntry>[],
+      simulatedDateTime: null,
     );
   }
 
@@ -1249,6 +1257,8 @@ class BudgetBuddyState {
     double? savingsDebt,
     double? totalSavings,
     List<VaultLogEntry>? vaultLog,
+    Object? simulatedDateTime = _simulatedDateTimeSentinel,
+    bool clearSimulatedDateTime = false,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -1292,6 +1302,11 @@ class BudgetBuddyState {
       savingsDebt: savingsDebt ?? this.savingsDebt,
       totalSavings: totalSavings ?? this.totalSavings,
       vaultLog: vaultLog ?? this.vaultLog,
+      simulatedDateTime: clearSimulatedDateTime
+          ? null
+          : (identical(simulatedDateTime, _simulatedDateTimeSentinel)
+              ? this.simulatedDateTime
+              : simulatedDateTime as DateTime?),
     );
   }
 
@@ -1304,6 +1319,8 @@ class BudgetBuddyState {
   static const Object _weeklyPeriodStartSentinel = Object();
 
   static const Object _monthlyPeriodStartSentinel = Object();
+
+  static const Object _simulatedDateTimeSentinel = Object();
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -1339,6 +1356,7 @@ class BudgetBuddyState {
       'savingsDebt': savingsDebt,
       'totalSavings': totalSavings,
       'vaultLog': vaultLog.map((VaultLogEntry e) => e.toJson()).toList(),
+      'simulatedDateTime': simulatedDateTime?.toIso8601String(),
     };
   }
 
@@ -1423,6 +1441,9 @@ class BudgetBuddyState {
                     (item as Map).cast<String, dynamic>()))
               .toList() ??
           const <VaultLogEntry>[],
+      simulatedDateTime: json['simulatedDateTime'] != null
+          ? DateTime.tryParse(json['simulatedDateTime'] as String)
+          : null,
     );
   }
 

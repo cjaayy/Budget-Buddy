@@ -247,19 +247,20 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _TogetherBudgetPalette palette = _TogetherBudgetPalette(isDark);
 
     final double currentBudget = state.togetherBudget;
     final double currentSpent = state.expenses
-        .where((ExpenseEntry e) => e.source == 'togetherSpend')
+        .where((ExpenseEntry e) =>
+            e.source == 'togetherSpend' &&
+            DateUtils.isSameDay(e.dateTime, currentClock))
         .fold<double>(0.0, (double sum, ExpenseEntry e) => sum + e.amount);
     final double remaining = currentBudget - currentSpent;
     final bool hasBudget = currentBudget > 0;
     final bool isLocked = hasBudget && !_isUnlockedForEditing;
-    final bool isOver = remaining < 0;
+    final bool isOver = hasBudget && remaining < 0;
     final bool isWarning =
         !isOver && hasBudget && currentSpent >= (currentBudget * 0.8);
     final double progressValue = currentBudget > 0
@@ -721,13 +722,17 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                     ),
                   ),
                   Text(
-                    isOver
-                        ? 'Over limit'
-                        : '${formatPeso(remaining > 0 ? remaining : 0)} left',
+                    !hasBudget
+                        ? 'No limit set'
+                        : (isOver
+                            ? 'Over limit'
+                            : '${formatPeso(remaining > 0 ? remaining : 0)} left'),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isOver ? palette.darkRed : palette.darkGreen,
+                      color: !hasBudget
+                          ? palette.gold
+                          : (isOver ? palette.darkRed : palette.darkGreen),
                     ),
                   ),
                 ],
@@ -740,11 +745,17 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                   Expanded(
                     child: _CompactMetricTile(
                       label: 'Remaining',
-                      value: (isOver ? '-' : '') + formatPeso(remaining.abs()),
-                      bgColor: isOver ? palette.darkRed : palette.darkGreen,
-                      icon: isOver
-                          ? Icons.trending_down_rounded
-                          : Icons.savings_rounded,
+                      value: !hasBudget
+                          ? formatPeso(0)
+                          : ((isOver ? '-' : '') + formatPeso(remaining.abs())),
+                      bgColor: !hasBudget
+                          ? palette.gold
+                          : (isOver ? palette.darkRed : palette.darkGreen),
+                      icon: !hasBudget
+                          ? Icons.savings_rounded
+                          : (isOver
+                              ? Icons.trending_down_rounded
+                              : Icons.savings_rounded),
                     ),
                   ),
                   const SizedBox(width: 8),

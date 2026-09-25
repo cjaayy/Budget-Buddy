@@ -150,8 +150,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final BudgetSummary summary = BudgetService().computeSummary(state);
-    final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _SettingsPalette palette = _SettingsPalette(isDark);
 
@@ -501,12 +500,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                             const SizedBox(height: 12),
                             Builder(
                               builder: (BuildContext ctx) {
-                                final devController = ref.read(
-                                    budgetBuddyControllerProvider.notifier);
                                 final bool isTimeSimulated =
-                                    devController.isTimeSimulated;
+                                    state.isTimeSimulated;
                                 final DateTime currentEffectiveTime =
-                                    devController.currentEffectiveTime;
+                                    state.effectiveDate;
                                 return Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
@@ -558,8 +555,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                                       if (isTimeSimulated)
                                         TextButton(
                                           onPressed: () async {
-                                            await devController
-                                                .resetSimulatedTime();
+                                            await ref.read(budgetBuddyControllerProvider.notifier).resetSimulatedTime();
                                             setState(() {});
                                             if (context.mounted) {
                                               showAppAlert(

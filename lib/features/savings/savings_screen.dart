@@ -69,8 +69,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final DateTime currentClock =
-        ref.watch(budgetBuddyControllerProvider.notifier).now;
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _SavingsTokens tokens = _SavingsTokens(isDark);
 

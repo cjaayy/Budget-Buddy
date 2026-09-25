@@ -223,8 +223,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
-    final DateTime currentClock =
-        ref.read(budgetBuddyControllerProvider.notifier).currentEffectiveTime;
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _ExpensesTokens tokens = _ExpensesTokens(isDark);
 
@@ -1470,7 +1469,6 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                             amount: amount,
                             category: category,
                             note: note,
-                            dateTime: DateTime.now(),
                             source: widget.isTogetherOnly
                                 ? 'togetherSpend'
                                 : 'manual',
