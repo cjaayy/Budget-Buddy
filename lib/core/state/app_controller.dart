@@ -878,9 +878,13 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
               orElse: () => null,
             );
 
-    double dayBudget = entry?.amount ?? 0.0;
-    if (dayBudget <= 0 && isToday) {
+    double dayBudget;
+    if (entry != null) {
+      dayBudget = entry.amount;
+    } else if (state.settings.hasConfiguredBudget) {
       dayBudget = state.settings.dailyLimit ?? 0.0;
+    } else {
+      dayBudget = 0.0;
     }
 
     final List<ExpenseEntry> dayExpenses = state.expenses

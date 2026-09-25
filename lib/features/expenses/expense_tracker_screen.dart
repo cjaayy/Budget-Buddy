@@ -140,11 +140,79 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           b.dateTime.compareTo(a.dateTime));
   }
 
-  Map<DateTime, Map<DateTime, List<ExpenseEntry>>> _groupExpensesByMonthAndDay(
-    List<ExpenseEntry> list,
+  bool _isSameDayDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  double _getBudgetForDay(
+    DateTime day,
+    BudgetBuddyState state,
+    DateTime currentClock,
   ) {
+    final DateTime dayStart = DateTime(day.year, day.month, day.day);
+    final BudgetEntry? entry =
+        state.budgetEntries.cast<BudgetEntry?>().firstWhere(
+              (BudgetEntry? e) => e != null && _isSameDayDate(e.date, dayStart),
+              orElse: () => null,
+            );
+    if (entry != null) {
+      return entry.amount;
+    }
+    final DailyRecord? record =
+        state.dailyRecords.cast<DailyRecord?>().firstWhere(
+              (DailyRecord? r) => r != null && _isSameDayDate(r.date, dayStart),
+              orElse: () => null,
+            );
+    if (record != null && record.budget > 0) {
+      return record.budget;
+    }
+    if (state.settings.hasConfiguredBudget) {
+      return state.settings.dailyLimit ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  Map<DateTime, Map<DateTime, List<ExpenseEntry>>> _groupExpensesByMonthAndDay(
+    List<ExpenseEntry> list, {
+    required BudgetBuddyState state,
+    required DateTime currentClock,
+    bool includeAllRecordedDays = true,
+  }) {
     final Map<DateTime, Map<DateTime, List<ExpenseEntry>>> grouped =
         <DateTime, Map<DateTime, List<ExpenseEntry>>>{};
+
+    if (includeAllRecordedDays) {
+      final Set<DateTime> knownDates = <DateTime>{};
+      for (final DailyRecord r in state.dailyRecords) {
+        knownDates.add(DateTime(r.date.year, r.date.month, r.date.day));
+      }
+      for (final ExpenseEntry e in state.expenses) {
+        if (widget.isTogetherOnly
+            ? e.source == 'togetherSpend'
+            : e.source != 'togetherSpend') {
+          knownDates
+              .add(DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day));
+        }
+      }
+      for (final BudgetEntry b in state.budgetEntries) {
+        knownDates.add(DateTime(b.date.year, b.date.month, b.date.day));
+      }
+      if (state.settings.budgetCreatedAt != null) {
+        final DateTime bCreated = state.settings.budgetCreatedAt!;
+        knownDates.add(DateTime(bCreated.year, bCreated.month, bCreated.day));
+      }
+      final DateTime today =
+          DateTime(currentClock.year, currentClock.month, currentClock.day);
+      knownDates.add(today);
+
+      for (final DateTime day in knownDates) {
+        final DateTime monthKey = DateTime(day.year, day.month);
+        final DateTime dayKey = DateTime(day.year, day.month, day.day);
+        grouped
+            .putIfAbsent(monthKey, () => <DateTime, List<ExpenseEntry>>{})
+            .putIfAbsent(dayKey, () => <ExpenseEntry>[]);
+      }
+    }
 
     for (final ExpenseEntry item in list) {
       final DateTime monthKey =
@@ -169,6 +237,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     final _ExpensesTokens tokens = _ExpensesTokens(isDark);
 
     final bool isDaily = _viewMode == _ExpenseViewMode.daily;
+    final bool isFiltering =
+        _searchController.text.trim().isNotEmpty || _selectedCategory != null;
+
     final List<ExpenseEntry> displayExpenses = _filterExpenses(
       state.expenses,
       currentClock,
@@ -176,7 +247,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     );
 
     final Map<DateTime, Map<DateTime, List<ExpenseEntry>>> monthDayGroups =
-        _groupExpensesByMonthAndDay(displayExpenses);
+        _groupExpensesByMonthAndDay(
+      displayExpenses,
+      state: state,
+      currentClock: currentClock,
+      includeAllRecordedDays: !isFiltering,
+    );
     final List<DateTime> sortedMonths = monthDayGroups.keys.toList()
       ..sort((DateTime a, DateTime b) => b.compareTo(a));
 
@@ -192,6 +268,9 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       }
     }
 
+    final double todayBudget =
+        _getBudgetForDay(currentClock, state, currentClock);
+
     // Determine summary card amounts and labels based on view mode and active selection
     final double summaryTotalAmount;
     final int summaryCount;
@@ -203,18 +282,32 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           0.0, (double sum, ExpenseEntry e) => sum + e.amount);
       summaryCount = displayExpenses.length;
       summaryLabel = "Today's Total Outlays";
-      summaryPillText =
-          '$summaryCount ${summaryCount == 1 ? "expense today" : "expenses today"}';
+      if (displayExpenses.isEmpty) {
+        summaryPillText = todayBudget > 0
+            ? 'Full ${formatPeso(todayBudget)} unspent'
+            : '0 expenses today';
+      } else {
+        summaryPillText =
+            '$summaryCount ${summaryCount == 1 ? "expense today" : "expenses today"}';
+      }
     } else if (_selectedMonth != null && _selectedDay != null) {
       final List<ExpenseEntry> dayItems =
           monthDayGroups[_selectedMonth]?[_selectedDay] ?? <ExpenseEntry>[];
+      final double dayBudget =
+          _getBudgetForDay(_selectedDay!, state, currentClock);
       summaryTotalAmount = dayItems.fold<double>(
           0.0, (double sum, ExpenseEntry e) => sum + e.amount);
       summaryCount = dayItems.length;
       summaryLabel =
           'Spent on ${DateFormat("MMMM d, yyyy").format(_selectedDay!)}';
-      summaryPillText =
-          '$summaryCount ${summaryCount == 1 ? "expense" : "expenses"}';
+      if (dayItems.isEmpty) {
+        summaryPillText = dayBudget > 0
+            ? 'Full ${formatPeso(dayBudget)} unspent'
+            : '0 expenses';
+      } else {
+        summaryPillText =
+            '$summaryCount ${summaryCount == 1 ? "expense" : "expenses"}';
+      }
     } else if (_selectedMonth != null) {
       final Map<DateTime, List<ExpenseEntry>> daysMap =
           monthDayGroups[_selectedMonth] ?? <DateTime, List<ExpenseEntry>>{};
@@ -310,13 +403,25 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             // 2. Content Slivers based on view mode and selection
             if (isDaily) ...<Widget>[
               if (displayExpenses.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildEmptyDailyState(tokens),
-                  ),
-                )
+                if (isFiltering)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildEmptyDailyState(tokens),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      child: _buildTodayLogCard(
+                        dayBudget: todayBudget,
+                        currentClock: currentClock,
+                        tokens: tokens,
+                      ),
+                    ),
+                  )
               else
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -483,10 +588,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                           final DateTime day = sortedDays[index];
                           final List<ExpenseEntry> dayItems =
                               daysMap[day] ?? <ExpenseEntry>[];
+                          final double dayBudget =
+                              _getBudgetForDay(day, state, currentClock);
                           return _buildDayCard(
                             context: context,
                             day: day,
                             dayItems: dayItems,
+                            dayBudget: dayBudget,
                             currentClock: currentClock,
                             tokens: tokens,
                             onTap: () {
@@ -608,13 +716,27 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   final List<ExpenseEntry> dayItems =
                       monthDayGroups[_selectedMonth]?[_selectedDay] ??
                           <ExpenseEntry>[];
+                  final double dayBudget =
+                      _getBudgetForDay(_selectedDay!, state, currentClock);
 
                   if (dayItems.isEmpty) {
-                    return SliverFillRemaining(
-                      hasScrollBody: false,
+                    if (isFiltering) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildEmptyState(tokens),
+                        ),
+                      );
+                    }
+                    return SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildEmptyState(tokens),
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        child: _buildEmptyDayLogCard(
+                          day: _selectedDay!,
+                          dayBudget: dayBudget,
+                          tokens: tokens,
+                        ),
                       ),
                     );
                   }
@@ -1089,7 +1211,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${sortedDays.length} ${sortedDays.length == 1 ? "active day" : "active days"} • $totalMonthItems ${totalMonthItems == 1 ? "expense" : "expenses"}',
+                        '${sortedDays.length} ${sortedDays.length == 1 ? "day recorded" : "days recorded"} • $totalMonthItems ${totalMonthItems == 1 ? "expense" : "expenses"}',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
@@ -1104,11 +1226,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: <Widget>[
                     Text(
-                      '- ${formatPeso(monthTotal)}',
+                      monthTotal > 0 ? '- ${formatPeso(monthTotal)}' : '₱0.00',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
-                        color: _ExpensesTokens.expenseRed,
+                        color: monthTotal > 0
+                            ? _ExpensesTokens.expenseRed
+                            : tokens.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1146,6 +1270,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     required BuildContext context,
     required DateTime day,
     required List<ExpenseEntry> dayItems,
+    required double dayBudget,
     required DateTime currentClock,
     required _ExpensesTokens tokens,
     required VoidCallback onTap,
@@ -1164,6 +1289,39 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
         : (isYesterday
             ? 'Yesterday, ${DateFormat('MMMM d').format(day)}'
             : DateFormat('EEEE, MMMM d').format(day));
+
+    final String subtitleText;
+    final String amountText;
+    final Color amountColor;
+    final String actionText;
+
+    if (dayItems.isNotEmpty) {
+      subtitleText =
+          '${dayItems.length} ${dayItems.length == 1 ? "expense" : "expenses"} logged${dayBudget > 0 ? " • Budget " + formatPeso(dayBudget) : ""}';
+      amountText = '- ${formatPeso(dayTotal)}';
+      amountColor = _ExpensesTokens.expenseRed;
+      actionText = 'View Spent';
+    } else if (dayBudget > 0) {
+      subtitleText = 'Full budget unspent (${formatPeso(dayBudget)} saved)';
+      amountText = '₱0.00';
+      amountColor = _ExpensesTokens.safeGreen;
+      actionText = 'View Day';
+    } else {
+      subtitleText = 'No budget configured • ₱0.00 spent';
+      amountText = '₱0.00';
+      amountColor = tokens.textSecondary;
+      actionText = 'View Day';
+    }
+
+    final IconData dayIcon = dayItems.isNotEmpty
+        ? (isToday ? Icons.today_rounded : Icons.receipt_long_rounded)
+        : (dayBudget > 0
+            ? Icons.savings_rounded
+            : Icons.event_available_rounded);
+
+    final Color iconColor = dayItems.isNotEmpty
+        ? (isToday ? _ExpensesTokens.safeGreen : _ExpensesTokens.budgetGold)
+        : (dayBudget > 0 ? _ExpensesTokens.safeGreen : tokens.textSecondary);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1189,20 +1347,13 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: tokens.tint(
-                      isToday
-                          ? _ExpensesTokens.safeGreen
-                          : _ExpensesTokens.budgetGold,
-                      0.12,
-                    ),
+                    color: tokens.tint(iconColor, 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isToday ? Icons.today_rounded : Icons.event_note_rounded,
+                    dayIcon,
                     size: 16,
-                    color: isToday
-                        ? _ExpensesTokens.safeGreen
-                        : _ExpensesTokens.budgetGold,
+                    color: iconColor,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1220,7 +1371,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${dayItems.length} ${dayItems.length == 1 ? "expense" : "expenses"} logged',
+                        subtitleText,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
@@ -1235,11 +1386,11 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: <Widget>[
                     Text(
-                      '- ${formatPeso(dayTotal)}',
+                      amountText,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w900,
-                        color: _ExpensesTokens.expenseRed,
+                        color: amountColor,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1247,7 +1398,7 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Text(
-                          'View Spent',
+                          actionText,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
@@ -1332,6 +1483,170 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  /// Card shown in Today's Expense when 0 expenses have been logged today
+  Widget _buildTodayLogCard({
+    required double dayBudget,
+    required DateTime currentClock,
+    required _ExpensesTokens tokens,
+  }) {
+    final bool hasBudget = dayBudget > 0;
+    return BentoCard(
+      padding: const EdgeInsets.all(18),
+      borderRadius: 18,
+      borderColor: hasBudget
+          ? _ExpensesTokens.safeGreen.withValues(alpha: 0.35)
+          : tokens.cardBorder,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: tokens.tint(
+                    hasBudget
+                        ? _ExpensesTokens.safeGreen
+                        : _ExpensesTokens.budgetGold,
+                    0.12,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  hasBudget ? Icons.savings_rounded : Icons.today_rounded,
+                  size: 20,
+                  color: hasBudget
+                      ? _ExpensesTokens.safeGreen
+                      : _ExpensesTokens.budgetGold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      hasBudget
+                          ? "Today's Log: Full Budget Unspent"
+                          : "Today's Log: No Expenses Yet",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasBudget
+                          ? '₱0.00 spent out of ${formatPeso(dayBudget)} budget'
+                          : '₱0.00 spent • No daily budget configured',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SoftPill(
+                text: hasBudget ? 'Full Saved' : '0 Spent',
+                color: hasBudget
+                    ? _ExpensesTokens.safeGreen
+                    : _ExpensesTokens.budgetGold,
+                fontSize: 11,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hasBudget
+                ? 'Your full allowance is safely preserved. Any expenses you add today will be deducted from this budget and logged here in real-time.'
+                : 'You have not spent anything today. Set a daily budget or log an expense to track your daily allowance.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Card shown in Tier 3 when a day has 0 logged expenses
+  Widget _buildEmptyDayLogCard({
+    required DateTime day,
+    required double dayBudget,
+    required _ExpensesTokens tokens,
+  }) {
+    final bool hasBudget = dayBudget > 0;
+    return BentoCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      borderRadius: 18,
+      borderColor: hasBudget
+          ? _ExpensesTokens.safeGreen.withValues(alpha: 0.35)
+          : tokens.cardBorder,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: tokens.tint(
+                hasBudget
+                    ? _ExpensesTokens.safeGreen
+                    : _ExpensesTokens.budgetGold,
+                0.12,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              hasBudget
+                  ? Icons.savings_rounded
+                  : Icons.event_available_rounded,
+              size: 28,
+              color: hasBudget
+                  ? _ExpensesTokens.safeGreen
+                  : _ExpensesTokens.budgetGold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hasBudget ? 'Full Budget Unspent!' : 'No Expenses Logged',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: tokens.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasBudget
+                ? 'Full daily allowance of ${formatPeso(dayBudget)} was unspent and logged as savings for ${DateFormat('MMMM d, yyyy').format(day)}.'
+                : 'No spending was recorded and no budget was set for ${DateFormat('MMMM d, yyyy').format(day)} (₱0.00 spent).',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SoftPill(
+            text: hasBudget ? 'Saved to History Log' : 'Recorded in History Log',
+            color: hasBudget
+                ? _ExpensesTokens.safeGreen
+                : _ExpensesTokens.budgetGold,
+            fontSize: 11,
+          ),
+        ],
       ),
     );
   }
