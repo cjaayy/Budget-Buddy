@@ -1132,6 +1132,199 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     _showDepositDialog(context, tokens: tokens);
   }
 
+  /// Confirmation dialog before performing a withdrawal from the vault
+  Future<bool> _showWithdrawConfirmationDialog(
+    BuildContext context, {
+    required _SavingsTokens tokens,
+    required double amount,
+    required bool addToDailyBudget,
+    required double currentTodayBudget,
+  }) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final Color accentColor = addToDailyBudget
+            ? _SavingsTokens.targetGold
+            : _SavingsTokens.savingsGreen;
+        final IconData icon = addToDailyBudget
+            ? Icons.add_circle_outline_rounded
+            : Icons.outbond_rounded;
+        final String titleText = 'Confirm Withdrawal';
+        final String destinationText = addToDailyBudget
+            ? "Today's Daily Budget Allowance"
+            : 'External / Cash Out';
+
+        return AlertDialog(
+          backgroundColor: tokens.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: tokens.cardBorder, width: 1.0),
+          ),
+          title: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: tokens.tint(accentColor, 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: accentColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  titleText,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                addToDailyBudget
+                    ? 'Are you sure you want to withdraw this amount from your settled vault and add it to today\'s daily budget allowance?'
+                    : 'Are you sure you want to cash out this amount from your settled vault savings?',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: tokens.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.subCardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Withdraw Amount',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          formatPeso(amount),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(color: tokens.cardBorder, height: 1),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Destination',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            destinationText,
+                            textAlign: TextAlign.end,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: tokens.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (addToDailyBudget) ...<Widget>[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Text(
+                            'New Daily Budget',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            formatPeso(currentTodayBudget + amount),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: _SavingsTokens.savingsGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.check_rounded, size: 15, color: Colors.white),
+              label: Text(
+                'Confirm',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
+
   /// Withdraw / Cover Deficit & Pay Debt Modal Bottom Sheet
   void _showWithdrawOrCoverDeficitSheet(
     BuildContext context, {
@@ -1647,7 +1840,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
                             if (effectiveSavings <= 0) {
                               showAppAlert(sheetContext, message: 'Your vault has no settled savings to withdraw!', title: 'Alert', icon: Icons.warning_amber_rounded,
 
@@ -1672,6 +1865,16 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                             }
 
                             final bool addToBudget = withdrawSource == 0;
+                            final bool confirmed =
+                                await _showWithdrawConfirmationDialog(
+                              sheetContext,
+                              tokens: tokens,
+                              amount: currentWithdrawAmount,
+                              addToDailyBudget: addToBudget,
+                              currentTodayBudget: currentTodayBudget,
+                            );
+                            if (!confirmed || !sheetContext.mounted) return;
+
                             ref
                                 .read(budgetBuddyControllerProvider.notifier)
                                 .withdrawFromSavings(
@@ -1681,17 +1884,19 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                 );
                             Navigator.of(sheetContext).pop();
 
-                            showAppAlert(
-                              context,
-                              message: addToBudget
-                                  ? 'Withdrew ${formatPeso(currentWithdrawAmount)} → added to today\'s budget! (New: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
-                                  : 'Withdrew ${formatPeso(currentWithdrawAmount)} from vault (cash out).',
-                              title: 'Notice',
-                              icon: Icons.info_outline_rounded,
-                              accentColor: addToBudget
-                                  ? _SavingsTokens.savingsGreen
-                                  : _SavingsTokens.targetGold,
-                            );
+                            if (context.mounted) {
+                              showAppAlert(
+                                context,
+                                message: addToBudget
+                                    ? 'Withdrew ${formatPeso(currentWithdrawAmount)} → added to today\'s budget! (New: ${formatPeso(currentTodayBudget + currentWithdrawAmount)})'
+                                    : 'Withdrew ${formatPeso(currentWithdrawAmount)} from vault (cash out).',
+                                title: 'Notice',
+                                icon: Icons.info_outline_rounded,
+                                accentColor: addToBudget
+                                    ? _SavingsTokens.savingsGreen
+                                    : _SavingsTokens.targetGold,
+                              );
+                            }
                           },
                           icon: Icon(
                             withdrawSource == 0
@@ -2444,20 +2649,27 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: tokens.textSecondary,
+        Flexible(
+          child: Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: tokens.textSecondary,
+            ),
           ),
         ),
-        Text(
-          value,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: valueColor ?? tokens.textPrimary,
+        const SizedBox(width: 8),
+        Flexible(
+          flex: 2,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: valueColor ?? tokens.textPrimary,
+            ),
           ),
         ),
       ],
