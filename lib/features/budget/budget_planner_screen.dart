@@ -64,6 +64,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   final FocusNode _focusNode = FocusNode();
   bool _isInputActive = false;
   bool _isAddMode = false;
+  double? _lastAddBase;
+  double? _lastAddAmount;
 
   @override
   void initState() {
@@ -79,58 +81,27 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
   }
 
   void _onQuickAddAmount(double amount) {
+    if (!_isInputActive) return;
     HapticFeedback.lightImpact();
     setState(() {
-      _isInputActive = true;
-      final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-      final double currentBudget = state.settings.dailyLimit ?? 0;
+      final bool isAllSelected = _dailyController.selection.start == 0 &&
+          _dailyController.selection.end == _dailyController.text.length &&
+          _dailyController.text.isNotEmpty;
 
-      if (_isAddMode && currentBudget > 0) {
-        final String baseStr = currentBudget == currentBudget.roundToDouble()
-            ? currentBudget.toStringAsFixed(0)
-            : currentBudget.toStringAsFixed(2);
-
-        final String currentText = _dailyController.text.trim();
-        double addedSoFar = 0.0;
-        if (currentText.contains('+')) {
-          final List<String> segments = currentText.split('+');
-          for (final String seg in segments) {
-            final String s = seg.replaceAll('₱', '').replaceAll(',', '').trim();
-            final double? val = double.tryParse(s);
-            if (val != null && val != currentBudget) {
-              addedSoFar += val;
-            }
-          }
-        }
-        final double nextAdded = addedSoFar + amount;
-        final String addedStr = nextAdded == nextAdded.roundToDouble()
-            ? nextAdded.toStringAsFixed(0)
-            : nextAdded.toStringAsFixed(2);
-        _dailyController.text = '+ $baseStr + $addedStr';
-        _dailyController.selection = TextSelection.collapsed(
-          offset: _dailyController.text.length,
-        );
+      double nextAmount;
+      if (isAllSelected) {
+        nextAmount = amount;
       } else {
-        final bool isAllSelected = _dailyController.selection.start == 0 &&
-            _dailyController.selection.end == _dailyController.text.length &&
-            _dailyController.text.isNotEmpty;
-
-        double nextAmount;
-        if (isAllSelected) {
-          nextAmount = amount;
-        } else {
-          final double currentVal =
-              double.tryParse(_dailyController.text.replaceAll('+', '').trim()) ??
-                  0.0;
-          nextAmount = currentVal + amount;
-        }
-        _dailyController.text = nextAmount == nextAmount.roundToDouble()
-            ? nextAmount.toStringAsFixed(0)
-            : nextAmount.toStringAsFixed(2);
-        _dailyController.selection = TextSelection.collapsed(
-          offset: _dailyController.text.length,
-        );
+        final double currentVal =
+            double.tryParse(_dailyController.text.trim()) ?? 0.0;
+        nextAmount = currentVal + amount;
       }
+      _dailyController.text = nextAmount == nextAmount.roundToDouble()
+          ? nextAmount.toStringAsFixed(0)
+          : nextAmount.toStringAsFixed(2);
+      _dailyController.selection = TextSelection.collapsed(
+        offset: _dailyController.text.length,
+      );
     });
     _focusNode.requestFocus();
   }
@@ -140,17 +111,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     setState(() {
       _isInputActive = true;
       _isAddMode = true;
-      if (currentBudget > 0) {
-        final String formatted = currentBudget == currentBudget.roundToDouble()
-            ? currentBudget.toStringAsFixed(0)
-            : currentBudget.toStringAsFixed(2);
-        _dailyController.text = '+ $formatted + ';
-        _dailyController.selection = TextSelection.collapsed(
-          offset: _dailyController.text.length,
-        );
-      } else {
-        _dailyController.clear();
-      }
+      _dailyController.clear();
     });
     _focusNode.requestFocus();
   }
@@ -182,51 +143,8 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
 
   void _saveBudget() {
     final String text = _dailyController.text.trim();
-    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
-    final double currentBudget = state.settings.dailyLimit ?? 0;
-
-    double targetAmount = 0.0;
-    double addedAmount = 0.0;
-
-    if (_isAddMode) {
-      if (text.contains('+')) {
-        final List<String> segments = text.split('+');
-        double totalParsed = 0.0;
-        double addedSum = 0.0;
-        for (final String seg in segments) {
-          final String s = seg.replaceAll('₱', '').replaceAll(',', '').trim();
-          final double? v = double.tryParse(s);
-          if (v != null && v > 0) {
-            totalParsed += v;
-            if (v != currentBudget) {
-              addedSum += v;
-            }
-          }
-        }
-        if (currentBudget > 0) {
-          addedAmount = addedSum > 0 ? addedSum : (totalParsed - currentBudget);
-          targetAmount = currentBudget + (addedAmount > 0 ? addedAmount : 0);
-        } else {
-          addedAmount = totalParsed;
-          targetAmount = totalParsed;
-        }
-      } else {
-        final double? entered =
-            double.tryParse(text.replaceAll('₱', '').trim());
-        if (entered != null && entered > 0) {
-          addedAmount = entered;
-          targetAmount = currentBudget + entered;
-        }
-      }
-    } else {
-      final double? entered = double.tryParse(
-          text.replaceAll('₱', '').replaceAll('+', '').trim());
-      if (entered != null && entered > 0) {
-        targetAmount = entered;
-      }
-    }
-
-    if (targetAmount <= 0) {
+    final double? entered = double.tryParse(text);
+    if (entered == null || entered <= 0) {
       showAppAlert(
         context,
         message: 'Please enter a valid budget amount greater than ₱0.',
@@ -236,17 +154,21 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       return;
     }
 
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double currentBudget = state.settings.dailyLimit ?? 0;
+    final double target = _isAddMode ? (currentBudget + entered) : entered;
+
     _focusNode.unfocus();
 
     if (_isAddMode) {
       _confirmAndSaveAddBudget(
         currentBudget: currentBudget,
-        addedAmount: addedAmount > 0 ? addedAmount : targetAmount,
-        targetAmount: targetAmount,
+        addedAmount: entered,
+        targetAmount: target,
       );
     } else {
       _handleBudgetSubmissionWithDebtCheck(
-        targetAmount: targetAmount,
+        targetAmount: target,
         previousBudget: currentBudget > 0 ? currentBudget : null,
         isUpdate: currentBudget > 0,
       );
@@ -295,6 +217,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
         _isInputActive = false;
         _isAddMode = false;
         _dailyController.clear();
+        if (currentBudget > 0) {
+          _lastAddBase = currentBudget;
+          _lastAddAmount = addedAmount;
+        } else {
+          _lastAddBase = null;
+          _lastAddAmount = null;
+        }
       });
 
       showAppAlert(
@@ -1838,7 +1767,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
           ),
           const SizedBox(height: 10),
 
-          // Main Hero Amount Display: Shows Remaining when idle, or TextField when active
+          // Main Hero Amount Display: Shows Remaining when idle, or TextField equation when active
           if (isTyping)
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -1848,32 +1777,43 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     controller: _dailyController,
                     focusNode: _focusNode,
                     keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: <TextInputFormatter>[
                       FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9\.\+\s]')),
+                          RegExp(r'^\d*\.?\d{0,2}')),
                     ],
                     autofocus: true,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 34,
+                      fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
                       fontWeight: FontWeight.w900,
                       color: _BudgetTokens.budgetGold,
-                      letterSpacing: -0.8,
+                      letterSpacing: -0.6,
                     ),
                     decoration: InputDecoration(
-                      prefixText: _dailyController.text.startsWith('+') ? '' : '₱ ',
+                      prefixText: (_isAddMode && currentBudget > 0)
+                          ? '${currentBudget == currentBudget.roundToDouble() ? currentBudget.toStringAsFixed(0) : currentBudget.toStringAsFixed(2)} + '
+                          : '₱ ',
                       prefixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
+                        fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
                         fontWeight: FontWeight.w900,
-                        color: _BudgetTokens.budgetGold,
-                        letterSpacing: -0.8,
+                        color: tokens.textSecondary,
+                        letterSpacing: -0.6,
                       ),
-                      hintText: _isAddMode ? '+ 0.00' : '0.00',
+                      suffixText: (_isAddMode && currentBudget > 0)
+                          ? ' = ${(currentBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}'
+                          : null,
+                      suffixStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: _BudgetTokens.safeGreen,
+                        letterSpacing: -0.6,
+                      ),
+                      hintText: (_isAddMode && currentBudget > 0) ? '0' : '0.00',
                       hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
+                        fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
                         fontWeight: FontWeight.w900,
                         color: _BudgetTokens.budgetGold.withValues(alpha: 0.35),
-                        letterSpacing: -0.8,
+                        letterSpacing: -0.6,
                       ),
                       isDense: true,
                       border: InputBorder.none,
@@ -1903,7 +1843,13 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             )
           else
             InkWell(
-              onTap: () => _startEditBudget(currentBudget),
+              onTap: () {
+                setState(() {
+                  _lastAddBase = null;
+                  _lastAddAmount = null;
+                });
+                _startEditBudget(currentBudget);
+              },
               borderRadius: BorderRadius.circular(12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -1938,13 +1884,35 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                 ],
               ),
             ),
+          // Last add equation tag (shown after a successful add)
+          if (!isTyping && _lastAddBase != null && _lastAddAmount != null) ...<Widget>[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: tokens.tint(_BudgetTokens.safeGreen, 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _BudgetTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
+              ),
+              child: Text(
+                '${_lastAddBase!.toStringAsFixed(0)} + ${_lastAddAmount!.toStringAsFixed(0)} = ${(_lastAddBase! + _lastAddAmount!).toStringAsFixed(0)} added to today\'s budget',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _BudgetTokens.safeGreen,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 2),
 
           // Context Subtitle below amount
           Text(
             isTyping
                 ? (_isAddMode
-                    ? 'Enter amount to add to today\'s budget'
+                    ? (currentBudget > 0
+                        ? 'Adding ₱${(double.tryParse(_dailyController.text.trim()) ?? 0.0).toStringAsFixed(0)} to today\'s budget of ${formatPeso(currentBudget)} (Total: ${formatPeso(currentBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0))})'
+                        : 'Enter initial daily budget for today')
                     : 'Enter new target daily budget for today')
                 : (!hasBudget
                     ? 'No daily budget set. Tap "Add Budget" below.'
@@ -1957,10 +1925,12 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
               color: isOver ? _BudgetTokens.expenseRed : tokens.textSecondary,
             ),
           ),
-          const SizedBox(height: 10),
 
-          // Quick Amount Increments (Preset Numbers close to Budget Input)
-          _buildQuickAmountIncrements(tokens),
+          // Quick Amount Increments (Only shown when user taps Add Budget or Edit Budget)
+          if (isTyping) ...<Widget>[
+            const SizedBox(height: 10),
+            _buildQuickAmountIncrements(tokens),
+          ],
           const SizedBox(height: 12),
 
           // Compact Budget Breakdown Strip (Target, Spent, Remaining Context)
@@ -2184,50 +2154,78 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     required _BudgetTokens tokens,
   }) {
     if (_isInputActive) {
-      return Row(
+      final double entered = double.tryParse(_dailyController.text.trim()) ?? 0.0;
+      final bool showEquation = _isAddMode && currentBudget > 0;
+      return Column(
         children: <Widget>[
-          // Cancel Button (Solid Dark Red #991B1B)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _cancelInput,
-              icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-              label: const Text('Cancel'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: _BudgetTokens.expenseRed,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (showEquation) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: tokens.tint(_BudgetTokens.safeGreen, 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _BudgetTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
+              ),
+              child: Text(
+                '${currentBudget == currentBudget.roundToDouble() ? currentBudget.toStringAsFixed(0) : currentBudget.toStringAsFixed(2)} + ${entered == entered.roundToDouble() ? entered.toStringAsFixed(0) : entered.toStringAsFixed(2)} = ${(currentBudget + entered) == (currentBudget + entered).roundToDouble() ? (currentBudget + entered).toStringAsFixed(0) : (currentBudget + entered).toStringAsFixed(2)}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: _BudgetTokens.safeGreen,
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          // Save Button (Solid Dark Green #0F766E)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _saveBudget,
-              icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
-              label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: _BudgetTokens.safeGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: <Widget>[
+              // Cancel Button (Solid Dark Red #991B1B)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _cancelInput,
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                  label: const Text('Cancel'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: _BudgetTokens.expenseRed,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              // Save Button (Solid Dark Green #0F766E)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _saveBudget,
+                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                  label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: _BudgetTokens.safeGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       );

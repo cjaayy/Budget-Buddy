@@ -655,6 +655,8 @@ class _TogetherBudgetPlanViewState
   final FocusNode _focusNode = FocusNode();
   bool _isInputActive = false;
   bool _isAddMode = false;
+  double? _lastAddBase;
+  double? _lastAddAmount;
 
   @override
   void initState() {
@@ -670,15 +672,27 @@ class _TogetherBudgetPlanViewState
   }
 
   void _onQuickAddAmount(double amount) {
+    if (!_isInputActive) return;
     HapticFeedback.lightImpact();
     setState(() {
-      _isInputActive = true;
-      final double currentVal =
-          double.tryParse(_dailyController.text.trim()) ?? 0.0;
-      final double nextAmount = currentVal + amount;
+      final bool isAllSelected = _dailyController.selection.start == 0 &&
+          _dailyController.selection.end == _dailyController.text.length &&
+          _dailyController.text.isNotEmpty;
+
+      double nextAmount;
+      if (isAllSelected) {
+        nextAmount = amount;
+      } else {
+        final double currentVal =
+            double.tryParse(_dailyController.text.trim()) ?? 0.0;
+        nextAmount = currentVal + amount;
+      }
       _dailyController.text = nextAmount == nextAmount.roundToDouble()
           ? nextAmount.toStringAsFixed(0)
           : nextAmount.toStringAsFixed(2);
+      _dailyController.selection = TextSelection.collapsed(
+        offset: _dailyController.text.length,
+      );
     });
     _focusNode.requestFocus();
   }
@@ -734,6 +748,7 @@ class _TogetherBudgetPlanViewState
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final double currentBudget = state.togetherBudget;
     final double target = _isAddMode ? (currentBudget + entered) : entered;
+    final bool wasAddMode = _isAddMode;
 
     _focusNode.unfocus();
     ref
@@ -744,11 +759,18 @@ class _TogetherBudgetPlanViewState
       _isInputActive = false;
       _isAddMode = false;
       _dailyController.clear();
+      if (wasAddMode && currentBudget > 0) {
+        _lastAddBase = currentBudget;
+        _lastAddAmount = entered;
+      } else {
+        _lastAddBase = null;
+        _lastAddAmount = null;
+      }
     });
 
     showAppAlert(
       context,
-      message: _isAddMode
+      message: wasAddMode
           ? 'Shared budget increased to ${formatPeso(target)}!'
           : 'Shared budget set to ${formatPeso(target)}!',
       title: 'Success',
@@ -1112,26 +1134,37 @@ class _TogetherBudgetPlanViewState
                     ],
                     autofocus: true,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 34,
+                      fontSize: (_isAddMode && totalBudget > 0) ? 26 : 34,
                       fontWeight: FontWeight.w900,
                       color: _TogetherTokens.budgetGold,
-                      letterSpacing: -0.8,
+                      letterSpacing: -0.6,
                     ),
                     decoration: InputDecoration(
-                      prefixText: '₱ ',
+                      prefixText: (_isAddMode && totalBudget > 0)
+                          ? '${totalBudget == totalBudget.roundToDouble() ? totalBudget.toStringAsFixed(0) : totalBudget.toStringAsFixed(2)} + '
+                          : '₱ ',
                       prefixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
+                        fontSize: (_isAddMode && totalBudget > 0) ? 26 : 34,
                         fontWeight: FontWeight.w900,
-                        color: _TogetherTokens.budgetGold,
-                        letterSpacing: -0.8,
+                        color: tokens.textSecondary,
+                        letterSpacing: -0.6,
                       ),
-                      hintText: '0.00',
+                      suffixText: (_isAddMode && totalBudget > 0)
+                          ? ' = ${(totalBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}'
+                          : null,
+                      suffixStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: _TogetherTokens.safeGreen,
+                        letterSpacing: -0.6,
+                      ),
+                      hintText: (_isAddMode && totalBudget > 0) ? '0' : '0.00',
                       hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
+                        fontSize: (_isAddMode && totalBudget > 0) ? 26 : 34,
                         fontWeight: FontWeight.w900,
                         color:
                             _TogetherTokens.budgetGold.withValues(alpha: 0.35),
-                        letterSpacing: -0.8,
+                        letterSpacing: -0.6,
                       ),
                       isDense: true,
                       border: InputBorder.none,
@@ -1161,7 +1194,13 @@ class _TogetherBudgetPlanViewState
             )
           else
             InkWell(
-              onTap: () => _startEditBudget(totalBudget),
+              onTap: () {
+                setState(() {
+                  _lastAddBase = null;
+                  _lastAddAmount = null;
+                });
+                _startEditBudget(totalBudget);
+              },
               borderRadius: BorderRadius.circular(12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -1196,13 +1235,35 @@ class _TogetherBudgetPlanViewState
                 ],
               ),
             ),
+          // Last add equation tag
+          if (!isTyping && _lastAddBase != null && _lastAddAmount != null) ...<Widget>[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: tokens.tint(_TogetherTokens.safeGreen, 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _TogetherTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
+              ),
+              child: Text(
+                '${_lastAddBase!.toStringAsFixed(0)} + ${_lastAddAmount!.toStringAsFixed(0)} = ${(_lastAddBase! + _lastAddAmount!).toStringAsFixed(0)} added to shared budget',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _TogetherTokens.safeGreen,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 2),
 
           // Context Subtitle below amount
           Text(
             isTyping
                 ? (_isAddMode
-                    ? 'Enter amount to add to today\'s shared budget'
+                    ? (totalBudget > 0
+                        ? 'Adding ₱${(double.tryParse(_dailyController.text.trim()) ?? 0.0).toStringAsFixed(0)} to shared budget of ${formatPeso(totalBudget)} (Total: ${formatPeso(totalBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0))})'
+                        : 'Enter amount for shared budget')
                     : 'Enter new target shared budget for today')
                 : (!hasBudget
                     ? 'No shared budget set yet. Tap "Add Budget" below.'
@@ -1216,10 +1277,12 @@ class _TogetherBudgetPlanViewState
                   isOver ? _TogetherTokens.spentRed : tokens.textSecondary,
             ),
           ),
-          const SizedBox(height: 10),
 
-          // Quick Amount Increments (Preset Numbers close to Budget Input)
-          _buildQuickAmountIncrements(tokens),
+          // Quick Amount Increments (Only shown when user taps Add Budget or Edit Budget)
+          if (isTyping) ...<Widget>[
+            const SizedBox(height: 10),
+            _buildQuickAmountIncrements(tokens),
+          ],
           const SizedBox(height: 12),
 
           // Compact Budget Breakdown Strip (Target, Spent, Remaining Context)
@@ -1374,50 +1437,78 @@ class _TogetherBudgetPlanViewState
     required _TogetherTokens tokens,
   }) {
     if (_isInputActive) {
-      return Row(
+      final double entered = double.tryParse(_dailyController.text.trim()) ?? 0.0;
+      final bool showEquation = _isAddMode && totalBudget > 0;
+      return Column(
         children: <Widget>[
-          // Cancel Button (Solid Dark Red #991B1B)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _cancelInput,
-              icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-              label: const Text('Cancel'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: _TogetherTokens.spentRed,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (showEquation) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: tokens.tint(_TogetherTokens.safeGreen, 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _TogetherTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
+              ),
+              child: Text(
+                '${totalBudget == totalBudget.roundToDouble() ? totalBudget.toStringAsFixed(0) : totalBudget.toStringAsFixed(2)} + ${entered == entered.roundToDouble() ? entered.toStringAsFixed(0) : entered.toStringAsFixed(2)} = ${(totalBudget + entered) == (totalBudget + entered).roundToDouble() ? (totalBudget + entered).toStringAsFixed(0) : (totalBudget + entered).toStringAsFixed(2)}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: _TogetherTokens.safeGreen,
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          // Save Button (Solid Dark Green #0F766E)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _saveBudget,
-              icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
-              label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: _TogetherTokens.safeGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: <Widget>[
+              // Cancel Button (Solid Dark Red #991B1B)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _cancelInput,
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                  label: const Text('Cancel'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: _TogetherTokens.spentRed,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              // Save Button (Solid Dark Green #0F766E)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _saveBudget,
+                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                  label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: _TogetherTokens.safeGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       );

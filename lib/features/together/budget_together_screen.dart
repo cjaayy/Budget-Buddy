@@ -58,6 +58,8 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   final FocusNode _focusNode = FocusNode();
   bool _isInputActive = false;
   bool _isAddMode = false;
+  double? _lastAddBase;
+  double? _lastAddAmount;
 
   @override
   void initState() {
@@ -73,6 +75,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
   }
 
   void _onQuickAddAmount(double amount) {
+    if (!_isInputActive) return;
     HapticFeedback.lightImpact();
     setState(() {
       _isInputActive = true;
@@ -150,6 +153,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
     final double currentBudget = state.togetherBudget;
     final double target = _isAddMode ? (currentBudget + entered) : entered;
+    final bool wasAddMode = _isAddMode;
 
     _focusNode.unfocus();
     ref
@@ -160,11 +164,18 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
       _isInputActive = false;
       _isAddMode = false;
       _dailyController.clear();
+      if (wasAddMode && currentBudget > 0) {
+        _lastAddBase = currentBudget;
+        _lastAddAmount = entered;
+      } else {
+        _lastAddBase = null;
+        _lastAddAmount = null;
+      }
     });
 
     showAppAlert(
       context,
-      message: _isAddMode
+      message: wasAddMode
           ? 'Budget Together increased to ${formatPeso(target)}!'
           : 'Budget Together set to ${formatPeso(target)}!',
       title: 'Success',
@@ -492,26 +503,37 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                     ],
                     autofocus: true,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 34,
+                      fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
                       fontWeight: FontWeight.w900,
                       color: _TogetherBudgetTokens.budgetGold,
-                      letterSpacing: -0.8,
+                      letterSpacing: -0.6,
                     ),
                     decoration: InputDecoration(
-                      prefixText: '₱ ',
+                      prefixText: (_isAddMode && currentBudget > 0)
+                          ? '${currentBudget == currentBudget.roundToDouble() ? currentBudget.toStringAsFixed(0) : currentBudget.toStringAsFixed(2)} + '
+                          : '₱ ',
                       prefixStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
+                        fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
                         fontWeight: FontWeight.w900,
-                        color: _TogetherBudgetTokens.budgetGold,
-                        letterSpacing: -0.8,
+                        color: tokens.textSecondary,
+                        letterSpacing: -0.6,
                       ),
-                      hintText: '0.00',
+                      suffixText: (_isAddMode && currentBudget > 0)
+                          ? ' = ${(currentBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0)).toStringAsFixed(0)}'
+                          : null,
+                      suffixStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: _TogetherBudgetTokens.safeGreen,
+                        letterSpacing: -0.6,
+                      ),
+                      hintText: (_isAddMode && currentBudget > 0) ? '0' : '0.00',
                       hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
+                        fontSize: (_isAddMode && currentBudget > 0) ? 26 : 34,
                         fontWeight: FontWeight.w900,
                         color: _TogetherBudgetTokens.budgetGold
                             .withValues(alpha: 0.35),
-                        letterSpacing: -0.8,
+                        letterSpacing: -0.6,
                       ),
                       isDense: true,
                       border: InputBorder.none,
@@ -541,7 +563,13 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
             )
           else
             InkWell(
-              onTap: () => _startEditBudget(currentBudget),
+              onTap: () {
+                setState(() {
+                  _lastAddBase = null;
+                  _lastAddAmount = null;
+                });
+                _startEditBudget(currentBudget);
+              },
               borderRadius: BorderRadius.circular(12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -576,13 +604,35 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                 ],
               ),
             ),
+          // Last add equation tag
+          if (!isTyping && _lastAddBase != null && _lastAddAmount != null) ...<Widget>[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: tokens.tint(_TogetherBudgetTokens.safeGreen, 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _TogetherBudgetTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
+              ),
+              child: Text(
+                '${_lastAddBase!.toStringAsFixed(0)} + ${_lastAddAmount!.toStringAsFixed(0)} = ${(_lastAddBase! + _lastAddAmount!).toStringAsFixed(0)} added to group tab budget',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: _TogetherBudgetTokens.safeGreen,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 2),
 
           // Context Subtitle below amount
           Text(
             isTyping
                 ? (_isAddMode
-                    ? 'Enter amount to add to group tab budget'
+                    ? (currentBudget > 0
+                        ? 'Adding ₱${(double.tryParse(_dailyController.text.trim()) ?? 0.0).toStringAsFixed(0)} to group tab budget of ${formatPeso(currentBudget)} (Total: ${formatPeso(currentBudget + (double.tryParse(_dailyController.text.trim()) ?? 0.0))})'
+                        : 'Enter amount for group tab budget')
                     : 'Enter new target group tab budget')
                 : (!hasBudget
                     ? 'No tab budget set yet. Tap "Add Budget" below.'
@@ -597,10 +647,12 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                   : tokens.textSecondary,
             ),
           ),
-          const SizedBox(height: 10),
 
-          // Quick Amount Increments (Preset Numbers close to Budget Input)
-          _buildQuickAmountIncrements(tokens),
+          // Quick Amount Increments (Only shown when user taps Add Budget or Edit Budget)
+          if (isTyping) ...<Widget>[
+            const SizedBox(height: 10),
+            _buildQuickAmountIncrements(tokens),
+          ],
           const SizedBox(height: 12),
 
           // Compact Budget Breakdown Strip (Target, Spent, Remaining Context)
@@ -755,50 +807,78 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
     required _TogetherBudgetTokens tokens,
   }) {
     if (_isInputActive) {
-      return Row(
+      final double entered = double.tryParse(_dailyController.text.trim()) ?? 0.0;
+      final bool showEquation = _isAddMode && currentBudget > 0;
+      return Column(
         children: <Widget>[
-          // Cancel Button (Solid Dark Red #991B1B)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _cancelInput,
-              icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-              label: const Text('Cancel'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: _TogetherBudgetTokens.expenseRed,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (showEquation) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: tokens.tint(_TogetherBudgetTokens.safeGreen, 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _TogetherBudgetTokens.safeGreen.withValues(alpha: 0.3), width: 1.0),
+              ),
+              child: Text(
+                '${currentBudget == currentBudget.roundToDouble() ? currentBudget.toStringAsFixed(0) : currentBudget.toStringAsFixed(2)} + ${entered == entered.roundToDouble() ? entered.toStringAsFixed(0) : entered.toStringAsFixed(2)} = ${(currentBudget + entered) == (currentBudget + entered).roundToDouble() ? (currentBudget + entered).toStringAsFixed(0) : (currentBudget + entered).toStringAsFixed(2)}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: _TogetherBudgetTokens.safeGreen,
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          // Save Button (Solid Dark Green #0F766E)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: _saveBudget,
-              icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
-              label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                backgroundColor: _TogetherBudgetTokens.safeGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                textStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: <Widget>[
+              // Cancel Button (Solid Dark Red #991B1B)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _cancelInput,
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                  label: const Text('Cancel'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: _TogetherBudgetTokens.expenseRed,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              // Save Button (Solid Dark Green #0F766E)
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _saveBudget,
+                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                  label: Text(_isAddMode ? 'Save & Add' : 'Save Budget'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: _TogetherBudgetTokens.safeGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       );
