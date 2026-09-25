@@ -261,6 +261,13 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     final double budget = state.settings.dailyLimit ?? 0.0;
     final double expenses = state.dailySpent;
     applyDailyBudgetSurplusAndDebt(budget: budget, expenses: expenses);
+    final double unpaidAbsorbed = (state.lastAddDebtAbsorbed ?? 0.0);
+    if (unpaidAbsorbed > 0) {
+      state = state.copyWith(
+        savingsDebt: state.savingsDebt + unpaidAbsorbed,
+        lastAddDebtAbsorbed: null,
+      );
+    }
   }
 
   /// Adds an entry to the vault transaction log.
@@ -803,17 +810,37 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
                 _isSameDay(log.dateTime, day))
             .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
 
+        final bool hasDayAdd = state.lastAddDate != null &&
+            _isSameDay(state.lastAddDate!, day) &&
+            (state.lastAddDebtAbsorbed ?? 0.0) > 0;
+        final double dayAbsorbedDebt = hasDayAdd
+            ? (state.lastAddDebtAbsorbed ?? 0.0)
+            : 0.0;
+        final double legitimateDayExpenses =
+            (dayExpenses - dayAbsorbedDebt).clamp(0.0, double.infinity);
+
         final double dayOverspent = dayBudget > 0
-            ? (dayExpenses - dayBudget).clamp(0.0, double.infinity)
-            : dayExpenses;
-        final double dayDebtRelief = dayPaidDebt.clamp(0.0, dayOverspent);
+            ? (legitimateDayExpenses - dayBudget).clamp(0.0, double.infinity)
+            : legitimateDayExpenses;
+        final double extraDebtRelief = hasDayAdd
+            ? (dayPaidDebt - dayAbsorbedDebt).clamp(0.0, dayOverspent)
+            : dayPaidDebt.clamp(0.0, dayOverspent);
         final double effectiveDayExpenses =
-            (dayExpenses - dayDebtRelief).clamp(0.0, double.infinity);
+            (legitimateDayExpenses - extraDebtRelief).clamp(0.0, double.infinity);
 
         if (dayBudget > 0 || effectiveDayExpenses > 0) {
           applyDailyBudgetSurplusAndDebt(
             budget: dayBudget,
             expenses: effectiveDayExpenses,
+          );
+        }
+
+        // Any unpaid absorbed debt from today must be added to savingsDebt so it's not lost
+        final double unpaidAbsorbedDebt =
+            (dayAbsorbedDebt - dayPaidDebt).clamp(0.0, double.infinity);
+        if (unpaidAbsorbedDebt > 0) {
+          state = state.copyWith(
+            savingsDebt: state.savingsDebt + unpaidAbsorbedDebt,
           );
         }
 
@@ -1001,12 +1028,23 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
             _isSameDay(log.dateTime, dayStart))
         .fold(0.0, (double sum, VaultLogEntry log) => sum + log.amount);
 
+    final bool hasDayAdd = state.lastAddDate != null &&
+        _isSameDay(state.lastAddDate!, dayStart) &&
+        (state.lastAddDebtAbsorbed ?? 0.0) > 0;
+    final double dayAbsorbedDebt = hasDayAdd
+        ? (state.lastAddDebtAbsorbed ?? 0.0)
+        : 0.0;
+    final double legitimateSpent =
+        (totalSpent - dayAbsorbedDebt).clamp(0.0, double.infinity);
+
     final double dayOverspent = dayBudget > 0
-        ? (totalSpent - dayBudget).clamp(0.0, double.infinity)
-        : totalSpent;
-    final double dayDebtRelief = dayPaidDebt.clamp(0.0, dayOverspent);
+        ? (legitimateSpent - dayBudget).clamp(0.0, double.infinity)
+        : legitimateSpent;
+    final double dayDebtRelief = hasDayAdd
+        ? (dayPaidDebt - dayAbsorbedDebt).clamp(0.0, dayOverspent)
+        : dayPaidDebt.clamp(0.0, dayOverspent);
     final double effectiveSpent =
-        (totalSpent - dayDebtRelief).clamp(0.0, double.infinity);
+        (legitimateSpent - dayDebtRelief).clamp(0.0, double.infinity);
 
     final Map<String, double> categoryTotals = <String, double>{
       for (final BudgetCategory category in BudgetCategory.values)

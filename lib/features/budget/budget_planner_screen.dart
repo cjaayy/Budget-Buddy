@@ -1742,11 +1742,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const SavingsScreen(),
-                          ),
-                        );
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
+                        ref.read(homeShellIndexProvider.notifier).state = 4;
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
