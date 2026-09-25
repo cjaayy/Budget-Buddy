@@ -22,8 +22,6 @@ class HomeShell extends ConsumerStatefulWidget {
 }
 
 class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
-
   @override
   void initState() {
     super.initState();
@@ -36,10 +34,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   late final List<Widget> _pages = <Widget>[
     DashboardScreen(
-      onGetStarted: () => setState(() => _index = 1),
-      onOpenSpend: () => setState(() => _index = 2),
-      onOpenExpenses: () => setState(() => _index = 3),
-      onOpenSavings: () => setState(() => _index = 4),
+      onGetStarted: () =>
+          ref.read(homeShellIndexProvider.notifier).state = 1,
+      onOpenSpend: () =>
+          ref.read(homeShellIndexProvider.notifier).state = 2,
+      onOpenExpenses: () =>
+          ref.read(homeShellIndexProvider.notifier).state = 3,
+      onOpenSavings: () =>
+          ref.read(homeShellIndexProvider.notifier).state = 4,
     ),
     const BudgetPlannerScreen(),
     const SpendScreen(),
@@ -51,6 +53,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final int index = ref.watch(homeShellIndexProvider);
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
     final bool budgetExpired =
         _isBudgetExpired(state.settings, state.effectiveDate);
@@ -59,7 +62,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          IndexedStack(index: _index, children: _pages),
+          IndexedStack(index: index, children: _pages),
           if (kDebugMode)
             const Positioned.fill(
               child: BudgetAiAssistant(),
@@ -76,8 +79,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
         child: NavigationBar(
           labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-          selectedIndex: _index,
-          onDestinationSelected: (int value) => setState(() => _index = value),
+          selectedIndex: index,
+          onDestinationSelected: (int value) =>
+              ref.read(homeShellIndexProvider.notifier).state = value,
           destinations: <NavigationDestination>[
             const NavigationDestination(
               icon: Icon(Icons.home_outlined),

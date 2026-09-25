@@ -497,11 +497,8 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           ),
         );
       } else {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const BudgetPlannerScreen(),
-          ),
-        );
+        ref.read(homeShellIndexProvider.notifier).state = 1;
+        Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
       }
     }
 
@@ -548,44 +545,60 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               ),
             ),
             actions: <Widget>[
-              OutlinedButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: tokens.textSecondary,
-                  side: BorderSide(color: tokens.cardBorder),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  navigateToPlanner();
-                },
-                icon: const Icon(Icons.add_circle_outline_rounded,
-                    size: 15, color: Colors.white),
-                label: Text(
-                  'Add in Budget',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    color: Colors.white,
-                  ),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _SpendTokens.budgetGold,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+              SizedBox(
+                width: double.infinity,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: tokens.textSecondary,
+                          side: BorderSide(color: tokens.cardBorder),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          navigateToPlanner();
+                        },
+                        icon: const Icon(Icons.add_circle_outline_rounded,
+                            size: 16, color: Colors.white),
+                        label: Text(
+                          'Add in Budget',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _SpendTokens.budgetGold,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -614,8 +627,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             titlePadding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            actionsPadding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-            actionsOverflowButtonSpacing: 8,
+            actionsPadding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
             icon: const Icon(
               Icons.warning_amber_rounded,
               color: _SpendTokens.expenseRed,
@@ -630,78 +642,185 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                 color: tokens.textPrimary,
               ),
             ),
-            content: Text(
-              'Today\'s budget limit reached (${formatPeso(currentSpent)} / ${formatPeso(currentBudget)}).\n\n'
-              '${overAmount > 0 ? "Exceeds safe limit by ${formatPeso(overAmount)}.\n\n" : ""}'
-              'Would you like to charge this spend to Debt or add budget in Today\'s Budget Plan?',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: tokens.textSecondary,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    'Today\'s budget limit reached (${formatPeso(currentSpent)} / ${formatPeso(currentBudget)}).\n'
+                    '${overAmount > 0 ? "Exceeds safe limit by ${formatPeso(overAmount)}.\n\n" : "\n"}'
+                    'Choose how you want to handle this spend:',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Option 1: Charge to Debt
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        onProceed(isDebt: true);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: tokens.tint(_SpendTokens.expenseRed, 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _SpendTokens.expenseRed.withValues(alpha: 0.35),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: _SpendTokens.expenseRed,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.receipt_long_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    'Charge to Debt',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13.5,
+                                      color: _SpendTokens.expenseRed,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Record spend as unpaid debt without deducting from today\'s budget',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: tokens.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: _SpendTokens.expenseRed,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Option 2: Add in Budget
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        navigateToPlanner();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: tokens.tint(_SpendTokens.budgetGold, 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _SpendTokens.budgetGold.withValues(alpha: 0.35),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: _SpendTokens.budgetGold,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.add_circle_outline_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    'Add in Budget',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13.5,
+                                      color: _SpendTokens.budgetGold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Go to Budget Planner to increase and reload your daily target',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: tokens.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: _SpendTokens.budgetGold,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             actions: <Widget>[
-              OutlinedButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: tokens.textSecondary,
-                  side: BorderSide(color: tokens.cardBorder),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.textSecondary,
+                    side: BorderSide(color: tokens.cardBorder),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                ),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  onProceed(isDebt: true);
-                },
-                icon: const Icon(Icons.receipt_long_rounded,
-                    size: 15, color: Colors.white),
-                label: Text(
-                  'Debt',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    color: Colors.white,
-                  ),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _SpendTokens.expenseRed,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  navigateToPlanner();
-                },
-                icon: const Icon(Icons.add_circle_outline_rounded,
-                    size: 15, color: Colors.white),
-                label: Text(
-                  'Add in Budget',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    color: Colors.white,
-                  ),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _SpendTokens.budgetGold,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ),

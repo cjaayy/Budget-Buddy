@@ -27,6 +27,8 @@ final notificationServiceProvider =
   return NotificationService.instance;
 });
 
+final homeShellIndexProvider = StateProvider<int>((Ref ref) => 0);
+
 final budgetBuddyControllerProvider =
     StateNotifierProvider<BudgetBuddyController, BudgetBuddyState>(
   (ref) {
