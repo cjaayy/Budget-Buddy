@@ -1242,19 +1242,25 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
   }
 
   void restoreSnapshot(BudgetBuddyState snapshot) {
-    // Only restore: Expenses, Savings (daily and monthly), and Budget Together data
     state = state.copyWith(
+      profile: snapshot.profile.displayName.isNotEmpty
+          ? snapshot.profile
+          : state.profile,
       expenses: snapshot.expenses,
       dailyRecords: snapshot.dailyRecords,
       periodReports: snapshot.periodReports,
       budgetEntries: snapshot.budgetEntries,
       togetherBudget: snapshot.togetherBudget,
-      settings: state.settings.copyWith(
-        dailyLimit: snapshot.settings.dailyLimit,
-        weeklyLimit: snapshot.settings.weeklyLimit,
-        monthlyLimit: snapshot.settings.monthlyLimit,
-        hasConfiguredBudget: snapshot.settings.hasConfiguredBudget,
-      ),
+      savingsDebt: snapshot.savingsDebt,
+      totalSavings: snapshot.totalSavings,
+      vaultLog: snapshot.vaultLog,
+      customMeals: snapshot.customMeals.isNotEmpty
+          ? snapshot.customMeals
+          : state.customMeals,
+      savedActivityPlans: snapshot.savedActivityPlans.isNotEmpty
+          ? snapshot.savedActivityPlans
+          : state.savedActivityPlans,
+      settings: snapshot.settings,
       dailySpent: snapshot.dailySpent,
       weeklySpent: snapshot.weeklySpent,
       monthlySpent: snapshot.monthlySpent,

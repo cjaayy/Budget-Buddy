@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:printing/printing.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -581,57 +582,84 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
         children: <Widget>[
           _buildSectionHeader(
             context: context,
-            title: 'Local Data & Privacy Management',
+            title: 'Local Data & Reports Engine',
             icon: Icons.security_rounded,
             accentColor: palette.darkGreen,
           ),
+          const SizedBox(height: 8),
+
+          // Export PDF Report Tile
+          _buildBentoTile(
+            context: context,
+            title: 'Export PDF Report',
+            subtitle: 'Branded financial statement, summary & categorized tables',
+            icon: Icons.picture_as_pdf_rounded,
+            iconColor: palette.darkGreen,
+            iconBg: palette.darkGreenBg,
+            iconBorder: palette.darkGreenBorder,
+            trailing: FilledButton.icon(
+              onPressed: () => _exportPdf(context, state, summary),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.darkGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.file_download_rounded, size: 14),
+              label: Text(
+                'PDF',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            onTap: () => _exportPdf(context, state, summary),
+          ),
+          Divider(height: 1, color: palette.borderColor),
+
+          // Export CSV Data Tile
+          _buildBentoTile(
+            context: context,
+            title: 'Export CSV Data',
+            subtitle: 'Spreadsheet of all transactions, inputs, outputs & savings',
+            icon: Icons.table_chart_rounded,
+            iconColor: palette.gold,
+            iconBg: palette.goldBg,
+            iconBorder: palette.goldBorder,
+            trailing: FilledButton.icon(
+              onPressed: () => _exportCsv(context, state),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.gold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.table_view_rounded, size: 14),
+              label: Text(
+                'CSV',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            onTap: () => _exportCsv(context, state),
+          ),
+          Divider(height: 1, color: palette.borderColor),
           const SizedBox(height: 12),
 
-          // Export / Backup Local Data Grid
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _exportPdf(context, state, summary),
-                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                  label: Text(
-                    'Export PDF',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _exportCsv(context, state),
-                  icon: const Icon(Icons.table_view_rounded, size: 16),
-                  label: Text(
-                    'Export CSV',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+          // JSON Backup & Restore Action Buttons Row
           Row(
             children: <Widget>[
               Expanded(
@@ -639,7 +667,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   onPressed: () => _backupSnapshot(context, state),
                   icon: const Icon(Icons.cloud_upload_rounded, size: 16),
                   label: Text(
-                    'Backup JSON',
+                    'Backup (JSON)',
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
@@ -651,7 +679,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
                     elevation: 0,
                   ),
                 ),
@@ -662,7 +690,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   onPressed: () => _restoreSnapshot(context),
                   icon: const Icon(Icons.cloud_download_rounded, size: 16),
                   label: Text(
-                    'Restore JSON',
+                    'Restore (JSON)',
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
@@ -674,16 +702,16 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
                     elevation: 0,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Divider(height: 1, color: palette.borderColor),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           // Clear All Local Data / Reset App Tile (Destructive Accent #991B1B)
           _buildBentoTile(
@@ -714,7 +742,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 'Reset',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1423,247 +1451,124 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
   Future<void> _backupSnapshot(
       BuildContext context, BudgetBuddyState state) async {
-    final Directory directory = await getTemporaryDirectory();
-    final File file = File(
-      '${directory.path}${Platform.pathSeparator}BudgetBuddy_Backup.json',
+    final _SettingsPalette palette = _SettingsPalette(
+      Theme.of(context).brightness == Brightness.dark,
     );
-    await file.writeAsString(state.encode());
-    final String jsonText = state.encode();
+
+    final String jsonText =
+        ref.read(reportServiceProvider).createBackupJson(state);
+    final Directory directory = await getTemporaryDirectory();
+    final String filename =
+        'BudgetBuddy_Backup_${DateTime.now().millisecondsSinceEpoch}.json';
+    final File file = File('${directory.path}${Platform.pathSeparator}$filename');
+    await file.writeAsString(jsonText);
 
     final String? choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext context) {
+      backgroundColor: palette.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Icon(
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Icon(
                   Icons.cloud_upload_rounded,
                   size: 40,
-                  color: Color(0xFF0F766E),
+                  color: palette.darkGreen,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Back Up Data Snapshot',
+                  'Backup Local Database',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.download_rounded),
-                  title: Text(
-                    'Download',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Save JSON to device Downloads'),
-                  onTap: () => Navigator.of(context).pop('download'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share_rounded),
-                  title: Text(
-                    'Share',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Share via other apps'),
-                  onTap: () => Navigator.of(context).pop('share'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.copy_all_rounded),
-                  title: Text(
-                    'Copy JSON',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Copy backup JSON to clipboard'),
-                  onTap: () => Navigator.of(context).pop('copy'),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF991B1B),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    if (choice == null) return;
-
-    if (choice == 'download') {
-      try {
-        final String filename =
-            'BudgetBuddy_Backup_${DateTime.now().millisecondsSinceEpoch}.json';
-        const MethodChannel channel = MethodChannel('budgetbuddy/storage');
-        final String? saveResult = await channel.invokeMethod<String?>(
-          'saveToDownloads',
-          <String, dynamic>{
-            'sourcePath': file.path,
-            'fileName': filename,
-            'mimeType': 'application/json',
-          },
-        );
-
-        final String displayPath =
-            saveResult ?? '/storage/emulated/0/Download/$filename';
-        if (!mounted) return;
-        await _showDownloadedModal(
-          context,
-          displayPath: displayPath,
-          label: 'Backup JSON',
-        );
-        return;
-      } catch (e) {
-        debugPrint('Backup save error: $e');
-        if (!mounted) return;
-        showAppAlert(
-          context,
-          message: 'Could not save backup to Downloads.',
-          title: 'Notice',
-          icon: Icons.info_outline_rounded,
-          accentColor: const Color(0xFF991B1B),
-        );
-      }
-    }
-
-    if (choice == 'share') {
-      await Share.shareXFiles(
-        <XFile>[XFile(file.path)],
-        text: 'BudgetBuddy backup snapshot',
-      );
-      return;
-    }
-
-    if (choice == 'copy') {
-      await Clipboard.setData(ClipboardData(text: jsonText));
-      if (!mounted) return;
-      showAppAlert(
-        context,
-        message: 'Backup JSON copied to clipboard.',
-        title: 'Notice',
-        icon: Icons.info_outline_rounded,
-        accentColor: const Color(0xFF0F766E),
-      );
-      return;
-    }
-  }
-
-  Future<void> _restoreSnapshot(BuildContext context) async {
-    final String? action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Icon(
-                  Icons.cloud_download_rounded,
-                  size: 44,
-                  color: Color(0xFFD97706),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 Text(
-                  'Restore Backup Data',
+                  'Complete snapshot of user profile, budgets, savings, and transactions',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Choose how to restore your local database snapshot:',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () => Navigator.of(context).pop('paste'),
-                        icon: const Icon(Icons.content_paste_rounded),
-                        label: Text(
-                          'Paste JSON',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.darkGreenBg,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F766E),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () => Navigator.of(context).pop('file'),
-                        icon: const Icon(Icons.folder_open_rounded),
-                        label: Text(
-                          'Select File',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                    child: Icon(Icons.download_rounded, color: palette.darkGreen),
+                  ),
+                  title: Text(
+                    'Save to Downloads',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Store backup JSON file on device storage'),
+                  onTap: () => Navigator.of(sheetContext).pop('download'),
                 ),
-                const SizedBox(height: 12),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.goldBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.share_rounded, color: palette.gold),
+                  ),
+                  title: Text(
+                    'Share Backup File',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Send snapshot to cloud or another device'),
+                  onTap: () => Navigator.of(sheetContext).pop('share'),
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.darkGreenBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.copy_all_rounded, color: palette.darkGreen),
+                  ),
+                  title: Text(
+                    'Copy Raw JSON',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Copy full JSON text to clipboard'),
+                  onTap: () => Navigator.of(sheetContext).pop('copy'),
+                ),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF991B1B),
-                      foregroundColor: Colors.white,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
                     child: Text(
                       'Cancel',
                       style: GoogleFonts.plusJakartaSans(
@@ -1679,7 +1584,177 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       },
     );
 
-    if (action == null || !mounted) return;
+    if (choice == null || !context.mounted) return;
+
+    if (choice == 'download') {
+      try {
+        const MethodChannel channel = MethodChannel('budgetbuddy/storage');
+        final String? saveResult = await channel.invokeMethod<String?>(
+          'saveToDownloads',
+          <String, dynamic>{
+            'sourcePath': file.path,
+            'fileName': filename,
+            'mimeType': 'application/json',
+          },
+        );
+
+        final String displayPath =
+            saveResult ?? '/storage/emulated/0/Download/$filename';
+        if (!context.mounted) return;
+        await _showDownloadedModal(
+          context,
+          displayPath: displayPath,
+          label: 'Backup JSON',
+        );
+      } catch (e) {
+        debugPrint('Backup save error: $e');
+        if (!context.mounted) return;
+        await Share.shareXFiles(
+          <XFile>[XFile(file.path)],
+          text: 'Budget Buddy Backup Snapshot',
+        );
+      }
+    } else if (choice == 'share') {
+      await Share.shareXFiles(
+        <XFile>[XFile(file.path)],
+        text: 'Budget Buddy Backup Snapshot',
+      );
+    } else if (choice == 'copy') {
+      await Clipboard.setData(ClipboardData(text: jsonText));
+      if (!context.mounted) return;
+      showAppAlert(
+        context,
+        message: 'Backup JSON copied to clipboard.',
+        title: 'Copied',
+        icon: Icons.check_circle_outline_rounded,
+        accentColor: palette.darkGreen,
+      );
+    }
+  }
+
+  Future<void> _restoreSnapshot(BuildContext context) async {
+    final _SettingsPalette palette = _SettingsPalette(
+      Theme.of(context).brightness == Brightness.dark,
+    );
+
+    final String? action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Icon(
+                  Icons.cloud_download_rounded,
+                  size: 44,
+                  color: palette.gold,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Restore Backup Data',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Choose how to load your local database snapshot:',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () => Navigator.of(sheetContext).pop('paste'),
+                        icon: const Icon(Icons.content_paste_rounded),
+                        label: Text(
+                          'Paste JSON',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.darkGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.of(sheetContext).pop('file'),
+                        icon: const Icon(Icons.folder_open_rounded),
+                        label: Text(
+                          'Select File',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == null || !context.mounted) return;
 
     String? jsonText;
 
@@ -1689,12 +1764,12 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
         jsonText = await channel.invokeMethod<String?>('pickJson');
       } catch (e) {
         debugPrint('Native pick error: $e');
-        if (!mounted) return;
+        if (!context.mounted) return;
         showAppAlert(
           context,
-          message: 'Could not open file: $e',
+          message: 'Could not open backup file: $e',
           title: 'Import Error',
-          accentColor: const Color(0xFF991B1B),
+          accentColor: palette.darkRed,
           icon: Icons.error_outline_rounded,
         );
         return;
@@ -1702,76 +1777,237 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     } else if (action == 'paste') {
       jsonText = await showDialog<String>(
         context: context,
-        builder: (BuildContext context) => const _PasteJsonDialog(),
+        builder: (BuildContext dialogContext) => const _PasteJsonDialog(),
       );
     }
 
-    if (jsonText == null || jsonText.trim().isEmpty || !mounted) return;
+    if (jsonText == null || jsonText.trim().isEmpty || !context.mounted) return;
 
+    // Validate Schema
+    final BudgetBuddyState restoredState;
     try {
-      final String rawText = jsonText.trim();
-      final BudgetBuddyState snapshot = BudgetBuddyState.decode(rawText);
-      ref
-          .read(budgetBuddyControllerProvider.notifier)
-          .restoreSnapshot(snapshot);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            icon: const Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF0F766E),
-              size: 48,
-            ),
-            title: Text(
-              'Restore Complete',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            content: Text(
-              'Expenses, Savings (daily/monthly), and Budget Together data have been restored successfully.',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            actions: <Widget>[
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+      restoredState = ref
+          .read(reportServiceProvider)
+          .validateAndParseBackup(jsonText.trim());
+    } catch (e) {
+      if (!context.mounted) return;
+      showAppAlert(
+        context,
+        message: 'Invalid backup structure: ${e.toString()}',
+        title: 'Restore Validation Failed',
+        accentColor: palette.darkRed,
+        icon: Icons.warning_amber_rounded,
+      );
+      return;
+    }
+
+    // High-Contrast Confirmation Modal
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: palette.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: palette.gold, width: 1.5),
+          ),
+          title: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: palette.goldBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: palette.goldBorder),
                 ),
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: palette.gold,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Text(
-                  'OK',
+                  'Confirm Database Restore',
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
+                    fontSize: 17,
                   ),
                 ),
               ),
             ],
-          );
-        },
-      );
-    } catch (e) {
-      debugPrint('Restore JSON decode error: $e');
-      if (!mounted) return;
-      showAppAlert(
-        context,
-        message: 'Could not restore backup: $e',
-        title: 'Restore Failed',
-        accentColor: const Color(0xFF991B1B),
-        icon: Icons.error_outline_rounded,
-      );
-    }
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: palette.goldBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: palette.goldBorder),
+                ),
+                child: Text(
+                  'Warning: This action will replace your current local transactions, savings vault, and profile settings with the backup records.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: palette.gold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Backup Summary:',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildRestoreStatRow(
+                'Profile',
+                restoredState.profile.displayName.isNotEmpty
+                    ? restoredState.profile.displayName
+                    : 'Budget Buddy User',
+                palette,
+              ),
+              _buildRestoreStatRow(
+                'Expenses Logged',
+                '${restoredState.expenses.length} records',
+                palette,
+              ),
+              _buildRestoreStatRow(
+                'Total Savings',
+                '₱${restoredState.totalSavings.toStringAsFixed(2)}',
+                palette,
+              ),
+              _buildRestoreStatRow(
+                'Daily Rollover Records',
+                '${restoredState.dailyRecords.length} days',
+                palette,
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.gold,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                elevation: 0,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.check_circle_rounded, size: 16),
+              label: Text(
+                'Overwrite & Restore',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Atomic overwrite & state refresh
+    ref
+        .read(budgetBuddyControllerProvider.notifier)
+        .restoreSnapshot(restoredState);
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: palette.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          icon: Icon(
+            Icons.check_circle_rounded,
+            color: palette.darkGreen,
+            size: 48,
+          ),
+          title: Text(
+            'Restore Successful',
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            'All expenses, budgets, vault savings, and profile data have been restored and refreshed.',
+            style: GoogleFonts.plusJakartaSans(fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          actions: <Widget>[
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.darkGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Done',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRestoreStatRow(
+    String label,
+    String value,
+    _SettingsPalette palette,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: palette.isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmResetApp(BuildContext context) async {
@@ -1847,70 +2083,144 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     BudgetBuddyState state,
     BudgetSummary summary,
   ) async {
-    final String? choice = await showModalBottomSheet<String>(
+    final _SettingsPalette palette = _SettingsPalette(
+      Theme.of(context).brightness == Brightness.dark,
+    );
+
+    // Step 1: Select Period (Monthly vs All-Time)
+    final String? scope = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext context) {
+      backgroundColor: palette.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        final String currentMonthLabel =
+            DateFormat('MMMM yyyy').format(DateTime.now());
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  size: 40,
-                  color: Color(0xFF991B1B),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Export PDF Report',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: palette.darkGreenBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: palette.darkGreenBorder),
+                      ),
+                      child: Icon(
+                        Icons.picture_as_pdf_rounded,
+                        color: palette.darkGreen,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Export PDF Report',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'Choose statement reporting period',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: palette.borderColor),
+                  ),
+                  tileColor: palette.scaffoldBg,
+                  leading: Icon(
+                    Icons.calendar_month_rounded,
+                    color: palette.darkGreen,
+                  ),
+                  title: Text(
+                    'Monthly Report ($currentMonthLabel)',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Categorized statements and breakdown for this month',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(sheetContext).pop('monthly'),
+                ),
+                const SizedBox(height: 10),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: palette.borderColor),
+                  ),
+                  tileColor: palette.scaffoldBg,
+                  leading: Icon(
+                    Icons.all_inclusive_rounded,
+                    color: palette.gold,
+                  ),
+                  title: Text(
+                    'All-Time Full Report',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'All recorded expenses, savings logs, and budgets',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(sheetContext).pop('all_time'),
                 ),
                 const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.download_rounded),
-                  title: Text(
-                    'Download',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Save PDF report to device Downloads'),
-                  onTap: () => Navigator.of(context).pop('download'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share_rounded),
-                  title: Text(
-                    'Share',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Share via other apps'),
-                  onTap: () => Navigator.of(context).pop('share'),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF991B1B),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -1922,23 +2232,123 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       },
     );
 
-    if (choice == null) return;
+    if (scope == null || !context.mounted) return;
+
+    final bool isAllTime = scope == 'all_time';
+    final DateTime? reportMonth = isAllTime ? null : DateTime.now();
+
+    // Step 2: Choose action (Download vs Share / Print)
+    final String? action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Select PDF Action',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.darkGreenBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.download_rounded, color: palette.darkGreen),
+                  ),
+                  title: Text(
+                    'Save to Downloads',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Save PDF file to device storage'),
+                  onTap: () => Navigator.of(sheetContext).pop('download'),
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.goldBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.share_rounded, color: palette.gold),
+                  ),
+                  title: Text(
+                    'Share or Print PDF',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Share via apps or send directly to printer'),
+                  onTap: () => Navigator.of(sheetContext).pop('share'),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == null || !context.mounted) return;
 
     try {
-      final File file = await ref.read(reportServiceProvider).exportDailyReport(
+      final File pdfFile = await ref.read(reportServiceProvider).exportPdfReport(
             state: state,
-            summary: summary,
+            month: reportMonth,
+            isAllTime: isAllTime,
           );
 
-      if (choice == 'download') {
+      if (action == 'download') {
         try {
-          final String filename =
-              'BudgetBuddy_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+          final String monthSlug = isAllTime
+              ? 'all_time'
+              : DateFormat('yyyy_MM').format(reportMonth!);
+          final String filename = 'BudgetBuddy_Report_$monthSlug.pdf';
           const MethodChannel channel = MethodChannel('budgetbuddy/storage');
           final String? saveResult = await channel.invokeMethod<String?>(
             'saveToDownloads',
             <String, dynamic>{
-              'sourcePath': file.path,
+              'sourcePath': pdfFile.path,
               'fileName': filename,
               'mimeType': 'application/pdf',
             },
@@ -1950,148 +2360,174 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           await _showDownloadedModal(
             context,
             displayPath: displayPath,
-            label: 'PDF report',
+            label: 'PDF Report',
           );
-          return;
         } catch (e) {
           debugPrint('Save error: $e');
           if (!context.mounted) return;
-          final bool? share = await showDialog<bool>(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Save failed'),
-                content: SingleChildScrollView(
-                  child: Text(e.toString()),
-                ),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Close'),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Share'),
-                  ),
-                ],
-              );
-            },
+          await Printing.sharePdf(
+            bytes: await pdfFile.readAsBytes(),
+            filename: pdfFile.uri.pathSegments.last,
           );
-
-          if (share == true) {
-            await Share.shareXFiles(
-              <XFile>[XFile(file.path)],
-              text: 'BudgetBuddy PDF report',
-            );
-            if (!context.mounted) return;
-            showAppAlert(
-              context,
-              message: 'PDF report shared successfully.',
-              title: 'Notice',
-              icon: Icons.info_outline_rounded,
-              accentColor: const Color(0xFF0F766E),
-            );
-          }
-          return;
         }
-      }
-
-      if (choice == 'share') {
-        await Share.shareXFiles(
-          <XFile>[XFile(file.path)],
-          text: 'BudgetBuddy PDF report',
+      } else if (action == 'share') {
+        await Printing.sharePdf(
+          bytes: await pdfFile.readAsBytes(),
+          filename: pdfFile.uri.pathSegments.last,
         );
-        if (!mounted) return;
-        showAppAlert(
-          context,
-          message: 'PDF report shared successfully.',
-          title: 'Notice',
-          icon: Icons.info_outline_rounded,
-          accentColor: const Color(0xFF0F766E),
-        );
-        return;
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Export PDF error: $e');
       if (!context.mounted) return;
       showAppAlert(
         context,
-        message: 'Could not export PDF report.',
-        title: 'Notice',
-        icon: Icons.info_outline_rounded,
-        accentColor: const Color(0xFF991B1B),
+        message: 'Could not export PDF report: $e',
+        title: 'Export Failed',
+        icon: Icons.error_outline_rounded,
+        accentColor: palette.darkRed,
       );
     }
   }
 
   Future<void> _exportCsv(BuildContext context, BudgetBuddyState state) async {
-    final String? choice = await showModalBottomSheet<String>(
+    final _SettingsPalette palette = _SettingsPalette(
+      Theme.of(context).brightness == Brightness.dark,
+    );
+
+    // Step 1: Select CSV Scope
+    final String? scope = await showModalBottomSheet<String>(
       context: context,
-      builder: (BuildContext context) {
+      backgroundColor: palette.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        final String currentMonthLabel =
+            DateFormat('MMMM yyyy').format(DateTime.now());
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Icon(
-                  Icons.table_chart_rounded,
-                  size: 40,
-                  color: Color(0xFF0F766E),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Export CSV Data',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: palette.goldBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: palette.goldBorder),
+                      ),
+                      child: Icon(
+                        Icons.table_chart_rounded,
+                        color: palette.gold,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Export CSV Data',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'Choose transaction range for spreadsheet export',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: palette.borderColor),
+                  ),
+                  tileColor: palette.scaffoldBg,
+                  leading: Icon(
+                    Icons.calendar_month_rounded,
+                    color: palette.gold,
+                  ),
+                  title: Text(
+                    'Monthly CSV ($currentMonthLabel)',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Inputs and outputs filtered to this current month',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(sheetContext).pop('monthly'),
+                ),
+                const SizedBox(height: 10),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: palette.borderColor),
+                  ),
+                  tileColor: palette.scaffoldBg,
+                  leading: Icon(
+                    Icons.all_inclusive_rounded,
+                    color: palette.darkGreen,
+                  ),
+                  title: Text(
+                    'All-Time Complete CSV',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'All transactions, budgets, and savings history across time',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(sheetContext).pop('all_time'),
                 ),
                 const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.download_rounded),
-                  title: Text(
-                    'Download',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Save CSV to device Downloads'),
-                  onTap: () => Navigator.of(context).pop('download'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share_rounded),
-                  title: Text(
-                    'Share',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: const Text('Share via other apps'),
-                  onTap: () => Navigator.of(context).pop('share'),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF991B1B),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -2103,22 +2539,124 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
       },
     );
 
-    if (choice == null) return;
+    if (scope == null || !context.mounted) return;
+
+    final bool isAllTime = scope == 'all_time';
+    final DateTime? reportMonth = isAllTime ? null : DateTime.now();
+
+    // Step 2: Choose action (Download vs Share)
+    final String? action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: palette.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.borderColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Select CSV Action',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.goldBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.download_rounded, color: palette.gold),
+                  ),
+                  title: Text(
+                    'Save to Downloads',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Save CSV spreadsheet directly to device'),
+                  onTap: () => Navigator.of(sheetContext).pop('download'),
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.darkGreenBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.share_rounded, color: palette.darkGreen),
+                  ),
+                  title: Text(
+                    'Share via Other Apps',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Send spreadsheet via Mail, Drive, or chat'),
+                  onTap: () => Navigator.of(sheetContext).pop('share'),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == null || !context.mounted) return;
 
     try {
-      final File file = await ref.read(reportServiceProvider).exportCsv(
+      final File csvFile = await ref.read(reportServiceProvider).exportCsv(
             state: state,
+            month: reportMonth,
+            isAllTime: isAllTime,
           );
 
-      if (choice == 'download') {
+      if (action == 'download') {
+        final String monthSlug = isAllTime
+            ? 'all_time'
+            : DateFormat('yyyy_MM').format(reportMonth!);
+        final String filename = 'budget_buddy_report_$monthSlug.csv';
+
         try {
-          final String filename =
-              'BudgetBuddy_Export_${DateTime.now().millisecondsSinceEpoch}.csv';
           const MethodChannel channel = MethodChannel('budgetbuddy/storage');
           final String? saveResult = await channel.invokeMethod<String?>(
             'saveToDownloads',
             <String, dynamic>{
-              'sourcePath': file.path,
+              'sourcePath': csvFile.path,
               'fileName': filename,
               'mimeType': 'text/csv',
             },
@@ -2130,79 +2668,31 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           await _showDownloadedModal(
             context,
             displayPath: displayPath,
-            label: 'CSV file',
+            label: 'CSV File',
           );
-          return;
         } catch (e) {
           debugPrint('Save error: $e');
           if (!context.mounted) return;
-          final bool? share = await showDialog<bool>(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Save failed'),
-                content: SingleChildScrollView(
-                  child: Text(e.toString()),
-                ),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Close'),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Share'),
-                  ),
-                ],
-              );
-            },
+          await Share.shareXFiles(
+            <XFile>[XFile(csvFile.path)],
+            text: 'Budget Buddy CSV Report',
           );
-
-          if (share == true) {
-            await Share.shareXFiles(
-              <XFile>[XFile(file.path)],
-              text: 'BudgetBuddy CSV export',
-            );
-            if (!context.mounted) return;
-            showAppAlert(
-              context,
-              message: 'CSV shared successfully.',
-              title: 'Notice',
-              icon: Icons.info_outline_rounded,
-              accentColor: const Color(0xFF0F766E),
-            );
-          }
-          return;
         }
-      }
-
-      if (choice == 'share') {
+      } else if (action == 'share') {
         await Share.shareXFiles(
-          <XFile>[XFile(file.path)],
-          text: 'BudgetBuddy CSV export',
+          <XFile>[XFile(csvFile.path)],
+          text: 'Budget Buddy CSV Report',
         );
-        if (!mounted) return;
-        showAppAlert(
-          context,
-          message: 'CSV shared successfully.',
-          title: 'Notice',
-          icon: Icons.info_outline_rounded,
-          accentColor: const Color(0xFF0F766E),
-        );
-        return;
       }
-    } catch (_) {
-      if (!mounted) return;
+    } catch (e) {
+      debugPrint('Export CSV error: $e');
+      if (!context.mounted) return;
       showAppAlert(
         context,
-        message: 'Could not export CSV file.',
-        title: 'Notice',
-        icon: Icons.info_outline_rounded,
-        accentColor: const Color(0xFF991B1B),
+        message: 'Could not export CSV file: $e',
+        title: 'Export Failed',
+        icon: Icons.error_outline_rounded,
+        accentColor: palette.darkRed,
       );
     }
   }
