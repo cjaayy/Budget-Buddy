@@ -117,12 +117,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         child: NavigationBarTheme(
           data: NavigationBarThemeData(
             backgroundColor: tokens.navBarBg,
-            indicatorColor: activeIndex == 2
-                ? _NavTokens.spendGold.withValues(alpha: 0.16)
-                : _NavTokens.activeGreen.withValues(alpha: 0.14),
-            indicatorShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-            ),
+            indicatorColor: Colors.transparent,
             labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
               (Set<WidgetState> states) {
                 if (states.contains(WidgetState.selected)) {

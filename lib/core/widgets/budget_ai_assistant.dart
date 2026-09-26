@@ -180,7 +180,7 @@ class _BudgetAiAssistantState extends ConsumerState<BudgetAiAssistant> {
                                             ),
                                           ),
                                           TextSpan(
-                                            text: ', your AI budget assistant! 🤖💚',
+                                            text: ', your AI budget assistant!',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w700,
@@ -255,30 +255,12 @@ class _BudgetAiAssistantState extends ConsumerState<BudgetAiAssistant> {
                             ),
                           ],
                         ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: <Widget>[
-                            const Icon(
-                              Icons.smart_toy_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                            Positioned(
-                              right: 4,
-                              top: 4,
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD97706),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 1.5),
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: const Icon(
+                          Icons.smart_toy_rounded,
+                          color: Colors.white,
+                          size: 28,
                         ),
+
                       ),
                     ),
                   ),
@@ -341,7 +323,7 @@ class _BudsIntroDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              "Hi, I'm Buds, your AI budget assistant! 🤖💚",
+              "Hi, I'm Buds, your AI budget assistant!",
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
@@ -431,7 +413,7 @@ class _BudsChatSheetState extends ConsumerState<_BudsChatSheet> {
   final ScrollController _scrollController = ScrollController();
   final List<_BudsMessage> _messages = <_BudsMessage>[
     const _BudsMessage(
-      text: "Hi, I'm Buds, your AI budget assistant! 🤖💚\nTap any preset question below to query your offline financial records.",
+      text: "Hi, I'm Buds, your AI budget assistant!\nTap any preset question below to query your offline financial records.",
       fromUser: false,
     ),
   ];
@@ -526,7 +508,7 @@ class _BudsChatSheetState extends ConsumerState<_BudsChatSheet> {
       case 'How much debt do I owe?':
         final double debt = state.savingsDebt;
         if (debt <= 0) {
-          return 'You currently have no recorded debt! Great job! 🎉';
+          return 'You currently have no recorded debt. Great job!';
         }
         return 'Your total recorded debt/deficit is ${_formatPeso(debt)}.';
 
@@ -989,7 +971,7 @@ class _BudsChatSheetState extends ConsumerState<_BudsChatSheet> {
                     ),
                     decoration: InputDecoration(
                       hintText:
-                          'Type message disabled — Under Development 🛠️',
+                          'Type message disabled — Under Development',
                       hintStyle: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
