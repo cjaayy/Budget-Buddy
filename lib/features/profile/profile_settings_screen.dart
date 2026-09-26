@@ -22,6 +22,7 @@ import '../auth/auth_screen.dart';
 import '../splash/splash_screen.dart';
 import '../../core/widgets/budget_ai_assistant.dart';
 import 'package:budgetbuddy/core/utils/alert_dialog.dart';
+import '../../core/services/notification_service.dart';
 
 /// Palette defining the unified design tokens for Settings & Profile.
 class _SettingsPalette {
@@ -195,6 +196,10 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
                     // 5. App Info, Licenses & Account Actions
                     _buildAppInfoBentoCard(context, palette),
+                    const SizedBox(height: 14),
+
+                    // 5.5 Notifications & Alerts Preferences
+                    _buildNotificationsBentoCard(context, palette),
                     const SizedBox(height: 14),
 
                     // 6. Developer Mode & Diagnostics (Debug mode only)
@@ -873,6 +878,146 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
             iconBg: palette.darkRedBg,
             iconBorder: palette.darkRedBorder,
             onTap: () => _confirmLogout(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 5.5  Notifications & Alerts Preferences
+  Widget _buildNotificationsBentoCard(
+    BuildContext context,
+    _SettingsPalette palette,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.borderColor, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _buildSectionHeader(
+            context: context,
+            title: 'Notifications & Alerts',
+            icon: Icons.notifications_active_rounded,
+            accentColor: palette.gold,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Tap Preview to fire a real system notification and hear its custom sound.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Budget Reset simulation tile
+          _buildNotifSimTile(
+            context: context,
+            palette: palette,
+            icon: Icons.autorenew_rounded,
+            iconColor: palette.darkGreen,
+            iconBg: palette.darkGreenBg,
+            iconBorder: palette.darkGreenBorder,
+            label: 'Budget Reset',
+            description: 'Sent at midnight when your daily budget auto-resets.',
+            buttonColor: palette.darkGreen,
+            onPlay: () => NotificationService.instance.simulateBudgetReset(),
+          ),
+          Divider(height: 1, color: palette.borderColor),
+
+          // Overspent simulation tile
+          _buildNotifSimTile(
+            context: context,
+            palette: palette,
+            icon: Icons.warning_amber_rounded,
+            iconColor: palette.darkRed,
+            iconBg: palette.darkRedBg,
+            iconBorder: palette.darkRedBorder,
+            label: 'Budget Exceeded',
+            description: 'Triggered when you spend beyond your daily limit.',
+            buttonColor: palette.darkRed,
+            onPlay: () => NotificationService.instance.simulateOverspent(),
+          ),
+          Divider(height: 1, color: palette.borderColor),
+
+          // Zero balance simulation tile
+          _buildNotifSimTile(
+            context: context,
+            palette: palette,
+            icon: Icons.account_balance_wallet_rounded,
+            iconColor: palette.gold,
+            iconBg: palette.goldBg,
+            iconBorder: palette.goldBorder,
+            label: 'Zero Balance',
+            description: 'Fires when your remaining daily budget hits ₱0.00.',
+            buttonColor: palette.gold,
+            onPlay: () => NotificationService.instance.simulateZeroBalance(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotifSimTile({
+    required BuildContext context,
+    required _SettingsPalette palette,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required Color iconBorder,
+    required String label,
+    required String description,
+    required Color buttonColor,
+    required Future<bool> Function() onPlay,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+      child: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: iconBorder),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _NotifPreviewButton(
+            label: 'Preview',
+            buttonColor: buttonColor,
+            onPlay: onPlay,
           ),
         ],
       ),
@@ -3671,6 +3816,103 @@ class _PasteJsonDialogState extends State<_PasteJsonDialog> {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+// ── Preview button with SnackBar feedback ─────────────────────────────────────
+class _NotifPreviewButton extends StatefulWidget {
+  const _NotifPreviewButton({
+    required this.label,
+    required this.buttonColor,
+    required this.onPlay,
+  });
+  final String label;
+  final Color buttonColor;
+  final Future<bool> Function() onPlay;
+
+  @override
+  State<_NotifPreviewButton> createState() => _NotifPreviewButtonState();
+}
+
+class _NotifPreviewButtonState extends State<_NotifPreviewButton> {
+  bool _sending = false;
+
+  Future<void> _handlePress() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    final bool ok = await widget.onPlay();
+    if (mounted) {
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: <Widget>[
+              Icon(
+                ok
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.notifications_off_rounded,
+                size: 16,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ok
+                      ? 'Notification sent! Check your shade.'
+                      : 'Permission denied — tap Grant to enable notifications.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: ok ? const Color(0xFF0F766E) : const Color(0xFF991B1B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: _sending ? null : _handlePress,
+      icon: _sending
+          ? const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Icon(Icons.play_arrow_rounded, size: 14),
+      label: Text(
+        widget.label,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      style: FilledButton.styleFrom(
+        backgroundColor: widget.buttonColor,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 0,
+      ),
     );
   }
 }
