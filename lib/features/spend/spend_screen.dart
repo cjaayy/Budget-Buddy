@@ -683,77 +683,79 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Option 1: Charge to Debt
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.of(dialogContext).pop();
-                        onProceed(isDebt: true);
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: tokens.tint(_SpendTokens.expenseRed, 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _SpendTokens.expenseRed.withValues(alpha: 0.35),
-                            width: 1.2,
+                  // Option 1: Charge to Debt (only visible when a budget is set and reached/exceeded)
+                  if (currentBudget > 0) ...<Widget>[
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(dialogContext).pop();
+                          onProceed(isDebt: true);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: tokens.tint(_SpendTokens.expenseRed, 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _SpendTokens.expenseRed.withValues(alpha: 0.35),
+                              width: 1.2,
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: _SpendTokens.expenseRed,
-                                shape: BoxShape.circle,
+                          child: Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: _SpendTokens.expenseRed,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.receipt_long_rounded,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(
+                                      'Charge to Debt',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13.5,
+                                        color: _SpendTokens.expenseRed,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Record spend as unpaid debt without deducting from today\'s budget',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: tokens.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.chevron_right_rounded,
                                 size: 18,
-                                color: Colors.white,
+                                color: _SpendTokens.expenseRed,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    'Charge to Debt',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13.5,
-                                      color: _SpendTokens.expenseRed,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Record spend as unpaid debt without deducting from today\'s budget',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: tokens.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              size: 18,
-                              color: _SpendTokens.expenseRed,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
+                  ],
 
                   // Option 2: Add in Budget
                   Material(
