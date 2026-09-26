@@ -130,39 +130,28 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
 
         // Section Title: Together Modules
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: tokens.tint(_TogetherTokens.safeGreen, 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.dashboard_customize_rounded,
-                    size: 15,
-                    color: _TogetherTokens.safeGreen,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Together Modules',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: tokens.textPrimary,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: tokens.tint(_TogetherTokens.safeGreen, 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.dashboard_customize_rounded,
+                size: 15,
+                color: _TogetherTokens.safeGreen,
+              ),
             ),
-            SoftPill(
-              text: 'Tap to Open',
-              color: _TogetherTokens.safeGreen,
-              icon: Icons.touch_app_rounded,
-              fontSize: 10.5,
+            const SizedBox(width: 8),
+            Text(
+              'Together Modules',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: tokens.textPrimary,
+                letterSpacing: -0.4,
+              ),
             ),
           ],
         ),
@@ -173,9 +162,8 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
           index: 0,
           title: 'Budget Plan',
           subtitle: 'Set daily shared target, toggle lock status & view breakdown',
-          icon: Icons.calendar_today_rounded,
+          icon: Icons.account_balance_wallet_outlined,
           accentColor: _TogetherTokens.budgetGold,
-          badgeText: 'Planning',
           tokens: tokens,
         ),
 
@@ -184,9 +172,8 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
           index: 1,
           title: 'Quick Spend',
           subtitle: 'Tactile numeric keypad & batch expense logger for shared costs',
-          icon: Icons.bolt_rounded,
-          accentColor: _TogetherTokens.spentRed,
-          badgeText: 'Log Spend',
+          icon: Icons.add_circle_outline_rounded,
+          accentColor: _TogetherTokens.budgetGold,
           tokens: tokens,
         ),
 
@@ -195,9 +182,8 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
           index: 2,
           title: 'Expense History',
           subtitle: 'Review shared transaction logs, filters & detail sheets',
-          icon: Icons.receipt_long_rounded,
-          accentColor: _TogetherTokens.budgetGold,
-          badgeText: 'History',
+          icon: Icons.receipt_long_outlined,
+          accentColor: _TogetherTokens.spentRed,
           tokens: tokens,
         ),
 
@@ -206,9 +192,8 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
           index: 3,
           title: 'Savings & Debt',
           subtitle: 'Manage shared emergency vault, debt tracker & joint goals',
-          icon: Icons.savings_rounded,
+          icon: Icons.savings_outlined,
           accentColor: _TogetherTokens.safeGreen,
-          badgeText: 'Vault & Debt',
           tokens: tokens,
         ),
       ],
@@ -451,7 +436,6 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
     required String subtitle,
     required IconData icon,
     required Color accentColor,
-    required String badgeText,
     required _TogetherTokens tokens,
   }) {
     return Padding(
@@ -488,24 +472,14 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Text(
-                            title,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: tokens.textPrimary,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          SoftPill(
-                            text: badgeText,
-                            color: accentColor,
-                            fontSize: 10,
-                          ),
-                        ],
+                      Text(
+                        title,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: tokens.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
                       ),
                       const SizedBox(height: 3),
                       Text(
