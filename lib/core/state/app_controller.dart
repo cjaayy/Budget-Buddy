@@ -1641,6 +1641,79 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     syncDateAndCheckMidnightReset(forceReset: true);
   }
 
+  Future<void> resetTogetherData() async {
+    final List<ExpenseEntry> remainingExpenses = state.expenses
+        .where((ExpenseEntry e) => e.source != 'togetherSpend')
+        .toList();
+    final List<VaultLogEntry> remainingVaultLogs = state.vaultLog
+        .where((VaultLogEntry log) =>
+            log.isTogether != true &&
+            !log.description.toLowerCase().contains('together'))
+        .toList();
+
+    state = state.copyWith(
+      togetherBudget: 0.0,
+      togetherLastAddBase: null,
+      togetherLastAddAmount: null,
+      togetherLastAddDate: null,
+      togetherLastAddDebtAbsorbed: null,
+      expenses: remainingExpenses,
+      vaultLog: remainingVaultLogs,
+      savedActivityPlans: <ActivitySuggestion>[],
+    );
+    await _repository.saveState(state);
+  }
+
+  Future<void> resetPersonalData() async {
+    final DateTime currentRealNow = DateTime.now();
+    final DateTime currentDayStart =
+        DateTime(currentRealNow.year, currentRealNow.month, currentRealNow.day);
+
+    final List<ExpenseEntry> togetherExpenses = state.expenses
+        .where((ExpenseEntry e) => e.source == 'togetherSpend')
+        .toList();
+    final List<VaultLogEntry> togetherVaultLogs = state.vaultLog
+        .where((VaultLogEntry log) =>
+            log.isTogether == true ||
+            log.description.toLowerCase().contains('together'))
+        .toList();
+
+    state = state.copyWith(
+      expenses: togetherExpenses,
+      budgetEntries: <BudgetEntry>[],
+      dailyRecords: <DailyRecord>[],
+      periodReports: const <PeriodReport>[],
+      dailySpent: 0.0,
+      weeklySpent: 0.0,
+      monthlySpent: 0.0,
+      lastAddBase: null,
+      lastAddAmount: null,
+      lastAddDate: null,
+      lastAddDebtAbsorbed: null,
+      dailyPeriodStart: currentDayStart,
+      weeklyPeriodStart: null,
+      monthlyPeriodStart: null,
+      currentExpenseFilter: null,
+      lastExpenseCategory: null,
+      vaultLog: togetherVaultLogs,
+      profile: state.profile.copyWith(savingsStreak: 0),
+      settings: state.settings.copyWith(
+        dailyLimit: null,
+        weeklyLimit: null,
+        monthlyLimit: null,
+        foodBudget: 0.0,
+        transportationBudget: 0.0,
+        leisureBudget: 0.0,
+        savingsGoal: 0.0,
+        savingsTargetAmount: 0.0,
+        savingsTargetDate: null,
+        hasConfiguredBudget: false,
+        budgetCreatedAt: null,
+      ),
+    );
+    await _repository.saveState(state);
+  }
+
   Future<void> resetApp() async {
     _lastSettledDate = null;
     final DateTime currentRealNow = DateTime.now();

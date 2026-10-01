@@ -718,6 +718,82 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           Divider(height: 1, color: palette.borderColor),
           const SizedBox(height: 8),
 
+          // Clear Personal Budget Data Tile
+          _buildBentoTile(
+            context: context,
+            title: 'Clear Personal Budget Data',
+            subtitle: 'Wipe personal budget limits, expenses, and history to 0',
+            icon: Icons.person_remove_rounded,
+            iconColor: palette.darkRed,
+            iconBg: palette.darkRedBg,
+            iconBorder: palette.darkRedBorder,
+            trailing: FilledButton(
+              onPressed: () => _confirmResetPersonal(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.darkRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'Reset',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            onTap: () => _confirmResetPersonal(context),
+          ),
+          Divider(height: 1, color: palette.borderColor),
+          const SizedBox(height: 4),
+
+          // Clear Budget Together Data Tile (Destructive Accent #991B1B)
+          _buildBentoTile(
+            context: context,
+            title: 'Clear Budget Together Data',
+            subtitle: 'Wipe shared budget, together expenses, and shared logs',
+            icon: Icons.group_remove_rounded,
+            iconColor: palette.darkRed,
+            iconBg: palette.darkRedBg,
+            iconBorder: palette.darkRedBorder,
+            trailing: FilledButton(
+              onPressed: () => _confirmResetTogether(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.darkRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'Reset',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            onTap: () => _confirmResetTogether(context),
+          ),
+          Divider(height: 1, color: palette.borderColor),
+          const SizedBox(height: 4),
+
           // Clear All Local Data / Reset App Tile (Destructive Accent #991B1B)
           _buildBentoTile(
             context: context,
@@ -744,7 +820,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 elevation: 0,
               ),
               child: Text(
-                'Reset',
+                'Reset All',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -2155,27 +2231,56 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     );
   }
 
-  Future<void> _confirmResetApp(BuildContext context) async {
-    final bool? confirm = await showDialog<bool>(
+  Future<void> _confirmResetPersonal(BuildContext context) async {
+    final ResetScope? confirm = await showDialog<ResetScope>(
       context: context,
-      builder: (BuildContext context) => const _ResetAppDialog(),
+      builder: (BuildContext context) =>
+          const _ResetAppDialog(initialScope: ResetScope.personal),
     );
+    if (!mounted || confirm == null) return;
+    await _executeReset(context, confirm);
+  }
 
-    if (!mounted || confirm != true) {
-      return;
-    }
+  Future<void> _confirmResetTogether(BuildContext context) async {
+    final ResetScope? confirm = await showDialog<ResetScope>(
+      context: context,
+      builder: (BuildContext context) =>
+          const _ResetAppDialog(initialScope: ResetScope.together),
+    );
+    if (!mounted || confirm == null) return;
+    await _executeReset(context, confirm);
+  }
 
+  Future<void> _confirmResetApp(BuildContext context) async {
+    final ResetScope? confirm = await showDialog<ResetScope>(
+      context: context,
+      builder: (BuildContext context) =>
+          const _ResetAppDialog(initialScope: ResetScope.all),
+    );
+    if (!mounted || confirm == null) return;
+    await _executeReset(context, confirm);
+  }
+
+  Future<void> _executeReset(BuildContext context, ResetScope scope) async {
     FocusManager.instance.primaryFocus?.unfocus();
     await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
 
-    if (!mounted) {
-      return;
+    String successMessage;
+    if (scope == ResetScope.together) {
+      await ref.read(budgetBuddyControllerProvider.notifier).resetTogetherData();
+      successMessage =
+          'Budget Together data (budget, expenses, logs) has been reset to zero successfully.';
+    } else if (scope == ResetScope.personal) {
+      await ref.read(budgetBuddyControllerProvider.notifier).resetPersonalData();
+      successMessage =
+          'Personal budget data (limits, expenses, records) has been reset to zero successfully.';
+    } else {
+      await ref.read(budgetBuddyControllerProvider.notifier).resetApp();
+      successMessage = 'All app data has been reset to zero successfully.';
     }
 
-    await ref.read(budgetBuddyControllerProvider.notifier).resetApp();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     await showDialog<void>(
       context: context,
@@ -2196,7 +2301,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
             ),
           ),
           content: Text(
-            'App data has been reset to zero successfully.',
+            successMessage,
             style: GoogleFonts.plusJakartaSans(fontSize: 13),
             textAlign: TextAlign.center,
           ),
@@ -3576,8 +3681,16 @@ class _DevPreviewFrame extends StatelessWidget {
   }
 }
 
+enum ResetScope {
+  personal,
+  together,
+  all,
+}
+
 class _ResetAppDialog extends StatefulWidget {
-  const _ResetAppDialog();
+  const _ResetAppDialog({this.initialScope = ResetScope.all});
+
+  final ResetScope initialScope;
 
   @override
   State<_ResetAppDialog> createState() => _ResetAppDialogState();
@@ -3585,12 +3698,14 @@ class _ResetAppDialog extends StatefulWidget {
 
 class _ResetAppDialogState extends State<_ResetAppDialog> {
   late final TextEditingController _confirmationController;
+  late ResetScope _selectedScope;
   int _secondsRemaining = 5;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    _selectedScope = widget.initialScope;
     _confirmationController = TextEditingController();
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (!mounted) {
@@ -3620,16 +3735,68 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
   @override
   Widget build(BuildContext context) {
     final bool isTimerDone = _secondsRemaining == 0;
+
+    final String title = switch (_selectedScope) {
+      ResetScope.personal => 'Clear Personal Budget Data?',
+      ResetScope.together => 'Clear Budget Together Data?',
+      ResetScope.all => 'Reset Entire App to 0?',
+    };
+
+    final String description = switch (_selectedScope) {
+      ResetScope.personal =>
+        'This will reset personal budget limits, personal expenses, and history logs back to 0. Your Budget Together shared pool and records will remain safe and untouched. Type RESET to continue.',
+      ResetScope.together =>
+        'This will reset your Budget Together shared budget, shared expenses, and together logs back to 0. Your personal budget and records will remain safe and untouched. Type RESET to continue.',
+      ResetScope.all =>
+        'This will reset the entire local database to zero. All budgets (personal & together), expenses, spending records, savings, debts, and daily logs will be set to 0. Type RESET to continue.',
+    };
+
+    final String buttonLabel = switch (_selectedScope) {
+      ResetScope.personal => isTimerDone
+          ? 'Reset Personal to 0'
+          : 'Reset Personal (${_secondsRemaining}s)',
+      ResetScope.together => isTimerDone
+          ? 'Reset Together to 0'
+          : 'Reset Together (${_secondsRemaining}s)',
+      ResetScope.all => isTimerDone
+          ? 'Reset All to 0'
+          : 'Reset All to 0 (${_secondsRemaining}s)',
+    };
+
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      title: Text(
-        'Reset Entire App to 0?',
-        style: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w800,
-          color: const Color(0xFF991B1B),
-        ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              color: const Color(0xFF991B1B),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: <Widget>[
+                _buildScopeChip('Personal', ResetScope.personal),
+                _buildScopeChip('Together', ResetScope.together),
+                _buildScopeChip('All Data', ResetScope.all),
+              ],
+            ),
+          ),
+        ],
       ),
       content: SingleChildScrollView(
         child: Column(
@@ -3637,7 +3804,7 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'This will reset the entire local database to zero. All budgets, expenses, spending records, savings, debts, and daily logs will be set to 0. Type RESET to continue.',
+              description,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 height: 1.4,
@@ -3658,7 +3825,7 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: () => Navigator.of(context).pop(null),
           child: Text(
             'Cancel',
             style: GoogleFonts.plusJakartaSans(
@@ -3670,7 +3837,7 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
         FilledButton(
           onPressed: () {
             if (_confirmationController.text.trim().toUpperCase() == 'RESET') {
-              Navigator.of(context).pop(true);
+              Navigator.of(context).pop(_selectedScope);
             }
           },
           style: FilledButton.styleFrom(
@@ -3682,15 +3849,44 @@ class _ResetAppDialogState extends State<_ResetAppDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
           child: Text(
-            isTimerDone
-                ? 'Reset All to 0'
-                : 'Reset All to 0 (${_secondsRemaining}s)',
+            buttonLabel,
             style: GoogleFonts.plusJakartaSans(
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildScopeChip(String label, ResetScope scope) {
+    final bool isSelected = _selectedScope == scope;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedScope = scope;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF991B1B) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
