@@ -265,116 +265,154 @@ class CenterUpdateDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final _SplashTokens tokens = _SplashTokens(isDark);
 
-    return Dialog(
-      backgroundColor: tokens.dialogBg,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: tokens.borderColor, width: 1.2),
-      ),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Header Row: Icon + Version Info
-              Row(
-                children: <Widget>[
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isMandatory
-                          ? _SplashTokens.destructiveRed
-                          : _SplashTokens.warningGold,
-                      borderRadius: BorderRadius.circular(14),
+    return PopScope(
+      canPop: !isMandatory,
+      child: Dialog(
+        backgroundColor: tokens.dialogBg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: tokens.borderColor, width: 1.2),
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Header Row: Icon + Version Info
+                Row(
+                  children: <Widget>[
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isMandatory
+                            ? _SplashTokens.destructiveRed
+                            : _SplashTokens.warningGold,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.system_update_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                     ),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.system_update_rounded,
-                      color: Colors.white,
-                      size: 26,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            isMandatory ? 'Update Required' : 'Update Available',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: tokens.textPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Version $newVersion (Current: v$currentVersion)',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Required / New Version Capsule Tag
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isMandatory ? tokens.redBg : tokens.goldBg,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isMandatory ? tokens.redBorder : tokens.goldBorder,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Update Available',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: tokens.textPrimary,
-                            letterSpacing: -0.3,
-                          ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        isMandatory
+                            ? Icons.warning_rounded
+                            : Icons.auto_awesome_rounded,
+                        size: 13,
+                        color: isMandatory
+                            ? _SplashTokens.destructiveRed
+                            : _SplashTokens.warningGold,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        isMandatory
+                            ? 'REQUIRED UPDATE'
+                            : 'NEW VERSION AVAILABLE',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: isMandatory
+                              ? _SplashTokens.destructiveRed
+                              : _SplashTokens.warningGold,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Version $newVersion (Current: v$currentVersion)',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: tokens.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+                if (isMandatory) ...<Widget>[
+                  const SizedBox(height: 12),
+                  // Mandatory Update Warning Banner
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tokens.redBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: tokens.redBorder),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.lock_outline_rounded,
+                          color: _SplashTokens.destructiveRed,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'You must update the app before using it again.',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: _SplashTokens.destructiveRed,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 14),
+                const SizedBox(height: 16),
 
-              // Required / New Version Capsule Tag
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: isMandatory ? tokens.redBg : tokens.goldBg,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: isMandatory ? tokens.redBorder : tokens.goldBorder,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      isMandatory
-                          ? Icons.warning_rounded
-                          : Icons.auto_awesome_rounded,
-                      size: 13,
-                      color: isMandatory
-                          ? _SplashTokens.destructiveRed
-                          : _SplashTokens.warningGold,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isMandatory
-                          ? 'REQUIRED UPDATE'
-                          : 'NEW VERSION AVAILABLE',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: isMandatory
-                            ? _SplashTokens.destructiveRed
-                            : _SplashTokens.warningGold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Release Notes Bento Box
+                // Release Notes Bento Box
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
@@ -501,6 +539,7 @@ class CenterUpdateDialog extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

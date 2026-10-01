@@ -124,14 +124,14 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     }
   }
 
-  void _showDevUpdateModal(BuildContext context, {bool mandatory = false}) {
+  void _showDevUpdateModal(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog<void>(
       context: context,
-      barrierDismissible: !mandatory,
+      barrierDismissible: false,
       builder: (BuildContext dialogContext) => CenterUpdateDialog(
         isDark: isDark,
-        isMandatory: mandatory,
+        isMandatory: true,
         currentVersion: _appVersion?.version ?? '1.0.0',
         newVersion: '1.2.0',
         releaseNotes: const <String>[
@@ -1196,27 +1196,13 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: () =>
-                    _showDevUpdateModal(context, mandatory: false),
+                onPressed: () => _showDevUpdateModal(context),
                 icon: const Icon(Icons.system_update_rounded, size: 14),
                 label: Text(
                   'Preview Update',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    _showDevUpdateModal(context, mandatory: true),
-                icon: const Icon(Icons.warning_amber_rounded, size: 14),
-                label: Text(
-                  'Required Update',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF991B1B),
                   ),
                 ),
               ),
