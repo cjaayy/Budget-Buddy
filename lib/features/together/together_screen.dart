@@ -965,6 +965,745 @@ class _TogetherBudgetPlanViewState
     );
   }
 
+  void _showDirectPayDebtSheet(
+    BuildContext context, {
+    required double savingsDebt,
+    required double currentBudget,
+    required _TogetherTokens tokens,
+  }) {
+    final BudgetBuddyState state = ref.read(budgetBuddyControllerProvider);
+    final double vaultSavings = state.totalSavings;
+    final DateTime currentClock = state.effectiveDate;
+    final double currentSpent = state.expenses
+        .where((ExpenseEntry e) =>
+            e.source == 'togetherSpend' &&
+            DateUtils.isSameDay(e.dateTime, currentClock))
+        .fold<double>(0.0, (double sum, ExpenseEntry e) => sum + e.amount);
+    final double remainingBudget =
+        (currentBudget - currentSpent).clamp(0.0, double.infinity);
+    final bool hasBudget = currentBudget > 0;
+    final bool isOverBudget = !hasBudget ||
+        currentSpent >= currentBudget ||
+        (currentBudget - currentSpent) <= 0;
+    final bool canPayFromBudget = hasBudget && remainingBudget > 0;
+    final TextEditingController payCtrl =
+        TextEditingController(text: savingsDebt.toStringAsFixed(0));
+    int paymentSource = canPayFromBudget
+        ? 0
+        : 1; // 0: Shared Budget, 1: Savings Vault
+    int paymentDestination = 0; // 0: Back to Savings, 1: Add to Current Shared Budget Today
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: tokens.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext sheetCtx) {
+        return StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setModalState) {
+            final double? enteredVal = double.tryParse(payCtrl.text.trim());
+            final double currentAmount = enteredVal ?? 0.0;
+
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  12,
+                  20,
+                  MediaQuery.of(sheetCtx).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: tokens.cardBorder,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Pay Shared Deficit',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.of(sheetCtx).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Metrics Strip
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: tokens.subCardBg,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: tokens.cardBorder),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Shared Deficit',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatPeso(savingsDebt),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: _TogetherTokens.spentRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            height: 24,
+                            width: 1,
+                            color: tokens.cardBorder,
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              Text(
+                                'Shared Allowance',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatPeso(remainingBudget),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: canPayFromBudget
+                                      ? _TogetherTokens.budgetGold
+                                      : _TogetherTokens.spentRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            height: 24,
+                            width: 1,
+                            color: tokens.cardBorder,
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: <Widget>[
+                              Text(
+                                'Vault Savings',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatPeso(vaultSavings),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: _TogetherTokens.safeGreen,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Text(
+                      'Choose Payment Source:',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Option 0: Shared Budget
+                    InkWell(
+                      onTap: canPayFromBudget
+                          ? () => setModalState(() => paymentSource = 0)
+                          : () {
+                              showAppAlert(
+                                context,
+                                message: !hasBudget
+                                    ? 'No shared budget set today! Please set today\'s shared budget first.'
+                                    : 'Shared budget is overbudget today! Cannot pay debt from shared allowance.',
+                                title: !hasBudget ? 'No Budget Set' : 'Overbudget',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _TogetherTokens.spentRed,
+                              );
+                            },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Opacity(
+                        opacity: canPayFromBudget ? 1.0 : 0.45,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: paymentSource == 0 && canPayFromBudget
+                                ? tokens.tint(_TogetherTokens.budgetGold, 0.1)
+                                : tokens.subCardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: paymentSource == 0 && canPayFromBudget
+                                  ? _TogetherTokens.budgetGold
+                                  : tokens.cardBorder,
+                              width: paymentSource == 0 && canPayFromBudget
+                                  ? 1.5
+                                  : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                paymentSource == 0 && canPayFromBudget
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 16,
+                                color: paymentSource == 0 && canPayFromBudget
+                                    ? _TogetherTokens.budgetGold
+                                    : tokens.textMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Row(
+                                      children: <Widget>[
+                                        Text(
+                                          'Pay using Current Budget Today',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: canPayFromBudget
+                                                ? tokens.textPrimary
+                                                : tokens.textMuted,
+                                          ),
+                                        ),
+                                        if (!canPayFromBudget) ...<Widget>[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: _TogetherTokens.spentRed
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              !hasBudget
+                                                  ? 'No Budget'
+                                                  : 'Overbudget',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: _TogetherTokens.spentRed,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    Text(
+                                      !hasBudget
+                                          ? 'Unavailable — No shared budget configured for today'
+                                          : (canPayFromBudget
+                                              ? 'Deducts from today\'s remaining shared allowance (${formatPeso(remainingBudget)} available)'
+                                              : 'Unavailable — Shared budget is exhausted (Overbudget)'),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        color: canPayFromBudget
+                                            ? tokens.textSecondary
+                                            : _TogetherTokens.spentRed,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Option 1: Savings Vault
+                    InkWell(
+                      onTap: () => setModalState(() => paymentSource = 1),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: paymentSource == 1
+                              ? tokens.tint(_TogetherTokens.safeGreen, 0.1)
+                              : tokens.subCardBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: paymentSource == 1
+                                ? _TogetherTokens.safeGreen
+                                : tokens.cardBorder,
+                            width: paymentSource == 1 ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Icon(
+                              paymentSource == 1
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              size: 16,
+                              color: paymentSource == 1
+                                  ? _TogetherTokens.safeGreen
+                                  : tokens.textMuted,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    'Pay from Savings Vault',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: tokens.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Deducts from vault savings (${formatPeso(vaultSavings)} available)',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: tokens.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Destination Section
+                    Text(
+                      'Repayment Destination (When Paid, Route To):',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Row(
+                      children: <Widget>[
+                        // Option 0: Back to Savings
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setModalState(
+                                () => paymentDestination = 0),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: paymentDestination == 0
+                                    ? tokens.tint(
+                                        _TogetherTokens.safeGreen, 0.12)
+                                    : tokens.subCardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: paymentDestination == 0
+                                      ? _TogetherTokens.safeGreen
+                                      : tokens.cardBorder,
+                                  width: paymentDestination == 0 ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    paymentDestination == 0
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 15,
+                                    color: paymentDestination == 0
+                                        ? _TogetherTokens.safeGreen
+                                        : tokens.textMuted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          'Back to Savings',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: tokens.textPrimary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Replenish vault',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10.5,
+                                            color: tokens.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Option 1: Add to Current Shared Budget Today
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setModalState(
+                                () => paymentDestination = 1),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: paymentDestination == 1
+                                    ? tokens.tint(
+                                        _TogetherTokens.budgetGold, 0.12)
+                                    : tokens.subCardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: paymentDestination == 1
+                                      ? _TogetherTokens.budgetGold
+                                      : tokens.cardBorder,
+                                  width: paymentDestination == 1 ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    paymentDestination == 1
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 15,
+                                    color: paymentDestination == 1
+                                        ? _TogetherTokens.budgetGold
+                                        : tokens.textMuted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          'Add to Budget',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: tokens.textPrimary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Add to today',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10.5,
+                                            color: tokens.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    Text(
+                      'Payment Amount:',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: payCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      onChanged: (_) => setModalState(() {}),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _TogetherTokens.spentRed,
+                      ),
+                      decoration: InputDecoration(
+                        prefixText: '₱ ',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: tokens.cardBorder),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Quick Pills
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: <Widget>[
+                        ...<double>[50, 100, 200].map((double val) {
+                          return InkWell(
+                            onTap: () {
+                              payCtrl.text = val.toStringAsFixed(0);
+                              setModalState(() {});
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: tokens.subCardBg,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: tokens.cardBorder),
+                              ),
+                              child: Text(
+                                '₱${val.toStringAsFixed(0)}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _TogetherTokens.spentRed,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        InkWell(
+                          onTap: () {
+                            payCtrl.text = savingsDebt.toStringAsFixed(0);
+                            setModalState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: tokens.tint(
+                                  _TogetherTokens.spentRed, 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                  color: _TogetherTokens.spentRed),
+                            ),
+                            child: Text(
+                              'Full (${formatPeso(savingsDebt)})',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _TogetherTokens.spentRed,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Confirm Payment Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          if (currentAmount <= 0) {
+                            showAppAlert(context,
+                              message: 'Please enter a valid amount to pay.',
+                              title: 'Notice',
+                              icon: Icons.info_outline_rounded,
+                            );
+                            return;
+                          }
+
+                          if (currentAmount > savingsDebt) {
+                            showAppAlert(
+                              context,
+                              message:
+                                  'Payment (${formatPeso(currentAmount)}) exceeds total shared deficit (${formatPeso(savingsDebt)})!',
+                              title: 'Alert',
+                              icon: Icons.warning_amber_rounded,
+                              accentColor: _TogetherTokens.spentRed,
+                            );
+                            return;
+                          }
+
+                          if (paymentSource == 0) {
+                            if (!canPayFromBudget || remainingBudget <= 0) {
+                              showAppAlert(
+                                context,
+                                message: !hasBudget
+                                    ? 'No shared budget set today! Cannot pay debt from shared allowance.'
+                                    : 'Shared budget is overbudget today! Cannot pay debt from shared allowance.',
+                                title: !hasBudget ? 'No Budget Set' : 'Overbudget',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _TogetherTokens.spentRed,
+                              );
+                              return;
+                            }
+                            if (remainingBudget < currentAmount) {
+                              showAppAlert(
+                                context,
+                                message:
+                                    'Payment (${formatPeso(currentAmount)}) exceeds today\'s remaining shared allowance (${formatPeso(remainingBudget)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _TogetherTokens.spentRed,
+                              );
+                              return;
+                            }
+
+                            // Source: Shared Budget
+                            if (paymentDestination == 0) {
+                              // Deduct from shared budget, credit to savings vault
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .setTogetherBudget((currentBudget - currentAmount)
+                                      .clamp(0.0, double.infinity));
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .setTotalSavings(vaultSavings + currentAmount);
+                            }
+                            // If paymentDestination == 1 (Add to Budget), net budget change is 0.
+                          } else {
+                            if (vaultSavings < currentAmount) {
+                              showAppAlert(context,
+                                message: 'Payment exceeds vault savings (${formatPeso(vaultSavings)})!',
+                                title: 'Alert',
+                                icon: Icons.warning_amber_rounded,
+                                accentColor: _TogetherTokens.spentRed,
+                              );
+                              return;
+                            }
+
+                            // Source: Savings Vault
+                            ref
+                                .read(budgetBuddyControllerProvider.notifier)
+                                .setTotalSavings((vaultSavings - currentAmount)
+                                    .clamp(0.0, double.infinity));
+                            if (paymentDestination == 1) {
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .setTogetherBudget(currentBudget + currentAmount);
+                            }
+                          }
+
+                          final String sourceLabel = paymentSource == 0
+                              ? 'Shared budget'
+                              : 'Savings vault';
+                          final String destLabel = paymentDestination == 0
+                              ? 'returned to savings'
+                              : 'added to today\'s shared budget';
+
+                          ref
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .paySavingsDebt(
+                                amount: currentAmount,
+                                deductFromBudget: false,
+                                description:
+                                    'Together debt paid via $sourceLabel → $destLabel',
+                                isTogether: true,
+                              );
+
+                          final double remainingDebt =
+                              (savingsDebt - currentAmount)
+                                  .clamp(0.0, double.infinity);
+                          Navigator.of(sheetCtx).pop();
+
+                          showAppAlert(context,
+                            message: remainingDebt <= 0
+                                ? 'Shared debt paid in full (${formatPeso(currentAmount)})! You have zero debt.'
+                                : 'Paid ${formatPeso(currentAmount)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
+                            title: 'Success',
+                            icon: Icons.check_circle_outline_rounded,
+                            accentColor: _TogetherTokens.safeGreen,
+                          );
+                        },
+                        icon: const Icon(Icons.check_circle_rounded,
+                            size: 16, color: Colors.white),
+                        label: Text(
+                          'Confirm Payment (${formatPeso(currentAmount)})',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _TogetherTokens.spentRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
@@ -1130,7 +1869,7 @@ class _TogetherBudgetPlanViewState
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Debt is separate from your shared budget and can only be paid in Savings.',
+                        'Pay using shared budget or savings vault, and choose where paid funds route.',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
@@ -1143,25 +1882,30 @@ class _TogetherBudgetPlanViewState
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () {
-                    widget.onOpenSavings?.call();
+                    _showDirectPayDebtSheet(
+                      context,
+                      savingsDebt: effectiveDebt,
+                      currentBudget: totalBudget,
+                      tokens: tokens,
+                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 7),
+                        horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: _TogetherTokens.spentRed,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Column(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        const Icon(Icons.savings_rounded,
+                        const Icon(Icons.payments_rounded,
                             size: 14, color: Colors.white),
-                        const SizedBox(height: 2),
+                        const SizedBox(width: 4),
                         Text(
-                          'Pay in Savings',
+                          'Pay Deficit',
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 9.5,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),

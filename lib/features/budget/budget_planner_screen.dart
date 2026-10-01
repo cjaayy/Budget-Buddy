@@ -803,7 +803,15 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                       'Deficit payment allocated from new budget set',
                                 );
 
-                            // 2. Set net daily budget
+                            // 2. Replenish savings vault
+                            ref
+                                .read(
+                                    budgetBuddyControllerProvider.notifier)
+                                .setTotalSavings(
+                                    ref.read(budgetBuddyControllerProvider).totalSavings +
+                                        currentPay);
+
+                            // 3. Set net daily budget
                             ref
                                 .read(
                                     budgetBuddyControllerProvider.notifier)
@@ -891,15 +899,17 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
     final double currentSpent = state.dailySpent;
     final double remainingBudget =
         (currentBudget - currentSpent).clamp(0.0, double.infinity);
-    final bool isOverBudget = currentBudget <= 0 ||
+    final bool hasBudget = currentBudget > 0;
+    final bool isOverBudget = !hasBudget ||
         currentSpent >= currentBudget ||
         (currentBudget - currentSpent) <= 0;
-    final bool canPayFromBudget = !isOverBudget && remainingBudget > 0;
+    final bool canPayFromBudget = hasBudget && remainingBudget > 0;
     final TextEditingController payCtrl =
         TextEditingController(text: savingsDebt.toStringAsFixed(0));
     int paymentSource = canPayFromBudget
         ? 0
-        : (vaultSavings > 0 ? 1 : 2); // 0: From Today's Budget, 1: From Savings Vault, 2: Direct
+        : 1; // 0: Pay using Current Budget Today, 1: Pay from Savings Vault
+    int paymentDestination = 0; // 0: Back to Savings, 1: Add to Current Budget Today
 
     showModalBottomSheet<void>(
       context: context,
@@ -1061,16 +1071,17 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Option 0: Today's Budget
+                    // Option 0: Current Budget Today
                     InkWell(
                       onTap: canPayFromBudget
                           ? () => setModalState(() => paymentSource = 0)
                           : () {
                               showAppAlert(
                                 context,
-                                message:
-                                    'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
-                                title: 'Overbudget',
+                                message: !hasBudget
+                                    ? 'No daily budget set today! Please set today\'s budget first.'
+                                    : 'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
+                                title: !hasBudget ? 'No Budget Set' : 'Overbudget',
                                 icon: Icons.warning_amber_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
@@ -1114,7 +1125,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                     Row(
                                       children: <Widget>[
                                         Text(
-                                          'Pay from Today\'s Budget Allowance',
+                                          'Pay using Current Budget Today',
                                           style: GoogleFonts.plusJakartaSans(
                                             fontSize: 12.5,
                                             fontWeight: FontWeight.w700,
@@ -1135,7 +1146,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                                   BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              'Overbudget',
+                                              !hasBudget
+                                                  ? 'No Budget'
+                                                  : 'Overbudget',
                                               style: GoogleFonts.plusJakartaSans(
                                                 fontSize: 9.5,
                                                 fontWeight: FontWeight.w700,
@@ -1147,9 +1160,11 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                       ],
                                     ),
                                     Text(
-                                      canPayFromBudget
-                                          ? 'Deducts from today\'s remaining allowance (${formatPeso(remainingBudget)} available)'
-                                          : 'Unavailable — You have no budget left today (Overbudget)',
+                                      !hasBudget
+                                          ? 'Unavailable — No daily budget configured for today'
+                                          : (canPayFromBudget
+                                              ? 'Deducts from today\'s remaining allowance (${formatPeso(remainingBudget)} available)'
+                                              : 'Unavailable — You have no budget left today (Overbudget)'),
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11,
                                         color: canPayFromBudget
@@ -1224,64 +1239,148 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
 
-                    // Option 2: Direct Payment
-                    InkWell(
-                      onTap: () => setModalState(() => paymentSource = 2),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: paymentSource == 2
-                              ? tokens.tint(_BudgetTokens.expenseRed, 0.1)
-                              : tokens.subCardBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: paymentSource == 2
-                                ? _BudgetTokens.expenseRed
-                                : tokens.cardBorder,
-                            width: paymentSource == 2 ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(
-                              paymentSource == 2
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_off_rounded,
-                              size: 16,
-                              color: paymentSource == 2
-                                  ? _BudgetTokens.expenseRed
-                                  : tokens.textMuted,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                    // Destination Section
+                    Text(
+                      'Repayment Destination (When Paid, Route To):',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Row(
+                      children: <Widget>[
+                        // Option 0: Back to Savings
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setModalState(
+                                () => paymentDestination = 0),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: paymentDestination == 0
+                                    ? tokens.tint(
+                                        _BudgetTokens.safeGreen, 0.12)
+                                    : tokens.subCardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: paymentDestination == 0
+                                      ? _BudgetTokens.safeGreen
+                                      : tokens.cardBorder,
+                                  width: paymentDestination == 0 ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
                                 children: <Widget>[
-                                  Text(
-                                    'Direct / External Payment',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: tokens.textPrimary,
-                                    ),
+                                  Icon(
+                                    paymentDestination == 0
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 15,
+                                    color: paymentDestination == 0
+                                        ? _BudgetTokens.safeGreen
+                                        : tokens.textMuted,
                                   ),
-                                  Text(
-                                    'Pay without touching today\'s budget or savings vault',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
-                                      color: tokens.textSecondary,
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          'Back to Savings',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: tokens.textPrimary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Replenish vault',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10.5,
+                                            color: tokens.textSecondary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+
+                        // Option 1: Add to Current Budget Today
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setModalState(
+                                () => paymentDestination = 1),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: paymentDestination == 1
+                                    ? tokens.tint(
+                                        _BudgetTokens.budgetGold, 0.12)
+                                    : tokens.subCardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: paymentDestination == 1
+                                      ? _BudgetTokens.budgetGold
+                                      : tokens.cardBorder,
+                                  width: paymentDestination == 1 ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    paymentDestination == 1
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 15,
+                                    color: paymentDestination == 1
+                                        ? _BudgetTokens.budgetGold
+                                        : tokens.textMuted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          'Add to Budget',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: tokens.textPrimary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Add to today',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10.5,
+                                            color: tokens.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 14),
 
@@ -1383,7 +1482,18 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                         onPressed: () {
                           if (currentAmount <= 0) {
                             showAppAlert(context, message: 'Please enter a valid amount to pay.', title: 'Notice', icon: Icons.info_outline_rounded,
+                            );
+                            return;
+                          }
 
+                          if (currentAmount > savingsDebt) {
+                            showAppAlert(
+                              context,
+                              message:
+                                  'Payment (${formatPeso(currentAmount)}) exceeds total running deficit (${formatPeso(savingsDebt)})!',
+                              title: 'Alert',
+                              icon: Icons.warning_amber_rounded,
+                              accentColor: _BudgetTokens.expenseRed,
                             );
                             return;
                           }
@@ -1392,9 +1502,10 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                             if (!canPayFromBudget || remainingBudget <= 0) {
                               showAppAlert(
                                 context,
-                                message:
-                                    'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
-                                title: 'Overbudget',
+                                message: !hasBudget
+                                    ? 'No daily budget set today! Cannot pay debt from budget.'
+                                    : 'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
+                                title: !hasBudget ? 'No Budget Set' : 'Overbudget',
                                 icon: Icons.warning_amber_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
@@ -1411,15 +1522,24 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               );
                               return;
                             }
-                            ref
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .paySavingsDebt(
-                                  amount: currentAmount,
-                                  deductFromBudget: true,
-                                  description:
-                                      'Deficit payment from today\'s budget allowance',
-                                );
-                          } else if (paymentSource == 1) {
+
+                            // Source: Today's Budget
+                            if (paymentDestination == 0) {
+                              // Deduct from today's budget, credit to savings vault
+                              final double currentDailyLimit =
+                                  state.settings.dailyLimit ?? 0.0;
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .recordDailyBudget(
+                                    amount: (currentDailyLimit - currentAmount)
+                                        .clamp(0.0, double.infinity),
+                                  );
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .setTotalSavings(vaultSavings + currentAmount);
+                            }
+                            // If paymentDestination == 1 (Add to Budget), net budget change is 0.
+                          } else {
                             if (vaultSavings < currentAmount) {
                               showAppAlert(context,
                                 message: 'Payment exceeds vault savings (${formatPeso(vaultSavings)})!',
@@ -1429,28 +1549,38 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               );
                               return;
                             }
-                            ref
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .paySavingsDebt(
-                                  amount: currentAmount,
-                                  deductFromBudget: false,
-                                  description:
-                                      'Deficit payment from settled savings vault',
-                                );
+
+                            // Source: Savings Vault
                             ref
                                 .read(budgetBuddyControllerProvider.notifier)
                                 .setTotalSavings((vaultSavings - currentAmount)
                                     .clamp(0.0, double.infinity));
-                          } else {
-                            ref
-                                .read(budgetBuddyControllerProvider.notifier)
-                                .paySavingsDebt(
-                                  amount: currentAmount,
-                                  deductFromBudget: false,
-                                  description:
-                                      'Direct deficit payment (cash / external)',
-                                );
+                            if (paymentDestination == 1) {
+                              final double currentDailyLimit =
+                                  state.settings.dailyLimit ?? 0.0;
+                              ref
+                                  .read(budgetBuddyControllerProvider.notifier)
+                                  .recordDailyBudget(
+                                    amount: currentDailyLimit + currentAmount,
+                                  );
+                            }
                           }
+
+                          final String sourceLabel = paymentSource == 0
+                              ? 'Today\'s budget'
+                              : 'Savings vault';
+                          final String destLabel = paymentDestination == 0
+                              ? 'returned to savings'
+                              : 'added to today\'s budget';
+
+                          ref
+                              .read(budgetBuddyControllerProvider.notifier)
+                              .paySavingsDebt(
+                                amount: currentAmount,
+                                deductFromBudget: false,
+                                description:
+                                    'Debt paid via $sourceLabel → $destLabel',
+                              );
 
                           final double remainingDebt =
                               (savingsDebt - currentAmount)
@@ -1458,7 +1588,9 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                           Navigator.of(sheetCtx).pop();
 
                           showAppAlert(context,
-                            message: 'Paid ${formatPeso(currentAmount)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
+                            message: remainingDebt <= 0
+                                ? 'Debt paid in full (${formatPeso(currentAmount)})! You have zero debt.'
+                                : 'Paid ${formatPeso(currentAmount)} towards debt! Remaining debt: ${formatPeso(remainingDebt)}.',
                             title: 'Success',
                             icon: Icons.check_circle_outline_rounded,
                             accentColor: _BudgetTokens.safeGreen,

@@ -847,6 +847,21 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
           );
         }
 
+        final double togetherDayBudget =
+            isCurrentActiveDay ? state.togetherBudget : 0.0;
+        final double togetherDayExpenses = state.expenses
+            .where((ExpenseEntry expense) =>
+                expense.source == 'togetherSpend' &&
+                _isSameDay(expense.dateTime, day))
+            .fold(0.0,
+                (double sum, ExpenseEntry expense) => sum + expense.amount);
+        if (togetherDayBudget > 0 || togetherDayExpenses > 0) {
+          applyDailyBudgetSurplusAndDebt(
+            budget: togetherDayBudget,
+            expenses: togetherDayExpenses,
+          );
+        }
+
         // Any unpaid absorbed debt from today must be added to savingsDebt so it's not lost
         final double unpaidAbsorbedDebt =
             (dayAbsorbedDebt - dayPaidDebt).clamp(0.0, double.infinity);
@@ -888,6 +903,7 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
         lastAddAmount: null,
         lastAddDate: null,
         lastAddDebtAbsorbed: null,
+        togetherBudget: 0.0,
         togetherLastAddBase: null,
         togetherLastAddAmount: null,
         togetherLastAddDate: null,

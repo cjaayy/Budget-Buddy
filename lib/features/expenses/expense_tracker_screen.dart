@@ -207,27 +207,39 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
 
     if (includeAllRecordedDays) {
       final Set<DateTime> knownDates = <DateTime>{};
-      for (final DailyRecord r in state.dailyRecords) {
-        knownDates.add(DateTime(r.date.year, r.date.month, r.date.day));
-      }
-      for (final ExpenseEntry e in state.expenses) {
-        if (widget.isTogetherOnly
-            ? e.source == 'togetherSpend'
-            : e.source != 'togetherSpend') {
-          knownDates
-              .add(DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day));
+      if (widget.isTogetherOnly) {
+        for (final ExpenseEntry e in state.expenses) {
+          if (e.source == 'togetherSpend') {
+            knownDates.add(
+                DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day));
+          }
         }
+        if (state.togetherBudget > 0) {
+          final DateTime today =
+              DateTime(currentClock.year, currentClock.month, currentClock.day);
+          knownDates.add(today);
+        }
+      } else {
+        for (final DailyRecord r in state.dailyRecords) {
+          knownDates.add(DateTime(r.date.year, r.date.month, r.date.day));
+        }
+        for (final ExpenseEntry e in state.expenses) {
+          if (e.source != 'togetherSpend') {
+            knownDates.add(
+                DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day));
+          }
+        }
+        for (final BudgetEntry b in state.budgetEntries) {
+          knownDates.add(DateTime(b.date.year, b.date.month, b.date.day));
+        }
+        if (state.settings.budgetCreatedAt != null) {
+          final DateTime bCreated = state.settings.budgetCreatedAt!;
+          knownDates.add(DateTime(bCreated.year, bCreated.month, bCreated.day));
+        }
+        final DateTime today =
+            DateTime(currentClock.year, currentClock.month, currentClock.day);
+        knownDates.add(today);
       }
-      for (final BudgetEntry b in state.budgetEntries) {
-        knownDates.add(DateTime(b.date.year, b.date.month, b.date.day));
-      }
-      if (state.settings.budgetCreatedAt != null) {
-        final DateTime bCreated = state.settings.budgetCreatedAt!;
-        knownDates.add(DateTime(bCreated.year, bCreated.month, bCreated.day));
-      }
-      final DateTime today =
-          DateTime(currentClock.year, currentClock.month, currentClock.day);
-      knownDates.add(today);
 
       for (final DateTime day in knownDates) {
         final DateTime monthKey = DateTime(day.year, day.month);
