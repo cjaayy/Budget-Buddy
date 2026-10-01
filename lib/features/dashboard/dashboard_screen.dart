@@ -697,7 +697,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     icon: !hasBudget
                         ? Icons.info_outline_rounded
                         : (isOver
-                            ? Icons.warning_amber_rounded
+                            ? Icons.error_outline_rounded
                             : (isWarning
                                 ? Icons.info_outline_rounded
                                 : Icons.check_circle_outline_rounded)),
@@ -760,35 +760,125 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ],
               ),
 
-              // Over-Budget Alert Banner
+              // Solid Alert Banner (Over budget or No budget set)
               if (isOver) ...<Widget>[
                 const SizedBox(height: 12),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: tokens.tint(_BentoTokens.expenseRed, 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _BentoTokens.expenseRed.withValues(alpha: 0.25),
-                      width: 1.0,
-                    ),
+                    color: _BentoTokens.expenseRed,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: _BentoTokens.expenseRed.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: <Widget>[
                       const Icon(
                         Icons.error_outline_rounded,
-                        size: 15,
-                        color: _BentoTokens.expenseRed,
+                        size: 18,
+                        color: Colors.white,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Exceeded ${isDaily ? "today's" : "monthly"} budget limit by ${formatPeso(remaining.abs())}.',
                           style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: widget.onGetStarted,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: _BentoTokens.expenseRed,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Add in Budget',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
                             color: _BentoTokens.expenseRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (!hasBudget) ...<Widget>[
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _BentoTokens.budgetGold,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: _BentoTokens.budgetGold.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Today\'s budget is ₱0. Add budget in plan to spend.',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: widget.onGetStarted,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: _BentoTokens.budgetGold,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Add in Budget',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            color: _BentoTokens.budgetGold,
                           ),
                         ),
                       ),

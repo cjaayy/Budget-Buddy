@@ -786,7 +786,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               showAppAlert(context,
                                 message: 'Debt payment exceeds proposed budget (${formatPeso(proposedBudget)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
@@ -1082,7 +1082,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                     ? 'No daily budget set today! Please set today\'s budget first.'
                                     : 'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
                                 title: !hasBudget ? 'No Budget Set' : 'Overbudget',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
                             },
@@ -1492,7 +1492,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               message:
                                   'Payment (${formatPeso(currentAmount)}) exceeds total running deficit (${formatPeso(savingsDebt)})!',
                               title: 'Alert',
-                              icon: Icons.warning_amber_rounded,
+                              icon: Icons.error_outline_rounded,
                               accentColor: _BudgetTokens.expenseRed,
                             );
                             return;
@@ -1506,7 +1506,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                     ? 'No daily budget set today! Cannot pay debt from budget.'
                                     : 'You are overbudget today! Cannot pay debt from today\'s budget allowance.',
                                 title: !hasBudget ? 'No Budget Set' : 'Overbudget',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
@@ -1517,7 +1517,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                                 message:
                                     'Payment (${formatPeso(currentAmount)}) exceeds today\'s remaining budget allowance (${formatPeso(remainingBudget)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
@@ -1544,7 +1544,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                               showAppAlert(context,
                                 message: 'Payment exceeds vault savings (${formatPeso(vaultSavings)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _BudgetTokens.expenseRed,
                               );
                               return;
@@ -1671,7 +1671,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
       context,
       message: 'Today\'s budget plan and expenses have been reset to ₱0.00.',
       title: 'Alert',
-      icon: Icons.warning_amber_rounded,
+      icon: Icons.error_outline_rounded,
       accentColor: _BudgetTokens.expenseRed,
     );
   }
@@ -2138,7 +2138,7 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
                     : (!hasBudget
                         ? Icons.info_outline_rounded
                         : (isOver
-                            ? Icons.warning_amber_rounded
+                            ? Icons.error_outline_rounded
                             : (isWarning
                                 ? Icons.info_outline_rounded
                                 : Icons.check_circle_outline_rounded))),
@@ -2448,34 +2448,75 @@ class _BudgetPlannerScreenState extends ConsumerState<BudgetPlannerScreen> {
             ),
           ),
 
-          // Overspent Warning Box
+          // Solid Alert Banner (Over budget or No budget set)
           if (isOver) ...<Widget>[
             const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: tokens.tint(_BudgetTokens.expenseRed, 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _BudgetTokens.expenseRed.withValues(alpha: 0.25),
-                  width: 1.0,
-                ),
+                color: _BudgetTokens.expenseRed,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: _BudgetTokens.expenseRed.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Row(
                 children: <Widget>[
                   const Icon(
                     Icons.error_outline_rounded,
-                    size: 15,
-                    color: _BudgetTokens.expenseRed,
+                    size: 18,
+                    color: Colors.white,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Budget exceeded by ${formatPeso(remaining.abs())}. Slow down on expenses today.',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _BudgetTokens.expenseRed,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (!hasBudget) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _BudgetTokens.budgetGold,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: _BudgetTokens.budgetGold.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Today\'s budget is ₱0. Add budget in plan to spend.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3,
                       ),
                     ),
                   ),

@@ -139,11 +139,14 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
   static const String _spendTag = '[SPEND]';
   final List<_PendingSpendItem> _pendingSpends = <_PendingSpendItem>[];
 
-  // Numeric Keypad & Input State
-  String _rawInput = '';
+  // Spend Input State
+  final TextEditingController _amountController = TextEditingController();
+  final FocusNode _amountFocusNode = FocusNode();
+  bool _isAddingSpend = false;
   _SpendCategoryOption _selectedCategory = _spendCategories.first;
   bool _isCustomCategory = false;
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
   final TextEditingController _customCategoryController = TextEditingController();
   final FocusNode _customCategoryFocusNode = FocusNode();
   bool _isQueueExpanded = true;
@@ -156,7 +159,10 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
   @override
   void dispose() {
+    _amountController.dispose();
+    _amountFocusNode.dispose();
     _titleController.dispose();
+    _noteController.dispose();
     _customCategoryController.dispose();
     _customCategoryFocusNode.dispose();
     super.dispose();
@@ -191,87 +197,20 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     return _selectedCategory.budgetCategory;
   }
 
-  double get _currentAmount => double.tryParse(_rawInput) ?? 0.0;
-
-  String _displayAmount() {
-    if (_rawInput.isEmpty) return '0.00';
-    if (_rawInput.contains('.')) {
-      final List<String> parts = _rawInput.split('.');
-      final double whole = double.tryParse(parts[0]) ?? 0;
-      final String wholeFormatted = NumberFormat('#,##0').format(whole);
-      return '$wholeFormatted.${parts[1]}';
-    } else {
-      final double whole = double.tryParse(_rawInput) ?? 0;
-      return NumberFormat('#,##0').format(whole);
-    }
-  }
-
-  void _onKeypadTap(String value) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (value == '.') {
-        if (_rawInput.isEmpty) {
-          _rawInput = '0.';
-        } else if (!_rawInput.contains('.')) {
-          _rawInput += '.';
-        }
-      } else if (value == '00') {
-        if (_rawInput.isEmpty || _rawInput == '0') {
-          return;
-        }
-        if (_rawInput.contains('.')) {
-          final List<String> parts = _rawInput.split('.');
-          if (parts[1].isEmpty) {
-            _rawInput += '00';
-          } else if (parts[1].length == 1) {
-            _rawInput += '0';
-          }
-        } else {
-          if (_rawInput.length <= 8) {
-            _rawInput += '00';
-          }
-        }
-      } else {
-        // Digits 0-9
-        if (_rawInput == '0') {
-          _rawInput = value;
-        } else if (_rawInput.contains('.')) {
-          final List<String> parts = _rawInput.split('.');
-          if (parts[1].length < 2) {
-            _rawInput += value;
-          }
-        } else {
-          if (_rawInput.length < 9) {
-            _rawInput += value;
-          }
-        }
-      }
-    });
-  }
-
-  void _onBackspace() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (_rawInput.isNotEmpty) {
-        _rawInput = _rawInput.substring(0, _rawInput.length - 1);
-      }
-    });
-  }
-
-  void _onClear() {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _rawInput = '';
-      _titleController.clear();
-    });
+  double get _currentAmount {
+    final String clean = _amountController.text.replaceAll(',', '').trim();
+    return double.tryParse(clean) ?? 0.0;
   }
 
   void _onQuickAddAmount(double addAmount) {
     HapticFeedback.lightImpact();
+    final double next = _currentAmount + addAmount;
+    final String text =
+        next % 1 == 0 ? next.toInt().toString() : next.toStringAsFixed(2);
     setState(() {
-      final double next = _currentAmount + addAmount;
-      _rawInput =
-          next % 1 == 0 ? next.toInt().toString() : next.toStringAsFixed(2);
+      _amountController.text = text;
+      _amountController.selection =
+          TextSelection.fromPosition(TextPosition(offset: text.length));
     });
   }
 
@@ -302,6 +241,11 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final String title =
         enteredTitle.isNotEmpty ? enteredTitle : categoryTitle;
 
+    final String enteredNote = _noteController.text.trim();
+    final String note = isDebt
+        ? (enteredNote.isNotEmpty ? '$enteredNote (Charged to Debt)' : 'Charged to Debt')
+        : enteredNote;
+
     setState(() {
       _pendingSpends.add(
         _PendingSpendItem(
@@ -313,11 +257,12 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           icon: isDebt ? Icons.receipt_long_rounded : _effectiveCategoryIcon,
           categoryName: categoryTitle,
           isDebt: isDebt,
-          note: isDebt ? 'Charged to Debt' : '',
+          note: note,
         ),
       );
-      _rawInput = '';
+      _amountController.clear();
       _titleController.clear();
+      _noteController.clear();
       _isQueueExpanded = true;
     });
 
@@ -327,7 +272,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           ? 'Added "$title" to batch as Debt (${formatPeso(itemAmount)})'
           : 'Added "$title" to batch queue (${formatPeso(itemAmount)})',
       title: isDebt ? 'Added as Debt' : 'Notice',
-      icon: isDebt ? Icons.warning_amber_rounded : Icons.info_outline_rounded,
+      icon: isDebt ? Icons.receipt_long_rounded : Icons.info_outline_rounded,
       accentColor: isDebt ? _SpendTokens.expenseRed : _SpendTokens.budgetGold,
     );
   }
@@ -382,6 +327,10 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
       final String categoryTitle = _effectiveCategoryTitle;
       final String title =
           enteredTitle.isNotEmpty ? enteredTitle : categoryTitle;
+      final String enteredNote = _noteController.text.trim();
+      final String note = isDebt
+          ? (enteredNote.isNotEmpty ? '$enteredNote (Charged to Debt)' : 'Charged to Debt')
+          : enteredNote;
       _pendingSpends.add(
         _PendingSpendItem(
           id: '${DateTime.now().microsecondsSinceEpoch}_${_pendingSpends.length}',
@@ -392,11 +341,12 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           icon: isDebt ? Icons.receipt_long_rounded : _effectiveCategoryIcon,
           categoryName: categoryTitle,
           isDebt: isDebt,
-          note: isDebt ? 'Charged to Debt' : '',
+          note: note,
         ),
       );
-      _rawInput = '';
+      _amountController.clear();
       _titleController.clear();
+      _noteController.clear();
     }
 
     if (_pendingSpends.isEmpty) {
@@ -437,6 +387,10 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
 
     setState(() {
       _pendingSpends.clear();
+      _amountController.clear();
+      _titleController.clear();
+      _noteController.clear();
+      _isAddingSpend = false;
     });
 
     final BudgetSummary summary = widget.isTogetherOnly
@@ -455,7 +409,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           : '$count ${count == 1 ? 'spend' : 'spends'} logged (${formatPeso(total)})$suffix',
       title: hasAnyDebt ? 'Logged to Debt' : 'Success',
       icon: hasAnyDebt
-          ? Icons.warning_amber_rounded
+          ? Icons.receipt_long_rounded
           : Icons.check_circle_outline_rounded,
       accentColor:
           hasAnyDebt ? _SpendTokens.expenseRed : _SpendTokens.safeGreen,
@@ -527,7 +481,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                 const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             actionsPadding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
             icon: const Icon(
-              Icons.warning_amber_rounded,
+              Icons.error_outline_rounded,
               color: _SpendTokens.expenseRed,
               size: 40,
             ),
@@ -901,162 +855,203 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     return Scaffold(
       backgroundColor: tokens.scaffoldBg,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          children: <Widget>[
-            // Back Button if opened from Budget Together
-            if (widget.isTogetherOnly && Navigator.of(context).canPop()) ...<Widget>[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded,
-                      size: 15, color: Colors.white),
-                  label: const Text('Back'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _SpendTokens.safeGreen,
-                    foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    visualDensity: VisualDensity.compact,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-
-            // 1. Header (Title + Active Budget Context)
-            _buildHeader(
-              context,
-              currentClock: currentClock,
-              remaining: remaining,
-              currentBudget: currentBudget,
-              currentSpent: currentSpent,
-              progressValue: progressValue,
-              isOver: isOver,
-              tokens: tokens,
-            ),
-            if (isBudgetReached) ...<Widget>[
-              const SizedBox(height: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: tokens.tint(
-                    isBudgetZero
-                        ? _SpendTokens.budgetGold
-                        : _SpendTokens.expenseRed,
-                    0.12,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isBudgetZero
-                        ? _SpendTokens.budgetGold
-                        : _SpendTokens.expenseRed,
-                    width: 1.2,
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(
-                      isBudgetZero
-                          ? Icons.warning_amber_rounded
-                          : Icons.block_rounded,
-                      size: 20,
-                      color: isBudgetZero
-                          ? _SpendTokens.budgetGold
-                          : _SpendTokens.expenseRed,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        isBudgetZero
-                            ? 'Today\'s budget is ₱0. Add budget in plan to spend.'
-                            : 'Max budget reached! You can log as Debt or add in budget.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: tokens.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: () {
-                        if (widget.isTogetherOnly) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const BudgetTogetherScreen(),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: ConstrainedBox(
+                constraints:
+                    BoxConstraints(minHeight: constraints.maxHeight - 28),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      // Back Button if opened from Budget Together
+                      if (widget.isTogetherOnly &&
+                          Navigator.of(context).canPop()) ...<Widget>[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FilledButton.icon(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.arrow_back_rounded,
+                                size: 15, color: Colors.white),
+                            label: const Text('Back to Together'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _SpendTokens.expenseRed,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                          );
-                        } else {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const BudgetPlannerScreen(),
-                            ),
-                          );
-                        }
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _SpendTokens.budgetGold,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // 1. Header (Title + Active Budget Context)
+                      _buildHeader(
+                        context,
+                        currentClock: currentClock,
+                        remaining: remaining,
+                        currentBudget: currentBudget,
+                        currentSpent: currentSpent,
+                        progressValue: progressValue,
+                        isOver: isOver,
+                        tokens: tokens,
                       ),
-                      child: Text(
-                        'Add in Budget',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                          color: Colors.white,
+                      if (isBudgetReached) ...<Widget>[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isBudgetZero
+                                ? _SpendTokens.budgetGold
+                                : _SpendTokens.expenseRed,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: <BoxShadow>[
+                              BoxShadow(
+                                color: (isBudgetZero
+                                        ? _SpendTokens.budgetGold
+                                        : _SpendTokens.expenseRed)
+                                    .withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                isBudgetZero
+                                    ? Icons.info_outline_rounded
+                                    : Icons.error_outline_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  isBudgetZero
+                                      ? 'Today\'s budget is ₱0. Add budget in plan to spend.'
+                                      : 'Max budget reached! You can log as Debt or add in budget.',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              FilledButton(
+                                onPressed: () {
+                                  if (widget.isTogetherOnly) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            const BudgetTogetherScreen(),
+                                      ),
+                                    );
+                                  } else {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            const BudgetPlannerScreen(),
+                                      ),
+                                    );
+                                  }
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: isBudgetZero
+                                      ? _SpendTokens.budgetGold
+                                      : _SpendTokens.expenseRed,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 7),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: Text(
+                                  'Add in Budget',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11.5,
+                                    color: isBudgetZero
+                                        ? _SpendTokens.budgetGold
+                                        : _SpendTokens.expenseRed,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+
+                      // 2. Add Spend Form OR "+ Add Spend" Button
+                      if (!_isAddingSpend) ...<Widget>[
+                        const Spacer(),
+                        Center(child: _buildAddSpendButton(tokens)),
+                        const Spacer(),
+
+                        // If there are pending spends in batch, show batch queue and action button to log
+                        if (_pendingSpends.isNotEmpty) ...<Widget>[
+                          _buildBatchQueueCard(
+                            context,
+                            totalPendingAmount: totalPendingAmount,
+                            tokens: tokens,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildBatchSummaryActions(
+                            context,
+                            totalPendingAmount: totalPendingAmount,
+                            tokens: tokens,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      ] else ...<Widget>[
+                        const SizedBox(height: 12),
+                        // Horizontal Category Selector Bar
+                        _buildCategorySelectorBar(context, tokens),
+                        const SizedBox(height: 12),
+
+                        // Spend Input Card (Amount with device keyboard + Title + Add to Batch + Log Spend + Back)
+                        _buildSpendInputCard(
+                          context,
+                          tokens: tokens,
+                          totalPendingAmount: totalPendingAmount,
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Quick Amount Increments (+₱20, +₱50, +₱100, +₱200, +₱500)
+                        _buildQuickAmountIncrements(tokens),
+                        const SizedBox(height: 14),
+
+                        // Batch Log Queue (if any already added)
+                        if (_pendingSpends.isNotEmpty) ...<Widget>[
+                          _buildBatchQueueCard(
+                            context,
+                            totalPendingAmount: totalPendingAmount,
+                            tokens: tokens,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      ],
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
-            ],
-            const SizedBox(height: 12),
-
-            // 2. Horizontal Category Selector Bar
-            _buildCategorySelectorBar(context, tokens),
-            const SizedBox(height: 12),
-
-            // 3. Hero Amount Input Card (Large ₱0.00 in Dark Red + Backspace + Title of Spend + Action Buttons)
-            _buildHeroAmountCard(
-              context,
-              tokens: tokens,
-              totalPendingAmount: totalPendingAmount,
-            ),
-            const SizedBox(height: 10),
-
-            // 4. Quick Amount Increments (+₱20, +₱50, +₱100, +₱500)
-            _buildQuickAmountIncrements(tokens),
-            const SizedBox(height: 12),
-
-            // 5. Custom Flat Numeric Keypad (4x3 + Action Row)
-            _buildNumericKeypad(context, tokens),
-            const SizedBox(height: 12),
-
-            // 6. Batch Log Queue (Expandable Card)
-            if (_pendingSpends.isNotEmpty) ...<Widget>[
-              _buildBatchQueueCard(
-                context,
-                totalPendingAmount: totalPendingAmount,
-                tokens: tokens,
-              ),
-              const SizedBox(height: 14),
-            ],
-            const SizedBox(height: 20),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -1426,8 +1421,126 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 
-  /// 3. Hero Amount Input Card: Large Bold ₱0.00 Display in Dark Red + Backspace + Title of Spend + Action Buttons
-  Widget _buildHeroAmountCard(
+  /// First Button: Prominent "+ Add Spend" Button (Centered)
+  Widget _buildAddSpendButton(_SpendTokens tokens) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            constraints: const BoxConstraints(maxWidth: 320),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: _SpendTokens.budgetGold.withValues(alpha: 0.22),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: FilledButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isAddingSpend = true;
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _amountFocusNode.requestFocus();
+                });
+              },
+              icon: const Icon(Icons.add_circle_outline_rounded,
+                  size: 20, color: Colors.white),
+              label: Text(
+                '+ Add Spend',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: _SpendTokens.budgetGold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Record an expense or build a batch spend list',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: tokens.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Batch Summary Actions (Shown below batch queue when not in adding mode)
+  Widget _buildBatchSummaryActions(
+    BuildContext context, {
+    required double totalPendingAmount,
+    required _SpendTokens tokens,
+  }) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => _submitSpend(context),
+            icon: const Icon(Icons.check_circle_rounded,
+                size: 18, color: Colors.white),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Log Spend (${formatPeso(totalPendingAmount)})',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: _SpendTokens.safeGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton(
+          onPressed: _clearQueue,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            foregroundColor: _SpendTokens.expenseRed,
+            side: const BorderSide(color: _SpendTokens.expenseRed, width: 1.2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: const Icon(Icons.delete_sweep_rounded,
+              size: 20, color: _SpendTokens.expenseRed),
+        ),
+      ],
+    );
+  }
+
+  /// 3. Spend Input Card: Device Keyboard for Amount + Title of Spend + Action Buttons
+  Widget _buildSpendInputCard(
     BuildContext context, {
     required _SpendTokens tokens,
     required double totalPendingAmount,
@@ -1441,7 +1554,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Top Row: Active Category indicator & Backspace icon
+          // Top Row: Active Category indicator & Subtitle Description
           Row(
             children: <Widget>[
               Container(
@@ -1458,44 +1571,107 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  _effectiveCategoryTitle,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: tokens.textPrimary,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _effectiveCategoryTitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Enter amount, title, and description below',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              // Integrated Backspace Button
-              if (_rawInput.isNotEmpty)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(
-                    Icons.backspace_outlined,
-                    size: 20,
-                    color: _SpendTokens.expenseRed,
-                  ),
-                  onPressed: _onBackspace,
-                ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Large Bold Financial Amount in Dark Red (#991B1B)
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '₱${_displayAmount()}',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 36,
-                fontWeight: FontWeight.w900,
-                color: _SpendTokens.expenseRed,
-                letterSpacing: -1.0,
+          // Amount Input with Native Device Keyboard
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: tokens.subCardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _currentAmount > 0
+                    ? _SpendTokens.expenseRed.withValues(alpha: 0.35)
+                    : tokens.cardBorder,
+                width: 1.2,
               ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Text(
+                  '₱',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: _SpendTokens.expenseRed,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _amountController,
+                    focusNode: _amountFocusNode,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: _SpendTokens.expenseRed,
+                      letterSpacing: -0.5,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0.00',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: _SpendTokens.expenseRed.withValues(alpha: 0.3),
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (String val) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+                if (_amountController.text.isNotEmpty)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.clear_rounded,
+                      size: 20,
+                      color: _SpendTokens.expenseRed,
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _amountController.clear();
+                      });
+                    },
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -1510,7 +1686,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
             ),
             child: Row(
               children: <Widget>[
-                Icon(
+                const Icon(
                   Icons.edit_rounded,
                   size: 16,
                   color: _SpendTokens.budgetGold,
@@ -1540,7 +1716,49 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+
+          // Description / Note Input Field
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: tokens.subCardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tokens.cardBorder, width: 1.0),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.notes_rounded,
+                  size: 16,
+                  color: tokens.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _noteController,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Description (optional note or details)...',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textMuted,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
 
           // Action Buttons: Add to Batch & Log Spend placed close to Title / Name of Spend
           _buildActionButtons(
@@ -1553,7 +1771,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 
-  /// 4. Quick Amount Increments (+₱20, +₱50, +₱100, +₱500)
+  /// Quick Amount Increments (+₱20, +₱50, +₱100, +₱200, +₱500)
   Widget _buildQuickAmountIncrements(_SpendTokens tokens) {
     const List<double> increments = <double>[20, 50, 100, 200, 500];
 
@@ -1590,152 +1808,6 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
           ),
         );
       }).toList(),
-    );
-  }
-
-  /// 5. Custom Flat Numeric Keypad (Tactile Bento Keypad Tiles)
-  Widget _buildNumericKeypad(BuildContext context, _SpendTokens tokens) {
-    return Column(
-      children: <Widget>[
-        // Row 1: 1, 2, 3
-        Row(
-          children: <Widget>[
-            _buildKeyTile('1', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('2', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('3', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 2: 4, 5, 6
-        Row(
-          children: <Widget>[
-            _buildKeyTile('4', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('5', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('6', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 3: 7, 8, 9
-        Row(
-          children: <Widget>[
-            _buildKeyTile('7', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('8', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('9', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 4: . , 0 , 00
-        Row(
-          children: <Widget>[
-            _buildKeyTile('.', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('0', tokens),
-            const SizedBox(width: 8),
-            _buildKeyTile('00', tokens),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 5: Clear and Backspace
-        Row(
-          children: <Widget>[
-            // Clear Key (C)
-            Expanded(
-              child: _buildActionKeyTile(
-                label: 'C',
-                color: _SpendTokens.expenseRed,
-                onTap: _onClear,
-                tokens: tokens,
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Backspace Key
-            Expanded(
-              child: _buildActionKeyTile(
-                icon: Icons.backspace_outlined,
-                color: tokens.textSecondary,
-                onTap: _onBackspace,
-                tokens: tokens,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKeyTile(String value, _SpendTokens tokens) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onKeypadTap(value),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: tokens.keyTileBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: tokens.cardBorder, width: 1.0),
-            ),
-            child: Center(
-              child: Text(
-                value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: tokens.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionKeyTile({
-    String? label,
-    IconData? icon,
-    required Color color,
-    required VoidCallback onTap,
-    required _SpendTokens tokens,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: tokens.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: tokens.cardBorder, width: 1.0),
-          ),
-          child: Center(
-            child: icon != null
-                ? Icon(icon, size: 20, color: color)
-                : Text(
-                    label ?? '',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1881,6 +1953,21 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
                                     ),
                                   ),
                                 ],
+                                if (item.note.isNotEmpty && (!item.isDebt || item.note != 'Charged to Debt')) ...<Widget>[
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      '• ${item.note.replaceAll('(Charged to Debt)', '').trim()}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: tokens.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -1918,7 +2005,7 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     );
   }
 
-  /// Action Buttons (Add to Batch & Log Spend close to card of budget)
+  /// Action Buttons (Add to Batch & Log Spend & Done to collapse)
   Widget _buildActionButtons(
     BuildContext context, {
     required double totalPendingAmount,
@@ -1927,17 +2014,108 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
     final double finalAmountToSubmit =
         totalPendingAmount + (_currentAmount > 0 ? _currentAmount : 0);
 
-    return Row(
+    return Column(
       children: <Widget>[
-        // Add to Batch Button (Solid Gold #D97706)
-        Expanded(
+        Row(
+          children: <Widget>[
+            // Add to Batch Button (Solid Gold #D97706)
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _addToQueue,
+                icon: const Icon(Icons.playlist_add_rounded,
+                    size: 16, color: Colors.white),
+                label: Text(
+                  _pendingSpends.isEmpty
+                      ? 'Add to Batch'
+                      : 'Add to Batch (${_pendingSpends.length})',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12.5,
+                    color: Colors.white,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _SpendTokens.budgetGold,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Log Spend Button (Solid Dark Green #0F766E)
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () => _submitSpend(context),
+                icon: const Icon(Icons.check_circle_rounded,
+                    size: 16, color: Colors.white),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    finalAmountToSubmit > 0
+                        ? 'Log Spend (${formatPeso(finalAmountToSubmit)})'
+                        : 'Log Spend',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _SpendTokens.safeGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+
+            if (_pendingSpends.isNotEmpty) ...<Widget>[
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: _clearQueue,
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
+                  foregroundColor: _SpendTokens.expenseRed,
+                  side: const BorderSide(
+                      color: _SpendTokens.expenseRed, width: 1.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Icon(Icons.delete_sweep_rounded,
+                    size: 18, color: _SpendTokens.expenseRed),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Back button to go back to "+ Add Spend" button (Solid Red)
+        SizedBox(
+          width: double.infinity,
           child: FilledButton.icon(
-            onPressed: _addToQueue,
-            icon: const Icon(Icons.playlist_add_rounded, size: 16, color: Colors.white),
+            onPressed: () {
+              FocusScope.of(context).unfocus();
+              setState(() {
+                _isAddingSpend = false;
+              });
+            },
+            icon: const Icon(Icons.arrow_back_rounded,
+                size: 16, color: Colors.white),
             label: Text(
-              _pendingSpends.isEmpty
-                  ? 'Add to Batch'
-                  : 'Add to Batch (${_pendingSpends.length})',
+              _pendingSpends.isNotEmpty
+                  ? 'Back (Keep ${_pendingSpends.length} Batch ${_pendingSpends.length == 1 ? 'Item' : 'Items'})'
+                  : 'Back',
               style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800,
                 fontSize: 12.5,
@@ -1945,63 +2123,16 @@ class _SpendScreenState extends ConsumerState<SpendScreen> {
               ),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: _SpendTokens.budgetGold,
+              backgroundColor: _SpendTokens.expenseRed,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 13),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               elevation: 0,
             ),
           ),
         ),
-        const SizedBox(width: 8),
-
-        // Log Spend Button (Solid Dark Green #0F766E)
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: () => _submitSpend(context),
-            icon: const Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                finalAmountToSubmit > 0
-                    ? 'Log Spend (${formatPeso(finalAmountToSubmit)})'
-                    : 'Log Spend',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: _SpendTokens.safeGreen,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 0,
-            ),
-          ),
-        ),
-
-        if (_pendingSpends.isNotEmpty) ...<Widget>[
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: _clearQueue,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
-              foregroundColor: _SpendTokens.expenseRed,
-              side: const BorderSide(color: _SpendTokens.expenseRed, width: 1.2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: const Icon(Icons.delete_sweep_rounded, size: 18, color: _SpendTokens.expenseRed),
-          ),
-        ],
       ],
     );
   }

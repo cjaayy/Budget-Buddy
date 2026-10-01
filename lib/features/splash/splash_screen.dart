@@ -350,7 +350,7 @@ class CenterUpdateDialog extends StatelessWidget {
                     children: <Widget>[
                       Icon(
                         isMandatory
-                            ? Icons.warning_rounded
+                            ? Icons.error_outline_rounded
                             : Icons.auto_awesome_rounded,
                         size: 13,
                         color: isMandatory
@@ -380,19 +380,18 @@ class CenterUpdateDialog extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 9,
+                      horizontal: 14,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: tokens.redBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: tokens.redBorder),
+                      color: _SplashTokens.destructiveRed,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: <Widget>[
                         const Icon(
                           Icons.lock_outline_rounded,
-                          color: _SplashTokens.destructiveRed,
+                          color: Colors.white,
                           size: 16,
                         ),
                         const SizedBox(width: 8),
@@ -402,7 +401,7 @@ class CenterUpdateDialog extends StatelessWidget {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: _SplashTokens.destructiveRed,
+                              color: Colors.white,
                             ),
                           ),
                         ),

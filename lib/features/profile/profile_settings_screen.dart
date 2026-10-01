@@ -1064,7 +1064,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
           _buildNotifSimTile(
             context: context,
             palette: palette,
-            icon: Icons.warning_amber_rounded,
+            icon: Icons.error_outline_rounded,
             iconColor: palette.darkRed,
             iconBg: palette.darkRedBg,
             iconBorder: palette.darkRedBorder,
@@ -2056,7 +2056,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
         message: 'Invalid backup structure: ${e.toString()}',
         title: 'Restore Validation Failed',
         accentColor: palette.darkRed,
-        icon: Icons.warning_amber_rounded,
+        icon: Icons.error_outline_rounded,
       );
       return;
     }
@@ -2081,7 +2081,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
                   border: Border.all(color: palette.goldBorder),
                 ),
                 child: Icon(
-                  Icons.warning_amber_rounded,
+                  Icons.error_outline_rounded,
                   color: palette.gold,
                   size: 24,
                 ),

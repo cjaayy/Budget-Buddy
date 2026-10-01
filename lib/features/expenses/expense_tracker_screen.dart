@@ -2039,10 +2039,8 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
                                 .read(budgetBuddyControllerProvider.notifier)
                                 .deleteExpense(expense.id);
                             if (context.mounted) {
-                              showAppAlert(context, message: 'Expense deleted successfully.', title: 'Alert', icon: Icons.warning_amber_rounded,
-
+                              showAppAlert(context, message: 'Expense deleted successfully.', title: 'Alert', icon: Icons.delete_sweep_rounded,
                                 accentColor: _ExpensesTokens.expenseRed,
-
                               );
                             }
                           }

@@ -206,7 +206,7 @@ class _MealSuggestionsScreenState extends ConsumerState<MealSuggestionsScreen> {
                                         const SoftPill(
                                           text: 'Over Budget',
                                           color: Color(0xFFDC2626),
-                                          icon: Icons.warning_rounded,
+                                          icon: Icons.error_outline_rounded,
                                         ),
                                       FilledButton.tonalIcon(
                                         onPressed: () {

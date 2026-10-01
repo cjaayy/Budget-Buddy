@@ -243,7 +243,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
       context,
       message: 'Budget Together has been reset to ₱0.',
       title: 'Alert',
-      icon: Icons.warning_amber_rounded,
+      icon: Icons.error_outline_rounded,
       accentColor: _TogetherBudgetTokens.expenseRed,
     );
   }
@@ -447,7 +447,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                                     ? 'No shared budget is set for today! Cannot pay debt from budget.'
                                     : 'Shared budget is overbudget today! Cannot pay debt from shared allowance.',
                                 title: !hasBudget ? 'No Budget Set' : 'Overbudget',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _TogetherBudgetTokens.expenseRed,
                               );
                             },
@@ -860,7 +860,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                               message:
                                   'Payment (${formatPeso(currentAmount)}) exceeds total shared deficit (${formatPeso(savingsDebt)})!',
                               title: 'Alert',
-                              icon: Icons.warning_amber_rounded,
+                              icon: Icons.error_outline_rounded,
                               accentColor: _TogetherBudgetTokens.expenseRed,
                             );
                             return;
@@ -874,7 +874,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                                     ? 'No shared budget is set for today! Cannot pay debt from budget.'
                                     : 'Shared budget is overbudget today! Cannot pay debt from shared allowance.',
                                 title: !hasBudget ? 'No Budget Set' : 'Overbudget',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _TogetherBudgetTokens.expenseRed,
                               );
                               return;
@@ -885,7 +885,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                                 message:
                                     'Payment (${formatPeso(currentAmount)}) exceeds today\'s remaining shared allowance (${formatPeso(remainingBudget)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _TogetherBudgetTokens.expenseRed,
                               );
                               return;
@@ -908,7 +908,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                               showAppAlert(context,
                                 message: 'Payment exceeds vault savings (${formatPeso(vaultSavings)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _TogetherBudgetTokens.expenseRed,
                               );
                               return;
@@ -1316,7 +1316,7 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
                     : (!hasBudget
                         ? Icons.info_outline_rounded
                         : (isOver
-                            ? Icons.warning_amber_rounded
+                            ? Icons.error_outline_rounded
                             : (isWarning
                                 ? Icons.info_outline_rounded
                                 : Icons.check_circle_outline_rounded))),
@@ -1627,34 +1627,75 @@ class _BudgetTogetherScreenState extends ConsumerState<BudgetTogetherScreen> {
             ),
           ),
 
-          // Overspent Warning Box
+          // Solid Alert Banner (Over budget or No budget set)
           if (isOver) ...<Widget>[
             const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: tokens.tint(_TogetherBudgetTokens.expenseRed, 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _TogetherBudgetTokens.expenseRed.withValues(alpha: 0.25),
-                  width: 1.0,
-                ),
+                color: _TogetherBudgetTokens.expenseRed,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: _TogetherBudgetTokens.expenseRed.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Row(
                 children: <Widget>[
                   const Icon(
                     Icons.error_outline_rounded,
-                    size: 15,
-                    color: _TogetherBudgetTokens.expenseRed,
+                    size: 18,
+                    color: Colors.white,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Tab budget exceeded by ${formatPeso(remaining.abs())}.',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _TogetherBudgetTokens.expenseRed,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (!hasBudget) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _TogetherBudgetTokens.budgetGold,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: _TogetherBudgetTokens.budgetGold.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: <Widget>[
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Today\'s budget is ₱0. Add budget in plan to spend.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3,
                       ),
                     ),
                   ),

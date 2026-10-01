@@ -668,7 +668,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                           ),
                           child: Icon(
                             hasDebt
-                                ? Icons.warning_amber_rounded
+                                ? Icons.error_outline_rounded
                                 : Icons.check_circle_rounded,
                             size: 16,
                             color: hasDebt
@@ -2183,24 +2183,19 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         child: FilledButton.icon(
                           onPressed: () async {
                             if (effectiveSavings <= 0) {
-                              showAppAlert(sheetContext, message: 'Your vault has no settled savings to withdraw!', title: 'Alert', icon: Icons.warning_amber_rounded,
-
+                              showAppAlert(sheetContext, message: 'Your vault has no settled savings to withdraw!', title: 'Alert', icon: Icons.error_outline_rounded,
                                 accentColor: _SavingsTokens.deficitRed,
-
                               );
                               return;
                             }
                             if (currentWithdrawAmount <= 0) {
                               showAppAlert(sheetContext, message: 'Please enter a valid amount to withdraw.', title: 'Notice', icon: Icons.info_outline_rounded,
-
                               );
                               return;
                             }
                             if (currentWithdrawAmount > effectiveSavings) {
-                              showAppAlert(sheetContext, message: 'Withdrawal amount exceeds your settled vault savings!', title: 'Alert', icon: Icons.warning_amber_rounded,
-
+                              showAppAlert(sheetContext, message: 'Withdrawal amount exceeds your settled vault savings!', title: 'Alert', icon: Icons.error_outline_rounded,
                                 accentColor: _SavingsTokens.deficitRed,
-
                               );
                               return;
                             }
@@ -2449,7 +2444,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                         ? 'No daily budget is set for today! Cannot pay debt from budget.'
                                         : 'You have no remaining daily budget today to pay from!',
                                     title: !hasTodayBudget ? 'No Budget Set' : 'No Budget Available',
-                                    icon: Icons.warning_amber_rounded,
+                                    icon: Icons.error_outline_rounded,
                                     accentColor: _SavingsTokens.deficitRed,
                                   );
                                 },
@@ -2561,7 +2556,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     message:
                                         'You have no settled vault savings to pay from!',
                                     title: 'No Savings',
-                                    icon: Icons.warning_amber_rounded,
+                                    icon: Icons.error_outline_rounded,
                                     accentColor: _SavingsTokens.deficitRed,
                                   );
                                 },
@@ -2872,7 +2867,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                         child: FilledButton.icon(
                           onPressed: () async {
                             if (effectiveDebt <= 0) {
-                              showAppAlert(sheetContext, message: 'You have no running deficit to pay!', title: 'Alert', icon: Icons.warning_amber_rounded,
+                              showAppAlert(sheetContext, message: 'You have no running deficit to pay!', title: 'Alert', icon: Icons.error_outline_rounded,
                                 accentColor: _SavingsTokens.deficitRed,
                               );
                               return;
@@ -2886,7 +2881,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                               showAppAlert(sheetContext,
                                 message: 'Payment (${formatPeso(currentPayDebtAmount)}) exceeds the total deficit (${formatPeso(effectiveDebt)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _SavingsTokens.deficitRed,
                               );
                               return;
@@ -2900,7 +2895,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                     ? 'No daily budget is set for today! Cannot pay debt from budget.'
                                     : 'Payment (${formatPeso(currentPayDebtAmount)}) exceeds today\'s remaining budget allowance (${formatPeso(todayAvailableBudget)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _SavingsTokens.deficitRed,
                               );
                               return;
@@ -2912,7 +2907,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
                                 message:
                                     'Payment (${formatPeso(currentPayDebtAmount)}) exceeds your vault savings (${formatPeso(effectiveSavings)})!',
                                 title: 'Alert',
-                                icon: Icons.warning_amber_rounded,
+                                icon: Icons.error_outline_rounded,
                                 accentColor: _SavingsTokens.deficitRed,
                               );
                               return;
