@@ -1168,6 +1168,9 @@ class BudgetBuddyState {
     this.togetherLastAddAmount,
     this.togetherLastAddDate,
     this.togetherLastAddDebtAbsorbed,
+    this.isTogetherActive = false,
+    this.togetherActivatedAt,
+    this.togetherDeactivatedAt,
   })  : _savingsDebt = savingsDebt,
         _totalSavings = totalSavings,
         _vaultLog = vaultLog ?? const <VaultLogEntry>[],
@@ -1209,6 +1212,9 @@ class BudgetBuddyState {
   final double? togetherLastAddAmount;
   final DateTime? togetherLastAddDate;
   final double? togetherLastAddDebtAbsorbed;
+  final bool isTogetherActive;
+  final DateTime? togetherActivatedAt;
+  final DateTime? togetherDeactivatedAt;
 
   DateTime? get simulatedDateTime => _simulatedDateTime;
   DateTime get effectiveDate => _simulatedDateTime ?? DateTime.now();
@@ -1256,6 +1262,9 @@ class BudgetBuddyState {
       togetherLastAddAmount: null,
       togetherLastAddDate: null,
       togetherLastAddDebtAbsorbed: null,
+      isTogetherActive: false,
+      togetherActivatedAt: null,
+      togetherDeactivatedAt: null,
     );
   }
 
@@ -1297,6 +1306,9 @@ class BudgetBuddyState {
     Object? togetherLastAddAmount = _togetherLastAddAmountSentinel,
     Object? togetherLastAddDate = _togetherLastAddDateSentinel,
     Object? togetherLastAddDebtAbsorbed = _togetherLastAddDebtAbsorbedSentinel,
+    bool? isTogetherActive,
+    Object? togetherActivatedAt = _togetherActivatedAtSentinel,
+    Object? togetherDeactivatedAt = _togetherDeactivatedAtSentinel,
   }) {
     return BudgetBuddyState(
       settings: settings ?? this.settings,
@@ -1372,6 +1384,15 @@ class BudgetBuddyState {
               togetherLastAddDebtAbsorbed, _togetherLastAddDebtAbsorbedSentinel)
           ? this.togetherLastAddDebtAbsorbed
           : togetherLastAddDebtAbsorbed as double?,
+      isTogetherActive: isTogetherActive ?? this.isTogetherActive,
+      togetherActivatedAt:
+          identical(togetherActivatedAt, _togetherActivatedAtSentinel)
+              ? this.togetherActivatedAt
+              : togetherActivatedAt as DateTime?,
+      togetherDeactivatedAt:
+          identical(togetherDeactivatedAt, _togetherDeactivatedAtSentinel)
+              ? this.togetherDeactivatedAt
+              : togetherDeactivatedAt as DateTime?,
     );
   }
 
@@ -1402,6 +1423,10 @@ class BudgetBuddyState {
   static const Object _togetherLastAddDateSentinel = Object();
 
   static const Object _togetherLastAddDebtAbsorbedSentinel = Object();
+
+  static const Object _togetherActivatedAtSentinel = Object();
+
+  static const Object _togetherDeactivatedAtSentinel = Object();
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -1446,6 +1471,9 @@ class BudgetBuddyState {
       'togetherLastAddAmount': togetherLastAddAmount,
       'togetherLastAddDate': togetherLastAddDate?.toIso8601String(),
       'togetherLastAddDebtAbsorbed': togetherLastAddDebtAbsorbed,
+      'isTogetherActive': isTogetherActive,
+      'togetherActivatedAt': togetherActivatedAt?.toIso8601String(),
+      'togetherDeactivatedAt': togetherDeactivatedAt?.toIso8601String(),
     };
   }
 
@@ -1546,6 +1574,13 @@ class BudgetBuddyState {
           : null,
       togetherLastAddDebtAbsorbed:
           (json['togetherLastAddDebtAbsorbed'] as num?)?.toDouble(),
+      isTogetherActive: json['isTogetherActive'] as bool? ?? false,
+      togetherActivatedAt: json['togetherActivatedAt'] != null
+          ? DateTime.tryParse(json['togetherActivatedAt'] as String)
+          : null,
+      togetherDeactivatedAt: json['togetherDeactivatedAt'] != null
+          ? DateTime.tryParse(json['togetherDeactivatedAt'] as String)
+          : null,
     );
   }
 

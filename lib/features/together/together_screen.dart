@@ -67,10 +67,19 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final DateTime currentClock =
-        ref.watch(budgetBuddyControllerProvider).effectiveDate;
+    final BudgetBuddyState state = ref.watch(budgetBuddyControllerProvider);
+    final DateTime currentClock = state.effectiveDate;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _TogetherTokens tokens = _TogetherTokens(isDark);
+
+    if (!state.isTogetherActive) {
+      return Scaffold(
+        backgroundColor: tokens.scaffoldBg,
+        body: SafeArea(
+          child: _buildActivationView(context, state, currentClock, tokens),
+        ),
+      );
+    }
 
     return PopScope(
       canPop: _selectedModuleIndex == null,
@@ -196,8 +205,436 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
           accentColor: _TogetherTokens.safeGreen,
           tokens: tokens,
         ),
+        const SizedBox(height: 14),
+
+        // Deactivate Budget Together Option Box
+        BentoCard(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          borderRadius: 16,
+          borderColor: _TogetherTokens.spentRed.withValues(alpha: 0.25),
+          child: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_TogetherTokens.spentRed, 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.pause_circle_outline_rounded,
+                  size: 16,
+                  color: _TogetherTokens.spentRed,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Deactivate Budget Together',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _TogetherTokens.spentRed,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Stop daily records & pause shared budget. Data is not reset.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _TogetherTokens.spentRed,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () => _confirmDeactivate(context),
+                child: Text(
+                  'Deactivate',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
+  }
+
+  /// Activation Screen: Shown before Budget Together is activated
+  Widget _buildActivationView(
+    BuildContext context,
+    BudgetBuddyState state,
+    DateTime currentClock,
+    _TogetherTokens tokens,
+  ) {
+    final bool isPreviouslyActive = state.togetherActivatedAt != null;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      children: <Widget>[
+        // Top Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Budget Together',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.textPrimary,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  DateFormat('EEEE, MMMM d, y').format(currentClock),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: tokens.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            SoftPill(
+              text: isPreviouslyActive ? 'Deactivated' : 'Inactive',
+              color: isPreviouslyActive
+                  ? _TogetherTokens.spentRed
+                  : _TogetherTokens.budgetGold,
+              icon: isPreviouslyActive
+                  ? Icons.pause_circle_outline_rounded
+                  : Icons.lock_outline_rounded,
+              fontSize: 11,
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Main Activation Bento Card
+        BentoCard(
+          padding: const EdgeInsets.all(22),
+          borderRadius: 24,
+          borderColor: isPreviouslyActive
+              ? _TogetherTokens.spentRed.withValues(alpha: 0.35)
+              : _TogetherTokens.budgetGold.withValues(alpha: 0.35),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // Big Icon Tile
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: isPreviouslyActive
+                      ? tokens.tint(_TogetherTokens.spentRed, 0.12)
+                      : tokens.tint(_TogetherTokens.budgetGold, 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isPreviouslyActive
+                        ? _TogetherTokens.spentRed.withValues(alpha: 0.35)
+                        : _TogetherTokens.budgetGold.withValues(alpha: 0.35),
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isPreviouslyActive
+                      ? Icons.pause_circle_rounded
+                      : Icons.groups_rounded,
+                  size: 38,
+                  color: isPreviouslyActive
+                      ? _TogetherTokens.spentRed
+                      : _TogetherTokens.budgetGold,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Text(
+                isPreviouslyActive
+                    ? 'Budget Together is Deactivated'
+                    : 'Activate Budget Together',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isPreviouslyActive
+                    ? 'Daily recording and shared tracking are currently paused. All your past expenses, debts, and savings remain safe and intact.'
+                    : 'Activate to start recording shared daily limits, expenses, and savings together.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: tokens.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Feature details bento rows
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: tokens.subCardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    _buildActivationFeatureItem(
+                      icon: Icons.calendar_today_rounded,
+                      color: _TogetherTokens.budgetGold,
+                      title: 'Continuous Everyday Records',
+                      subtitle:
+                          'Records every single day — even days with no budget set or zero spending.',
+                      tokens: tokens,
+                    ),
+                    Divider(height: 16, color: tokens.cardBorder),
+                    _buildActivationFeatureItem(
+                      icon: Icons.pause_circle_outline_rounded,
+                      color: _TogetherTokens.spentRed,
+                      title: 'Safe Deactivation Anytime',
+                      subtitle:
+                          'Stop or pause records whenever you want. Your historical data is never reset.',
+                      tokens: tokens,
+                    ),
+                    Divider(height: 16, color: tokens.cardBorder),
+                    _buildActivationFeatureItem(
+                      icon: Icons.shield_outlined,
+                      color: _TogetherTokens.safeGreen,
+                      title: '100% Offline Vault & Hub',
+                      subtitle:
+                          'Dedicated shared budget planning, fast keypad logging, and debt settlement.',
+                      tokens: tokens,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Solid Action Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _TogetherTokens.safeGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () async {
+                    await ref
+                        .read(budgetBuddyControllerProvider.notifier)
+                        .activateBudgetTogether();
+                    if (context.mounted) {
+                      showAppAlert(
+                        context,
+                        title: 'Budget Together Activated',
+                        message:
+                            'Daily shared budget is now active and recording everyday.',
+                        icon: Icons.check_circle_rounded,
+                        accentColor: _TogetherTokens.safeGreen,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.bolt_rounded, size: 20),
+                  label: Text(
+                    isPreviouslyActive
+                        ? 'Reactivate Budget Together'
+                        : 'Activate Budget Together',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivationFeatureItem({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required _TogetherTokens tokens,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: tokens.tint(color, 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: tokens.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmDeactivate(BuildContext context) async {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final _TogetherTokens tokens = _TogetherTokens(isDark);
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: tokens.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: tokens.cardBorder),
+          ),
+          title: Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_TogetherTokens.spentRed, 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.pause_circle_rounded,
+                  color: _TogetherTokens.spentRed,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Deactivate Together?',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Daily records and shared budget tracking will stop.\n\nYour existing expenses, savings, debts, and historical data will NOT be reset and will remain safe.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _TogetherTokens.spentRed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.pause_circle_rounded, size: 16),
+              label: Text(
+                'Deactivate',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true && context.mounted) {
+      setState(() => _selectedModuleIndex = null);
+      await ref
+          .read(budgetBuddyControllerProvider.notifier)
+          .deactivateBudgetTogether();
+      if (context.mounted) {
+        showAppAlert(
+          context,
+          title: 'Budget Together Deactivated',
+          message:
+              'Daily recording stopped. All your historical data has been preserved.',
+          icon: Icons.info_outline_rounded,
+          accentColor: _TogetherTokens.spentRed,
+        );
+      }
+    }
   }
 
   /// Top Screen Title Header
@@ -229,11 +666,51 @@ class _TogetherScreenState extends ConsumerState<TogetherScreen> {
             ),
           ],
         ),
-        SoftPill(
-          text: 'Shared Hub',
-          color: _TogetherTokens.budgetGold,
-          icon: Icons.people_alt_rounded,
-          fontSize: 11,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SoftPill(
+              text: 'Shared Hub',
+              color: _TogetherTokens.budgetGold,
+              icon: Icons.people_alt_rounded,
+              fontSize: 11,
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () => _confirmDeactivate(context),
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: tokens.tint(_TogetherTokens.spentRed, 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: _TogetherTokens.spentRed.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(
+                      Icons.pause_circle_outline_rounded,
+                      size: 13,
+                      color: _TogetherTokens.spentRed,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Deactivate',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: _TogetherTokens.spentRed,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

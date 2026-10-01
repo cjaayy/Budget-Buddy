@@ -847,19 +847,21 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
           );
         }
 
-        final double togetherDayBudget =
-            isCurrentActiveDay ? state.togetherBudget : 0.0;
-        final double togetherDayExpenses = state.expenses
-            .where((ExpenseEntry expense) =>
-                expense.source == 'togetherSpend' &&
-                _isSameDay(expense.dateTime, day))
-            .fold(0.0,
-                (double sum, ExpenseEntry expense) => sum + expense.amount);
-        if (togetherDayBudget > 0 || togetherDayExpenses > 0) {
-          applyDailyBudgetSurplusAndDebt(
-            budget: togetherDayBudget,
-            expenses: togetherDayExpenses,
-          );
+        if (state.isTogetherActive) {
+          final double togetherDayBudget =
+              isCurrentActiveDay ? state.togetherBudget : 0.0;
+          final double togetherDayExpenses = state.expenses
+              .where((ExpenseEntry expense) =>
+                  expense.source == 'togetherSpend' &&
+                  _isSameDay(expense.dateTime, day))
+              .fold(0.0,
+                  (double sum, ExpenseEntry expense) => sum + expense.amount);
+          if (togetherDayBudget > 0 || togetherDayExpenses > 0) {
+            applyDailyBudgetSurplusAndDebt(
+              budget: togetherDayBudget,
+              expenses: togetherDayExpenses,
+            );
+          }
         }
 
         // Any unpaid absorbed debt from today must be added to savingsDebt so it's not lost
@@ -1160,6 +1162,29 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     _recalculatePeriodSpending(now);
     _backfillMissingDays(currentDate: now);
     _persist();
+  }
+
+  Future<void> activateBudgetTogether() async {
+    final DateTime currentNow = now;
+    state = state.copyWith(
+      isTogetherActive: true,
+      togetherActivatedAt: state.togetherActivatedAt ?? currentNow,
+      togetherDeactivatedAt: null,
+    );
+    _recalculatePeriodSpending(currentNow);
+    _backfillMissingDays(currentDate: currentNow);
+    await _repository.saveState(state);
+  }
+
+  Future<void> deactivateBudgetTogether() async {
+    final DateTime currentNow = now;
+    state = state.copyWith(
+      isTogetherActive: false,
+      togetherDeactivatedAt: currentNow,
+    );
+    _recalculatePeriodSpending(currentNow);
+    _backfillMissingDays(currentDate: currentNow);
+    await _repository.saveState(state);
   }
 
   void addTogetherDailyBudget({

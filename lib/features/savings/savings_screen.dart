@@ -4506,22 +4506,53 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
       return _sortedRecords(result);
     }
 
+    final bool isTogetherActive = state.isTogetherActive;
+    final DateTime? activatedAt = state.togetherActivatedAt;
+    final DateTime? deactivatedAt = state.togetherDeactivatedAt;
     final double togetherBudget = state.togetherBudget;
     final List<ExpenseEntry> togetherExpenses = state.expenses
         .where((ExpenseEntry e) => e.source == 'togetherSpend')
         .toList();
 
-    if (togetherBudget <= 0 && togetherExpenses.isEmpty) {
+    if (!isTogetherActive &&
+        activatedAt == null &&
+        togetherBudget <= 0 &&
+        togetherExpenses.isEmpty) {
       return <DailyRecord>[];
     }
 
     final Set<DateTime> dates = <DateTime>{};
     final DateTime today =
         DateTime(currentClock.year, currentClock.month, currentClock.day);
-    if (togetherBudget > 0 ||
-        togetherExpenses
-            .any((ExpenseEntry e) => DateUtils.isSameDay(e.dateTime, today))) {
-      dates.add(today);
+
+    DateTime? earliestTogether;
+    for (final ExpenseEntry e in togetherExpenses) {
+      final DateTime d = DateTime(e.dateTime.year, e.dateTime.month, e.dateTime.day);
+      if (earliestTogether == null || d.isBefore(earliestTogether)) {
+        earliestTogether = d;
+      }
+    }
+
+    final DateTime? rawStart = activatedAt != null
+        ? DateTime(activatedAt.year, activatedAt.month, activatedAt.day)
+        : (earliestTogether ?? (isTogetherActive ? today : null));
+
+    if (rawStart != null) {
+      DateTime cursor = (earliestTogether != null && earliestTogether.isBefore(rawStart))
+          ? earliestTogether
+          : rawStart;
+      final DateTime effectiveEnd = isTogetherActive
+          ? today
+          : (deactivatedAt != null
+              ? DateTime(deactivatedAt.year, deactivatedAt.month, deactivatedAt.day)
+              : today);
+      final DateTime endBound =
+          effectiveEnd.isAfter(today) ? today : effectiveEnd;
+
+      while (!cursor.isAfter(endBound)) {
+        dates.add(cursor);
+        cursor = DateTime(cursor.year, cursor.month, cursor.day + 1);
+      }
     }
 
     for (final ExpenseEntry expense in togetherExpenses) {
