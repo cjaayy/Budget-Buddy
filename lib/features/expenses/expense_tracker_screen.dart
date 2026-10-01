@@ -149,6 +149,16 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     BudgetBuddyState state,
     DateTime currentClock,
   ) {
+    if (widget.isTogetherOnly) {
+      final DateTime dayStart = DateTime(day.year, day.month, day.day);
+      final DateTime today =
+          DateTime(currentClock.year, currentClock.month, currentClock.day);
+      if (_isSameDayDate(dayStart, today)) {
+        return state.togetherBudget;
+      }
+      return 0.0;
+    }
+
     final DateTime dayStart = DateTime(day.year, day.month, day.day);
     final BudgetEntry? entry =
         state.budgetEntries.cast<BudgetEntry?>().firstWhere(
@@ -158,17 +168,31 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
     if (entry != null) {
       return entry.amount;
     }
-    final DailyRecord? record =
-        state.dailyRecords.cast<DailyRecord?>().firstWhere(
-              (DailyRecord? r) => r != null && _isSameDayDate(r.date, dayStart),
-              orElse: () => null,
-            );
-    if (record != null && record.budget > 0) {
-      return record.budget;
+
+    final DateTime today =
+        DateTime(currentClock.year, currentClock.month, currentClock.day);
+    final bool isToday = _isSameDayDate(dayStart, today);
+
+    if (isToday) {
+      if (state.settings.budgetCreatedAt != null &&
+          _isSameDayDate(state.settings.budgetCreatedAt!, today) &&
+          (state.settings.dailyLimit ?? 0.0) > 0) {
+        return state.settings.dailyLimit!;
+      }
+      return 0.0;
     }
-    if (state.settings.hasConfiguredBudget) {
-      return state.settings.dailyLimit ?? 0.0;
+
+    if (state.budgetEntries.isEmpty) {
+      final DailyRecord? record =
+          state.dailyRecords.cast<DailyRecord?>().firstWhere(
+                (DailyRecord? r) => r != null && _isSameDayDate(r.date, dayStart),
+                orElse: () => null,
+              );
+      if (record != null && record.budget > 0) {
+        return record.budget;
+      }
     }
+
     return 0.0;
   }
 

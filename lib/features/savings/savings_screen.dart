@@ -491,7 +491,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
 
     final double todayBudget = widget.isTogetherOnly
         ? state.togetherBudget
-        : (state.settings.dailyLimit ?? 0.0);
+        : (todayRecord?.budget ??
+            (state.settings.budgetCreatedAt != null &&
+                    DateUtils.isSameDay(
+                        state.settings.budgetCreatedAt!, currentClock)
+                ? (state.settings.dailyLimit ?? 0.0)
+                : 0.0));
     final double currentTodaySpent = widget.isTogetherOnly
         ? togetherSpent
         : state.dailySpent;
@@ -4134,10 +4139,13 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
               );
 
       // Only use dailyLimit as the budget if the user explicitly set a BudgetEntry
-      // for today. If they haven't set a budget today, treat budget as 0 so no
+      // for today or configured it today. If they haven't set a budget today, treat budget as 0 so no
       // fake "pending savings" appears.
-      final double todayBudget =
-          entry?.amount ?? (state.settings.dailyLimit ?? 0.0);
+      final double todayBudget = entry?.amount ??
+          (state.settings.budgetCreatedAt != null &&
+                  DateUtils.isSameDay(state.settings.budgetCreatedAt!, today)
+              ? (state.settings.dailyLimit ?? 0.0)
+              : 0.0);
 
       final List<ExpenseEntry> todayExpenses = state.expenses
           .where((ExpenseEntry e) =>

@@ -1018,7 +1018,10 @@ class BudgetBuddyController extends StateNotifier<BudgetBuddyState> {
     double dayBudget;
     if (entry != null) {
       dayBudget = entry.amount;
-    } else if (state.settings.hasConfiguredBudget) {
+    } else if (isToday &&
+        state.settings.budgetCreatedAt != null &&
+        _isSameDay(state.settings.budgetCreatedAt!, dayStart) &&
+        (state.settings.dailyLimit ?? 0.0) > 0) {
       dayBudget = state.settings.dailyLimit ?? 0.0;
     } else {
       dayBudget = 0.0;
