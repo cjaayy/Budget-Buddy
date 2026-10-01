@@ -1,12 +1,12 @@
 ﻿{
     "app_name":  "Budget Buddy",
     "package_name":  "com.budgetbuddy.app",
-    "version":  "1.5.8",
-    "build_number":  209,
-    "tag_name":  "v1.5.8",
-    "title":  "Budget Buddy v1.5.8",
-    "release_notes":  "## What\u0027s Changed in Budget Buddy v1.5.8\r\n\r\n### Features\r\n- add TogetherScreen for offline shared daily budget hub and modules\r\n- add Budget AI assistant widget and home shell\r\n- implement notification service with custom audio assets and profile settings UI\r\n- add spend screen with custom numeric keypad and batch expense queue\r\n\r\n**Full Changelog**: https://github.com/cjaayy/Budget-Buddy/commits/v1.5.8",
-    "download_url":  "https://github.com/cjaayy/Budget-Buddy/releases/download/v1.5.8/app-release.apk",
-    "published_at":  "2026-09-26T04:28:11Z",
+    "version":  "1.5.9",
+    "build_number":  217,
+    "tag_name":  "v1.5.9",
+    "title":  "Budget Buddy v1.5.9",
+    "release_notes":  "## What\u0027s Changed in Budget Buddy v1.5.9\r\n\r\n### Features\r\n- add core feature screens for dashboard, expenses, savings, budget, and profile management\r\n- add savings and together screens with core models and state controller\r\n- add Android method channel handlers and local notification service\r\n- add profile settings and splash screens\r\n- add core application state controller and profile settings screen\r\n- implement core app controller and feature screens for budget, expenses, savings, and together tracking\r\n- implement savings screen, expense tracker screen, and app state controller\r\n\r\n**Full Changelog**: https://github.com/cjaayy/Budget-Buddy/commits/v1.5.9",
+    "download_url":  "https://github.com/cjaayy/Budget-Buddy/releases/download/v1.5.9/app-release.apk",
+    "published_at":  "2026-10-01T06:21:32Z",
     "mandatory":  false
 }
