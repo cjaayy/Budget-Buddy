@@ -63,6 +63,34 @@ class MainActivity : FlutterActivity() {
 							result.success(true)
 						}
 					}
+					"openNotificationSettings" -> {
+						try {
+							val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+								Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+									putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+									addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+								}
+							} else {
+								Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+									data = Uri.parse("package:$packageName")
+									addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+								}
+							}
+							startActivity(intent)
+							result.success(true)
+						} catch (e: Exception) {
+							try {
+								val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+									data = Uri.parse("package:$packageName")
+									addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+								}
+								startActivity(intent)
+								result.success(true)
+							} catch (e2: Exception) {
+								result.error("SETTINGS_FAILED", e2.message, null)
+							}
+						}
+					}
 					"pickJson" -> {
 						if (pendingResult != null) {
 							result.error("BUSY", "Picker already active", null)

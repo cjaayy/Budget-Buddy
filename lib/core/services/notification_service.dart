@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -14,14 +16,94 @@ class NotificationService {
 
   Future<void> initialize() async {
     if (_initialized) return;
-    // Use the launcher icon — @android:drawable/* icons are unreliable on
-    // modern Android and can cause silent notification failures.
+
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: androidSettings);
     await _plugin.initialize(initializationSettings);
+
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bb_reminders_v2',
+          'Budget Reminders',
+          description: 'Daily reminders and smart budget alerts',
+          importance: Importance.max,
+        ),
+      );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bb_summary_v2',
+          'End of Day Summaries',
+          description: 'Daily savings and spending summary notifications',
+          importance: Importance.max,
+        ),
+      );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bb_reset_v2',
+          'Budget Reset Alerts',
+          description: 'Fired when the daily budget auto-resets at midnight',
+          importance: Importance.max,
+          sound: RawResourceAndroidNotificationSound('notif_budget_reset'),
+          playSound: true,
+        ),
+      );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bb_overspent_v2',
+          'Overspent Alerts',
+          description: 'Alerts when daily spending exceeds the budget limit',
+          importance: Importance.max,
+          sound: RawResourceAndroidNotificationSound('notif_overspent'),
+          playSound: true,
+        ),
+      );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bb_zero_v2',
+          'Zero Balance Alerts',
+          description: 'Alerts when the remaining daily balance hits zero',
+          importance: Importance.max,
+          sound: RawResourceAndroidNotificationSound('notif_zero_balance'),
+          playSound: true,
+        ),
+      );
+    }
+
     _initialized = true;
+  }
+
+  // ── Permissions ──────────────────────────────────────────────────────────
+
+  Future<bool> requestPermission() async {
+    if (!_initialized) await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true;
+    final bool? granted = await android.requestNotificationsPermission();
+    return granted ?? false;
+  }
+
+  Future<bool> areNotificationsEnabled() async {
+    if (!_initialized) await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true;
+    final bool? enabled = await android.areNotificationsEnabled();
+    return enabled ?? false;
+  }
+
+  Future<void> openNotificationSettings() async {
+    const channel = MethodChannel('budgetbuddy/storage');
+    try {
+      await channel.invokeMethod<void>('openNotificationSettings');
+    } catch (e) {
+      debugPrint('[NotificationService] openNotificationSettings error: $e');
+    }
   }
 
   // ── Generic helpers ───────────────────────────────────────────────────────
@@ -147,10 +229,45 @@ class NotificationService {
       int id, String title, String body, NotificationDetails details) async {
     if (!_initialized) await initialize();
     try {
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        final bool? enabled = await androidPlugin.areNotificationsEnabled();
+        if (enabled == false) {
+          final bool? granted =
+              await androidPlugin.requestNotificationsPermission();
+          if (granted != true) {
+            final bool? checkAgain =
+                await androidPlugin.areNotificationsEnabled();
+            if (checkAgain != true) {
+              return false;
+            }
+          }
+        }
+      }
+
       await _plugin.show(id, title, body, details);
       return true;
-    } catch (_) {
-      return false;
+    } catch (e) {
+      debugPrint('[NotificationService] Show failed: $e, trying fallback');
+      try {
+        final fallback = NotificationDetails(
+          android: AndroidNotificationDetails(
+            details.android?.channelId ?? 'bb_general_v2',
+            details.android?.channelName ?? 'Budget Buddy',
+            channelDescription: details.android?.channelDescription,
+            importance: Importance.max,
+            priority: Priority.max,
+            enableVibration: true,
+            playSound: true,
+          ),
+        );
+        await _plugin.show(id, title, body, fallback);
+        return true;
+      } catch (fallbackErr) {
+        debugPrint('[NotificationService] Fallback also failed: $fallbackErr');
+        return false;
+      }
     }
   }
 }

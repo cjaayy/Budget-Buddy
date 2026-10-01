@@ -990,6 +990,59 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: palette.goldBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: palette.goldBorder),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.notifications_active_outlined,
+                  size: 16,
+                  color: palette.gold,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Requires notification permission',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: palette.gold,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: palette.gold,
+                  ),
+                  onPressed: () async {
+                    final bool granted =
+                        await NotificationService.instance.requestPermission();
+                    if (!granted) {
+                      await NotificationService.instance
+                          .openNotificationSettings();
+                    }
+                  },
+                  child: Text(
+                    'Grant / Settings',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 14),
 
           // Budget Reset simulation tile
@@ -4052,12 +4105,27 @@ class _NotifPreviewButtonState extends State<_NotifPreviewButton> {
               ),
             ],
           ),
-          backgroundColor: ok ? const Color(0xFF0F766E) : const Color(0xFF991B1B),
+          action: ok
+              ? null
+              : SnackBarAction(
+                  label: 'Grant',
+                  textColor: Colors.white,
+                  onPressed: () async {
+                    final bool granted =
+                        await NotificationService.instance.requestPermission();
+                    if (!granted) {
+                      await NotificationService.instance
+                          .openNotificationSettings();
+                    }
+                  },
+                ),
+          backgroundColor:
+              ok ? const Color(0xFF0F766E) : const Color(0xFF991B1B),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
